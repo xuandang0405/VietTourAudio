@@ -95,7 +95,7 @@ dotnet ef migrations add InitialCreate
 dotnet ef database update
 ```
 
-Trước khi bật migration thật, cần rà lại mapping entity, enum, spatial `POINT SRID 4326` và convention snake_case.
+Trước khi bật migration thật, cần rà lại mapping entity, enum, spatial `POINT` tương thích MariaDB/MySQL và convention snake_case.
 
 ## Chạy API
 

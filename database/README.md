@@ -37,6 +37,23 @@ mysql -u root -p viettuoraudio < database/seed.sql
 
 `schema.sql` đã có `DROP TABLE IF EXISTS` theo đúng thứ tự nên có thể chạy lại khi cần reset dữ liệu dev.
 
+## Tương thích MariaDB
+
+MariaDB không hỗ trợ cú pháp column `POINT NOT NULL SRID 4326` giống MySQL 8. Vì vậy schema dùng:
+
+```sql
+location POINT NOT NULL
+```
+
+và vẫn tạo:
+
+```sql
+SPATIAL INDEX idx_stalls_location (location)
+SPATIAL INDEX idx_pois_location (location)
+```
+
+Tọa độ chuẩn vẫn được lưu thêm ở `latitude` và `longitude`, còn `location` dùng cho truy vấn không gian.
+
 ## Ghi chú mật khẩu demo
 
 Seed tạo tài khoản:

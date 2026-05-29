@@ -67,19 +67,21 @@ mysql -u root -p viettuoraudio < database/seed.sql
 
 ## Spatial data
 
-`stalls.location` và `pois.location` dùng `POINT NOT NULL SRID 4326`.
+`stalls.location` và `pois.location` dùng `POINT NOT NULL` để tương thích cả MariaDB và MySQL.
 
 Khi insert, dùng thứ tự:
 
 ```sql
-ST_GeomFromText('POINT(longitude latitude)', 4326)
+ST_GeomFromText('POINT(longitude latitude)')
 ```
 
 Ví dụ:
 
 ```sql
-ST_GeomFromText('POINT(106.698278 10.772112)', 4326)
+ST_GeomFromText('POINT(106.698278 10.772112)')
 ```
+
+Lý do không dùng `POINT NOT NULL SRID 4326`: MariaDB báo lỗi cú pháp tại `SRID 4326`. Dự án vẫn giữ `latitude`, `longitude`, `POINT` và `SPATIAL INDEX` để hỗ trợ spatial query.
 
 ## Media storage
 

@@ -28,7 +28,7 @@ VietTourAudio giúp khách du lịch mở web app bằng QR, cấp quyền GPS v
 | Frontend | ReactJS, Vite, PWA, React Router, Zustand, Axios |
 | UI | CSS responsive, glassmorphism nhẹ, logo `logo.png` và `logo-text.png` |
 | Backend | .NET 8 Web API, C#, Swagger/OpenAPI, JWT scaffold, CORS |
-| Database | MySQL 8.x, InnoDB, utf8mb4, `POINT SRID 4326`, `SPATIAL INDEX` |
+| Database | MySQL/MariaDB, InnoDB, utf8mb4, `POINT`, `SPATIAL INDEX` |
 | Storage | Local file storage cho ảnh, video, audio, logo, QR |
 | DevOps | Docker Compose cho MySQL/phpMyAdmin, script Windows/Linux |
 
@@ -98,7 +98,7 @@ SELECT COUNT(*) FROM stalls;
 SELECT COUNT(*) FROM pois;
 ```
 
-`schema.sql` đã có `DROP TABLE IF EXISTS` đúng thứ tự, có khóa ngoại, index và spatial index. File media không lưu trực tiếp vào database, chỉ lưu path/url.
+`schema.sql` đã có `DROP TABLE IF EXISTS` đúng thứ tự, có khóa ngoại, index và spatial index. File media không lưu trực tiếp vào database, chỉ lưu path/url. Schema dùng `POINT NOT NULL` thay vì `POINT NOT NULL SRID 4326` để chạy được trên MariaDB.
 
 ## 8. Cấu hình backend .NET
 
