@@ -14,7 +14,7 @@ Mở:
 http://localhost:5173
 ```
 
-Nếu chạy trên Windows trong đường dẫn có ký tự `#`, ví dụ `Desktop/c#/viettouraudio`, hãy dùng `run-windows.bat` ở root. Script này tạo junction tạm trong `%TEMP%` để Vite dev server resolve `/src/main.jsx` ổn định.
+Nếu chạy trên Windows trong đường dẫn có ký tự `#`, ví dụ `Desktop/c#/viettouraudio`, script `npm run dev` sẽ tự chạy Vite từ workspace tạm `%TEMP%/VietTourAudioClientDev` và sync file từ project gốc. Đây là workaround cho lỗi Vite `Failed to load url /src/main.jsx`.
 
 ## Logo
 

@@ -254,4 +254,4 @@ run-windows.bat
 
 Script sẽ kiểm tra NodeJS/npm/.NET SDK, cài dependencies client nếu thiếu, restore backend, mở client và server. Nếu máy có Docker, script mở thêm MySQL/phpMyAdmin.
 
-Trên Windows, nếu repo nằm trong đường dẫn có ký tự `#`, script sẽ tạo junction tạm trong `%TEMP%` để Vite dev server chạy ổn định.
+Trên Windows, nếu repo nằm trong đường dẫn có ký tự `#`, `npm run dev` sẽ tự chạy Vite từ workspace tạm trong `%TEMP%` để tránh lỗi `Failed to load url /src/main.jsx`.

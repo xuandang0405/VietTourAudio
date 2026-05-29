@@ -3,7 +3,6 @@ setlocal
 
 set "ROOT_DIR=%~dp0"
 set "CLIENT_DIR=%ROOT_DIR%client"
-set "CLIENT_RUN_DIR=%TEMP%\VietTourAudioClient"
 set "SERVER_DIR=%ROOT_DIR%server\VietTourAudio.Api"
 
 title VietTourAudio - Run Web
@@ -54,16 +53,8 @@ if not errorlevel 1 (
 )
 
 echo [4/4] Dang mo server va client...
-if exist "%CLIENT_RUN_DIR%" (
-  rmdir "%CLIENT_RUN_DIR%" >nul 2>nul
-)
-mklink /J "%CLIENT_RUN_DIR%" "%CLIENT_DIR%" >nul
-if errorlevel 1 (
-  echo Khong tao duoc junction tam, se chay client truc tiep tu thu muc project.
-  set "CLIENT_RUN_DIR=%CLIENT_DIR%"
-)
 start "VietTourAudio - Server API" cmd /k "set DOTNET_ROLL_FORWARD=Major&& cd /d ""%SERVER_DIR%"" && dotnet run"
-start "VietTourAudio - Client PWA" cmd /k "cd /d ""%CLIENT_RUN_DIR%"" && npm run dev -- --host 0.0.0.0"
+start "VietTourAudio - Client PWA" cmd /k "cd /d ""%CLIENT_DIR%"" && npm run dev -- --host 0.0.0.0"
 
 echo.
 echo Da mo cac cua so chay app.
