@@ -1,0 +1,15 @@
+:root {
+  --color-ink: #123331;
+  --color-muted: #60706d;
+  --color-soft: #eef8f7;
+  --color-surface: #ffffff;
+  --color-border: #d8e7e4;
+  --color-primary: #0f766e;
+  --color-primary-dark: #0b4f49;
+  --color-sky: #38bdf8;
+  --color-accent: #f59e0b;
+  --color-danger: #dc2626;
+  --shadow-soft: 0 18px 48px rgba(15, 118, 110, 0.14);
+  --radius: 8px;
+  --container: 1180px;
+}
