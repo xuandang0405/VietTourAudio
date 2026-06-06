@@ -1,11 +1,10 @@
-import { spawn, spawnSync } from 'node:child_process';
-import crypto from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 const sourceRoot = process.cwd();
-const viteArgs = process.argv.slice(2);
+const buildArgs = process.argv.slice(2);
 const hasUnsafePath = /[#]/.test(sourceRoot);
 
 const ignoredTopLevel = new Set([
@@ -14,6 +13,10 @@ const ignoredTopLevel = new Set([
   '.git',
   '.vite'
 ]);
+
+function nodeCommand() {
+  return process.execPath;
+}
 
 function npmCommand() {
   return process.platform === 'win32' ? 'npm.cmd' : 'npm';
@@ -33,10 +36,6 @@ function npmInstallCommand() {
   };
 }
 
-function nodeCommand() {
-  return process.execPath;
-}
-
 function shouldIgnore(relativePath) {
   if (!relativePath) {
     return false;
@@ -46,6 +45,15 @@ function shouldIgnore(relativePath) {
   return ignoredTopLevel.has(firstPart)
     || relativePath.endsWith('.log')
     || relativePath.includes(`${path.sep}.vite${path.sep}`);
+}
+
+function assertInside(parent, target) {
+  const resolvedParent = path.resolve(parent);
+  const resolvedTarget = path.resolve(target);
+
+  if (resolvedTarget !== resolvedParent && !resolvedTarget.startsWith(`${resolvedParent}${path.sep}`)) {
+    throw new Error(`Refusing to write outside ${resolvedParent}: ${resolvedTarget}`);
+  }
 }
 
 function copyEntry(from, to) {
@@ -81,33 +89,14 @@ function syncProject(targetRoot) {
   }
 }
 
-function dependencyFingerprint(targetRoot) {
-  const hash = crypto.createHash('sha256');
-
-  for (const fileName of ['package.json', 'package-lock.json']) {
-    const filePath = path.join(targetRoot, fileName);
-    if (fs.existsSync(filePath)) {
-      hash.update(fileName);
-      hash.update(fs.readFileSync(filePath));
-    }
-  }
-
-  return hash.digest('hex');
-}
-
 function ensureDependencies(targetRoot) {
   const viteBin = path.join(targetRoot, 'node_modules', 'vite', 'bin', 'vite.js');
-  const markerFile = path.join(targetRoot, 'node_modules', '.vite-safe-deps');
-  const expectedFingerprint = dependencyFingerprint(targetRoot);
-  const currentFingerprint = fs.existsSync(markerFile)
-    ? fs.readFileSync(markerFile, 'utf8').trim()
-    : '';
 
-  if (fs.existsSync(viteBin) && currentFingerprint === expectedFingerprint) {
+  if (fs.existsSync(viteBin)) {
     return;
   }
 
-  console.log('[vite-safe] Installing client dependencies in temporary dev workspace...');
+  console.log('[vite-safe] Installing client dependencies in temporary build workspace...');
   const install = npmInstallCommand();
   const result = spawnSync(install.command, install.args, {
     cwd: targetRoot,
@@ -122,13 +111,11 @@ function ensureDependencies(targetRoot) {
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
   }
-
-  fs.writeFileSync(markerFile, expectedFingerprint);
 }
 
-function runVite(cwd) {
+function runViteBuild(cwd) {
   const viteBin = path.join(cwd, 'node_modules', 'vite', 'bin', 'vite.js');
-  const child = spawn(nodeCommand(), [viteBin, ...viteArgs], {
+  const result = spawnSync(nodeCommand(), [viteBin, 'build', ...buildArgs], {
     cwd,
     stdio: 'inherit',
     shell: false,
@@ -138,58 +125,30 @@ function runVite(cwd) {
     }
   });
 
-  const stop = () => {
-    if (!child.killed) {
-      child.kill();
-    }
-  };
-
-  process.on('SIGINT', stop);
-  process.on('SIGTERM', stop);
-
-  child.on('exit', (code, signal) => {
-    if (signal) {
-      process.kill(process.pid, signal);
-      return;
-    }
-
-    process.exit(code ?? 0);
-  });
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
 }
 
-function watchAndSync(targetRoot) {
-  if (process.platform !== 'win32') {
-    return;
-  }
+function copyDistBack(fromRoot) {
+  const fromDist = path.join(fromRoot, 'dist');
+  const toDist = path.join(sourceRoot, 'dist');
 
-  fs.watch(sourceRoot, { recursive: true }, (_event, fileName) => {
-    if (!fileName) {
-      return;
-    }
-
-    const relativePath = fileName.toString();
-    if (shouldIgnore(relativePath)) {
-      return;
-    }
-
-    const from = path.join(sourceRoot, relativePath);
-    const to = path.join(targetRoot, relativePath);
-
-    try {
-      copyEntry(from, to);
-    } catch (error) {
-      console.warn(`[vite-safe] Sync skipped for ${relativePath}: ${error.message}`);
-    }
-  });
+  assertInside(sourceRoot, toDist);
+  fs.rmSync(toDist, { recursive: true, force: true });
+  copyEntry(fromDist, toDist);
 }
 
 if (!hasUnsafePath) {
-  runVite(sourceRoot);
+  runViteBuild(sourceRoot);
 } else {
-  const tempRoot = path.join(os.tmpdir(), 'VietTourAudioClientDev');
-  console.log(`[vite-safe] Path contains '#'. Running Vite from: ${tempRoot}`);
+  const tempRoot = path.join(os.tmpdir(), 'VietTourAudioClientBuild');
+  console.log(`[vite-safe] Path contains '#'. Building Vite from: ${tempRoot}`);
+
+  assertInside(os.tmpdir(), tempRoot);
+  fs.rmSync(tempRoot, { recursive: true, force: true });
   syncProject(tempRoot);
   ensureDependencies(tempRoot);
-  watchAndSync(tempRoot);
-  runVite(tempRoot);
+  runViteBuild(tempRoot);
+  copyDistBack(tempRoot);
 }

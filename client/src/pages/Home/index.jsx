@@ -1,74 +1,73 @@
+import { ArrowRight, Compass, QrCode, Star, UserRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
-const heroTravel = `${import.meta.env.BASE_URL}brand/hero-travel.png`;
-
-const features = [
-  ['GPS tự động', 'Kích hoạt thuyết minh khi khách đến gần sạp hoặc POI.'],
-  ['QR tức thì', 'Mở đúng nội dung, ghi nhận lượt quét và nguồn giới thiệu.'],
-  ['Audio đa ngôn ngữ', 'Hỗ trợ tiếng Việt, Anh và các ngôn ngữ du lịch phổ biến.'],
-  ['Dashboard doanh thu', 'Theo dõi lượt ghé, lượt nghe, thanh toán và hoa hồng.']
-];
+import { EmptyState, ErrorState, LoadingState } from '../../components/UiState.jsx';
+import ZoneQrCard from '../../components/ZoneQrCard.jsx';
+import { zones } from '../../data/zones.js';
+import logo from '../../assets/logo/logo.png';
 
 function Home() {
+  const isLoading = false;
+  const hasError = false;
+  const zoneList = zones;
+
   return (
-    <main>
-      <section className="hero" style={{ backgroundImage: `linear-gradient(90deg, rgba(6, 78, 59, 0.92), rgba(15, 118, 110, 0.62)), url(${heroTravel})` }}>
-        <div className="hero-content">
-          <p className="eyebrow">GPS Audio Guide Platform</p>
-          <h1>VietTourAudio</h1>
-          <p className="hero-copy">
-            PWA thuyết minh du lịch tự động theo GPS, QR và nội dung audio đa ngôn ngữ,
-            giúp khách hiểu câu chuyện của từng điểm đến ngay khi họ bước tới.
-          </p>
-          <div className="hero-actions">
-            <Link className="primary-button" to="/map">Bắt đầu khám phá</Link>
-            <Link className="secondary-button" to="/register">Đăng ký chủ sạp</Link>
+    <main className="screen global-dashboard-screen">
+      <header className="explore-header">
+        <div className="mini-brand">
+          <img src={logo} alt="VietTourAudio" />
+          <div>
+            <span>Global Dashboard</span>
+            <strong>Khám phá theo khu vực</strong>
           </div>
         </div>
+        <Link className="avatar-button" to="/profile" aria-label="Hồ sơ">
+          <UserRound size={20} />
+        </Link>
+      </header>
+
+      <section className="global-hero-panel">
+        <div>
+          <p className="eyebrow">Zone Based PWA</p>
+          <h1>Điểm đến tiếp theo của bạn?</h1>
+          <p>VietTourAudio chỉ mở dữ liệu chi tiết khi khách quét đúng QR tại từng khu vực.</p>
+        </div>
+        <Compass size={54} />
       </section>
 
-      <section className="section feature-section">
-        <div className="section-heading">
-          <span className="eyebrow">Trải nghiệm lõi</span>
-          <h2>Nghe đúng nơi, đúng ngôn ngữ, đúng thời điểm</h2>
-        </div>
-        <div className="feature-grid">
-          {features.map(([title, description]) => (
-            <article className="feature-card" key={title}>
-              <span className="feature-mark" />
-              <h3>{title}</h3>
-              <p>{description}</p>
+      {isLoading && <LoadingState title="Đang tải khu vực" description="VietTourAudio đang lấy danh sách khu vực có QR riêng." />}
+      {hasError && <ErrorState title="Không thể tải khu vực" description="Kiểm tra kết nối hoặc thử lại sau." />}
+      {!isLoading && !hasError && zoneList.length === 0 && (
+        <EmptyState title="Chưa có khu vực" description="Khu vực sẽ xuất hiện khi admin tạo QR khu vực trên hệ thống." />
+      )}
+      {!isLoading && !hasError && zoneList.length > 0 && (
+        <section className="zone-grid" aria-label="Danh sách khu vực">
+          {zoneList.map((zone) => (
+            <article className="zone-card" key={zone.id}>
+              <Link className="zone-card-cover" to={zone.qrPath}>
+                <img src={zone.coverImage} alt={zone.name} />
+                <span className={zone.accessLabel === 'Cần quét QR' ? 'locked' : ''}>
+                  <QrCode size={14} />
+                  {zone.accessLabel}
+                </span>
+              </Link>
+              <div className="zone-card-body">
+                <h2>{zone.name}</h2>
+                <p>{zone.city}</p>
+                <div className="zone-card-meta">
+                  <span>{zone.poiCount} điểm</span>
+                  <span>{zone.audioMinutes} phút</span>
+                  <span><Star size={13} fill="currentColor" />{zone.rating}</span>
+                </div>
+                <ZoneQrCard zone={zone} compact />
+                <Link className="zone-card-link" to={zone.qrPath}>
+                  Mở không gian khu vực
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
             </article>
           ))}
-        </div>
-      </section>
-
-      <section className="section split-section">
-        <div>
-          <span className="eyebrow">Dành cho chủ sạp</span>
-          <h2>Biến mỗi lượt ghé thành dữ liệu kinh doanh</h2>
-          <p>
-            Chủ sạp quản lý nội dung giới thiệu, ảnh, video, QR thanh toán, gói tháng và
-            thống kê lượt khách trên cùng một dashboard.
-          </p>
-        </div>
-        <div className="metric-panel">
-          <div><strong>12.8K</strong><span>Lượt quét QR</span></div>
-          <div><strong>7.4K</strong><span>Lượt nghe audio</span></div>
-          <div><strong>10%</strong><span>Hoa hồng Premium</span></div>
-        </div>
-      </section>
-
-      <section className="section premium-band">
-        <div>
-          <span className="eyebrow">Premium</span>
-          <h2>Ưu tiên hiển thị, giọng đọc cao cấp và media nổi bật</h2>
-          <p>
-            Gói Premium giúp sạp xuất hiện nổi bật hơn trên bản đồ, có nhiều lựa chọn giọng
-            audio và thêm ảnh/video giới thiệu để tăng tỷ lệ chuyển đổi.
-          </p>
-        </div>
-        <Link className="primary-button light" to="/premium">Xem gói Premium</Link>
-      </section>
+        </section>
+      )}
     </main>
   );
 }
