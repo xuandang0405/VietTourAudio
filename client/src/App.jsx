@@ -1,61 +1,114 @@
-import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
-import AppLayout from './layouts/AppLayout.jsx';
-import AdminDashboard from './pages/AdminDashboard/index.jsx';
-import Home from './pages/Home/index.jsx';
-import Login from './pages/Login/index.jsx';
-import MapPage from './pages/Map/index.jsx';
-import Payment from './pages/Payment/index.jsx';
-import Premium from './pages/Premium/index.jsx';
-import Profile from './pages/Profile/index.jsx';
-import Register from './pages/Register/index.jsx';
-import Saved from './pages/Saved/index.jsx';
-import StallDashboard from './pages/StallDashboard/index.jsx';
-import ZoneLanding from './pages/ZoneLanding/index.jsx';
-import ZoneMap from './pages/ZoneMap/index.jsx';
-import VietnamMapIllustration from './components/VietnamMapIllustration.jsx';
-import { defaultZoneSlug } from './data/zones.js';
-import logo from './assets/logo/logo.png';
-import logoText from './assets/logo/logo-text.png';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useCallback, useEffect, useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { PREMIUM_ACTIVATION_CODE } from './data/visitorPois';
+import { usePremiumStore } from './stores/premiumStore';
+import { CheckoutModal } from './visitor/components/CheckoutModal';
+import { Confetti } from './visitor/components/Confetti';
+import { OfflineBanner } from './visitor/components/OfflineBanner';
+import { Toast } from './visitor/components/Toast';
+import { VisitorShell } from './visitor/components/VisitorShell';
+import { LandingPage } from './visitor/pages/LandingPage';
+import { ListPage } from './visitor/pages/ListPage';
+import { MapPage } from './visitor/pages/MapPage';
+import { SettingsPage } from './visitor/pages/SettingsPage';
 
-function SplashScreen() {
+function AppRoutes() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activatePremium = usePremiumStore((state) => state.activatePremium);
+  const hydrateFromLegacy = usePremiumStore((state) => state.hydrateFromLegacy);
+  const checkExpiry = usePremiumStore((state) => state.checkExpiry);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [toast, setToast] = useState('');
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  const showToast = useCallback((message) => {
+    setToast(message);
+  }, []);
+
+  useEffect(() => {
+    hydrateFromLegacy();
+    checkExpiry();
+  }, [checkExpiry, hydrateFromLegacy]);
+
+  useEffect(() => {
+    const timer = window.setInterval(checkExpiry, 10000);
+    return () => window.clearInterval(timer);
+  }, [checkExpiry]);
+
+  useEffect(() => {
+    if (!toast) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => setToast(''), 2800);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const activationCode = params.get('activate');
+
+    if (activationCode !== PREMIUM_ACTIVATION_CODE) {
+      return;
+    }
+
+    activatePremium();
+    params.delete('activate');
+    showToast('Premium demo đã được kích hoạt 24 giờ.');
+    setShowConfetti(true);
+    window.setTimeout(() => setShowConfetti(false), 1500);
+    navigate(
+      {
+        pathname: location.pathname,
+        search: params.toString()
+      },
+      { replace: true }
+    );
+  }, [activatePremium, location.pathname, location.search, navigate, showToast]);
+
+  function handlePaymentSuccess() {
+    activatePremium();
+    setCheckoutOpen(false);
+    showToast('Thanh toán thành công. Premium đã mở khóa 24 giờ.');
+    setShowConfetti(true);
+    window.setTimeout(() => setShowConfetti(false), 1500);
+  }
+
   return (
-    <main className="splash-screen">
-      <div className="soundwave-bg" aria-hidden="true" />
-      <VietnamMapIllustration variant="splash" />
-      <section className="splash-card">
-        <img className="splash-logo" src={logo} alt="VietTourAudio" />
-        <img className="splash-logo-text" src={logoText} alt="VietTourAudio" />
-        <p>Thuyết minh du lịch tự động theo GPS, QR và âm thanh đa ngôn ngữ.</p>
-        <Link className="primary-button sunset" to={`/zone/${defaultZoneSlug}`}>
-          Bắt đầu hành trình
-        </Link>
-      </section>
-    </main>
+    <VisitorShell>
+      <OfflineBanner />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          className="absolute inset-0"
+        >
+          <Routes location={location}>
+            <Route path="/" element={<LandingPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
+            <Route path="/map" element={<MapPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
+            <Route path="/list" element={<ListPage onUpgrade={() => setCheckoutOpen(true)} />} />
+            <Route path="/settings" element={<SettingsPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </motion.div>
+      </AnimatePresence>
+
+      <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} onSuccess={handlePaymentSuccess} />
+      <Toast message={toast} />
+      <Confetti show={showConfetti} />
+    </VisitorShell>
   );
 }
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<SplashScreen />} />
-        <Route element={<AppLayout />}>
-          <Route path="/zone/:zoneSlug" element={<ZoneLanding />} />
-          <Route path="/zone/:zoneSlug/map" element={<ZoneMap />} />
-          <Route path="/explore" element={<Home />} />
-          <Route path="/map" element={<Navigate to={`/zone/${defaultZoneSlug}/map`} replace />} />
-          <Route path="/saved" element={<Saved />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/premium" element={<Premium />} />
-          <Route path="/payment" element={<Payment />} />
-          <Route path="/stall-dashboard" element={<StallDashboard />} />
-          <Route path="/admin-dashboard" element={<AdminDashboard />} />
-          <Route path="/legacy-map" element={<MapPage />} />
-        </Route>
-        <Route path="*" element={<Navigate to={`/zone/${defaultZoneSlug}`} replace />} />
-      </Routes>
+      <AppRoutes />
     </BrowserRouter>
   );
 }

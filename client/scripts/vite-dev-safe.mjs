@@ -81,6 +81,15 @@ function syncProject(targetRoot) {
   }
 }
 
+function assertInside(parent, target) {
+  const resolvedParent = path.resolve(parent);
+  const resolvedTarget = path.resolve(target);
+
+  if (resolvedTarget !== resolvedParent && !resolvedTarget.startsWith(`${resolvedParent}${path.sep}`)) {
+    throw new Error(`Refusing to write outside ${resolvedParent}: ${resolvedTarget}`);
+  }
+}
+
 function dependencyFingerprint(targetRoot) {
   const hash = crypto.createHash('sha256');
 
@@ -97,15 +106,20 @@ function dependencyFingerprint(targetRoot) {
 
 function ensureDependencies(targetRoot) {
   const viteBin = path.join(targetRoot, 'node_modules', 'vite', 'bin', 'vite.js');
+  const caniuseBorderRadius = path.join(targetRoot, 'node_modules', 'caniuse-lite', 'data', 'features', 'border-radius.js');
   const markerFile = path.join(targetRoot, 'node_modules', '.vite-safe-deps');
   const expectedFingerprint = dependencyFingerprint(targetRoot);
   const currentFingerprint = fs.existsSync(markerFile)
     ? fs.readFileSync(markerFile, 'utf8').trim()
     : '';
 
-  if (fs.existsSync(viteBin) && currentFingerprint === expectedFingerprint) {
+  if (fs.existsSync(viteBin) && fs.existsSync(caniuseBorderRadius) && currentFingerprint === expectedFingerprint) {
     return;
   }
+
+  const nodeModulesPath = path.join(targetRoot, 'node_modules');
+  assertInside(targetRoot, nodeModulesPath);
+  fs.rmSync(nodeModulesPath, { recursive: true, force: true });
 
   console.log('[vite-safe] Installing client dependencies in temporary dev workspace...');
   const install = npmInstallCommand();
