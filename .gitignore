@@ -31,6 +31,9 @@ obj/
 logs/
 *.log
 
+# Local Codex workspace
+work/
+
 # Runtime uploads and generated files
 server/uploads/images/*
 server/uploads/videos/*

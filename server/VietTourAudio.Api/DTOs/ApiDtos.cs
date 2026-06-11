@@ -63,13 +63,19 @@ public sealed record PoiRequestDto(
 public sealed record PoiResponseDto(
   ulong Id,
   ulong StallId,
+  string Slug,
   string Name,
   string? Description,
+  string ZoneName,
+  string Category,
+  string? ImageUrl,
   decimal Latitude,
   decimal Longitude,
   int ActivationRadius,
   bool IsPremium,
-  string Status
+  string Status,
+  decimal? DistanceMeters,
+  bool IsInsideGeofence
 );
 
 public sealed record PoiContentRequestDto(
@@ -86,6 +92,7 @@ public sealed record PoiContentResponseDto(
   ulong PoiId,
   string LanguageCode,
   string Title,
+  string? TtsScript,
   string? AudioFileUrl,
   string VoiceType
 );

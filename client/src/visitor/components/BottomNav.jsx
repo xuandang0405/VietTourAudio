@@ -1,40 +1,42 @@
 import { Compass, List, Settings, Crown } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { usePremiumStore } from '../../stores/premiumStore';
+import { useTranslation } from '../../i18n/translations';
 
 export function BottomNav() {
+  const { t } = useTranslation();
   const isPremium = usePremiumStore((state) => state.isPremium);
 
   const tabs = [
     {
       id: 'explore',
-      label: 'Khám phá',
+      label: t('explore'),
       to: '/map',
       icon: Compass
     },
     {
       id: 'list',
-      label: 'Danh sách',
+      label: t('list'),
       to: '/list',
       icon: List
     },
     {
       id: 'premium',
-      label: isPremium ? 'Premium (Active)' : 'Mở khóa',
+      label: isPremium ? 'Premium' : t('unlock'),
       to: '/', // Sẽ mở modal mua Premium
       icon: Crown,
       isAction: true
     },
     {
       id: 'settings',
-      label: 'Cài đặt',
+      label: t('settings'),
       to: '/settings',
       icon: Settings
     }
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[1300] bg-white/90 backdrop-blur-xl border-t border-slate-200 pb-safe">
+    <nav className="absolute bottom-0 left-0 right-0 z-[1300] bg-white/90 backdrop-blur-xl border-t border-slate-200 pb-safe">
       <div className="flex items-center justify-around px-2 py-3 max-w-md mx-auto relative">
         {tabs.map(({ id, label, to, icon: Icon, isAction }) => (
           <NavLink

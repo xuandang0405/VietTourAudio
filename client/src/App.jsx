@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { PREMIUM_ACTIVATION_CODE } from './data/visitorPois';
 import { usePremiumStore } from './stores/premiumStore';
+import { useTranslation } from './i18n/translations';
 import { CheckoutModal } from './visitor/components/CheckoutModal';
 import { Confetti } from './visitor/components/Confetti';
 import { OfflineBanner } from './visitor/components/OfflineBanner';
@@ -25,6 +26,7 @@ import { AdminContent } from './admin/pages/AdminContent';
 import { AdminGeofences } from './admin/pages/AdminGeofences';
 
 function AppRoutes() {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const activatePremium = usePremiumStore((state) => state.activatePremium);
@@ -71,7 +73,7 @@ function AppRoutes() {
 
     activatePremium();
     params.delete('activate');
-    showToast('Premium demo đã được kích hoạt 24 giờ.');
+    showToast(t('premiumActivated'));
     setShowConfetti(true);
     window.setTimeout(() => setShowConfetti(false), 1500);
     navigate(
@@ -86,7 +88,7 @@ function AppRoutes() {
   function handlePaymentSuccess() {
     activatePremium();
     setCheckoutOpen(false);
-    showToast('Thanh toán thành công. Premium đã mở khóa 24 giờ.');
+    showToast(t('paymentSuccess'));
     setShowConfetti(true);
     window.setTimeout(() => setShowConfetti(false), 1500);
   }

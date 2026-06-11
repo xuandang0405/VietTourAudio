@@ -1,7 +1,8 @@
 import { apiClient } from './apiClient';
 
 export const poiService = {
-  getAll: () => apiClient.get('/poi'),
-  getNearby: (params) => apiClient.get('/poi/nearby', { params }),
-  getById: (id) => apiClient.get(`/poi/${id}`)
+  getAll: () => apiClient.get('/pois'),
+  getNearby: (params) => apiClient.get('/pois/nearby', { params }),
+  getById: (id) => apiClient.get(`/pois/${id}`),
+  getContents: (id) => apiClient.get(`/poi-contents/poi/${id}`)
 };

@@ -4,8 +4,10 @@ import logoText from '../../assets/logo/logo-text.png';
 import { useLanguageStore } from '../../stores/languageStore';
 import { usePremiumStore } from '../../stores/premiumStore';
 import { useEffect, useState } from 'react';
+import { useTranslation } from '../../i18n/translations';
 
 export function TopBar({ title = 'VietTourAudio', compact = false }) {
+  const { t } = useTranslation();
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
   const toggleLanguage = useLanguageStore((state) => state.toggleLanguage);
   
@@ -29,7 +31,7 @@ export function TopBar({ title = 'VietTourAudio', compact = false }) {
           {compact ? (
             <div>
               <p className="text-base font-bold text-slate-900">{title}</p>
-              <p className="text-xs font-medium text-slate-500">Smart Guide</p>
+              <p className="text-xs font-medium text-slate-500">{t('smartGuide')}</p>
             </div>
           ) : (
             <img className="h-7 object-contain" src={logoText} alt="VietTourAudio" />
@@ -49,7 +51,7 @@ export function TopBar({ title = 'VietTourAudio', compact = false }) {
         <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-premium-200 bg-gradient-to-r from-premium-50 to-premium-100 px-4 py-1.5 shadow-md">
           <Crown size={16} className="text-premium-600" />
           <span className="text-sm font-bold text-premium-800">
-            Premium còn: <span className="font-mono">{countdown}</span>
+            {t('premiumRemaining')} <span className="font-mono">{countdown}</span>
           </span>
         </div>
       )}

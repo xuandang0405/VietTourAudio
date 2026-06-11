@@ -2,12 +2,14 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, Crown, X, Copy } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
+import { useTranslation } from '../../i18n/translations';
 
 const TEST_PAYMENT_VALUE = 'VietTourAudio-TestPayment-30000VND';
 const BANK_ACCOUNT = '190382910283 (Techcombank)';
 const TRANSFER_CONTENT = 'VTA PREMIUM';
 
 export function CheckoutModal({ open, onClose, onSuccess }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -50,12 +52,12 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
             </div>
 
             <div className="px-6 pb-8 pt-4">
-              <h2 className="text-2xl font-black leading-tight text-slate-900">Mở Khóa Premium</h2>
-              <p className="mt-1 text-sm font-medium text-slate-500">Kích hoạt Audio thông minh 24h</p>
+              <h2 className="text-2xl font-black leading-tight text-slate-900">{t('openPremium')}</h2>
+              <p className="mt-1 text-sm font-medium text-slate-500">{t('activateAudio')}</p>
               
               <div className="mt-4 mb-2">
                 <span className="text-4xl font-extrabold text-premium-600">30.000</span>
-                <span className="text-sm font-bold text-premium-600 ml-1">VNĐ</span>
+                <span className="text-sm font-bold text-premium-600 ml-1">VND</span>
               </div>
 
               <div className="mx-auto mt-4 w-max rounded-3xl border border-slate-100 bg-white p-3 shadow-md">
@@ -64,11 +66,11 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
 
               <div className="mt-6 rounded-2xl bg-slate-50 p-4 border border-slate-100">
                 <div className="flex justify-between items-center text-sm mb-2">
-                  <span className="text-slate-500">Ngân hàng</span>
+                  <span className="text-slate-500">{t('bank')}</span>
                   <span className="font-bold text-slate-900">{BANK_ACCOUNT}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">Nội dung</span>
+                  <span className="text-slate-500">{t('transferContent')}</span>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-premium-600">{TRANSFER_CONTENT}</span>
                     <button onClick={handleCopy} className="p-1.5 rounded-lg bg-white shadow-sm border border-slate-200 text-slate-600 active:scale-95">
@@ -84,7 +86,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
                 className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-4 text-sm font-bold text-white shadow-xl shadow-slate-900/20 transition duration-300 hover:bg-black active:scale-[0.98]"
               >
                 <CheckCircle2 size={20} className="text-premium-400" />
-                Tôi đã thanh toán
+                {t('paid')}
               </button>
             </div>
           </motion.section>

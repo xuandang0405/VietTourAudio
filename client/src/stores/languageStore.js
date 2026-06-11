@@ -13,6 +13,24 @@ export const languages = [
     label: 'EN',
     name: 'English',
     speechCode: 'en-US'
+  },
+  {
+    code: 'ja',
+    label: 'JA',
+    name: '日本語',
+    speechCode: 'ja-JP'
+  },
+  {
+    code: 'ko',
+    label: 'KO',
+    name: '한국어',
+    speechCode: 'ko-KR'
+  },
+  {
+    code: 'zh',
+    label: 'ZH',
+    name: '中文',
+    speechCode: 'zh-CN'
   }
 ];
 
@@ -22,7 +40,9 @@ export const useLanguageStore = create(
       currentLanguage: 'vi',
       setLanguage: (language) => set({ currentLanguage: language }),
       toggleLanguage: () => {
-        set({ currentLanguage: get().currentLanguage === 'vi' ? 'en' : 'vi' });
+        const currentIndex = languages.findIndex((language) => language.code === get().currentLanguage);
+        const nextLanguage = languages[(currentIndex + 1) % languages.length];
+        set({ currentLanguage: nextLanguage.code });
       },
       getLanguageMeta: () => languages.find((language) => language.code === get().currentLanguage) ?? languages[0]
     }),

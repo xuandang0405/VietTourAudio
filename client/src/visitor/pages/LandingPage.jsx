@@ -1,16 +1,16 @@
 import { motion } from 'framer-motion';
-import { ChevronRight, Compass, Headphones, MapPinned, Crown } from 'lucide-react';
+import { Compass, Headphones, MapPinned } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo/logo.png';
-import logoText from '../../assets/logo/logo-text.png';
+import { useTranslation } from '../../i18n/translations';
 import { useLocationStore } from '../../stores/locationStore';
 import { usePremiumStore } from '../../stores/premiumStore';
 import { TopBar } from '../components/TopBar';
 
 export function LandingPage({ onUpgrade, onToast }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const permissionStatus = useLocationStore((state) => state.permissionStatus);
-  const lastError = useLocationStore((state) => state.lastError);
   const requestLocation = useLocationStore((state) => state.requestLocation);
   const useDemoLocation = useLocationStore((state) => state.useDemoLocation);
   const isPremium = usePremiumStore((state) => state.isPremium);
@@ -29,18 +29,18 @@ export function LandingPage({ onUpgrade, onToast }) {
     const allowed = await requestLocation();
 
     if (allowed) {
-      onToast('GPS đã sẵn sàng. Hãy bắt đầu khám phá.');
+      onToast(t('gpsReady'));
       navigate('/map');
       return;
     }
 
-    onToast('Chưa lấy được GPS. Bạn có thể cấp quyền lại hoặc dùng bản demo.');
+    onToast(t('gpsFailed'));
   }
 
   function handleDemo() {
     initAudioContext();
     useDemoLocation();
-    onToast('Đang dùng chế độ Demo. Vị trí giả lập tại trung tâm.');
+    onToast(t('demoEnabled'));
     navigate('/map');
   }
 
@@ -64,10 +64,10 @@ export function LandingPage({ onUpgrade, onToast }) {
           </div>
           
           <h1 className="text-center text-4xl font-extrabold leading-[1.1] tracking-tight text-white mb-4">
-            Khám phá vẻ đẹp qua <span className="text-transparent bg-clip-text bg-gradient-to-r from-premium-300 to-premium-500">giọng kể AI</span>
+            {t('heroPrefix')} <span className="text-transparent bg-clip-text bg-gradient-to-r from-premium-300 to-premium-500">{t('heroHighlight')}</span>
           </h1>
           <p className="text-center text-base leading-relaxed text-slate-300 mb-10 max-w-sm mx-auto">
-            Tự động phát audio theo vị trí GPS. Trải nghiệm du lịch thông minh, tiện lợi, không cần đăng nhập.
+            {t('heroDescription')}
           </p>
 
           <div className="grid gap-4 max-w-sm mx-auto">
@@ -78,7 +78,7 @@ export function LandingPage({ onUpgrade, onToast }) {
               className="group relative inline-flex min-h-[60px] w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-premium-500 to-premium-600 px-6 text-base font-bold text-white shadow-xl shadow-premium-500/30 transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
             >
               <MapPinned size={22} className="opacity-90" />
-              {permissionStatus === 'requesting' ? 'Đang xin quyền GPS...' : 'Bắt đầu trải nghiệm'}
+              {permissionStatus === 'requesting' ? t('requestingGps') : t('startExperience')}
             </button>
             
             <button
@@ -87,22 +87,22 @@ export function LandingPage({ onUpgrade, onToast }) {
               className="inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-6 text-sm font-semibold text-slate-300 backdrop-blur-md transition-all duration-300 ease-out hover:bg-white/10 active:scale-[0.98]"
             >
               <Compass size={20} />
-              Trải nghiệm Demo
+              {t('demoExperience')}
             </button>
           </div>
 
           {permissionStatus === 'denied' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6 rounded-2xl bg-red-500/10 border border-red-500/20 p-4">
               <p className="text-sm font-medium leading-relaxed text-red-200 text-center">
-                {lastError || 'GPS bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt để tiếp tục.'}
+                {t('gpsDenied')}
               </p>
             </motion.div>
           )}
         </motion.div>
 
         <div className="relative z-10 mt-10 grid grid-cols-2 gap-3 max-w-sm mx-auto w-full">
-          <FeatureBadge icon={MapPinned} label="GPS TỰ ĐỘNG" />
-          <FeatureBadge icon={Headphones} label={isPremium ? 'AUDIO PREMIUM' : 'TEXT & ẢNH'} isPremium={isPremium} />
+          <FeatureBadge icon={MapPinned} label={t('autoGps')} />
+          <FeatureBadge icon={Headphones} label={isPremium ? t('premiumAudio') : t('textAndImages')} isPremium={isPremium} />
         </div>
       </div>
     </section>

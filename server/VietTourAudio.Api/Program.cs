@@ -10,6 +10,9 @@ using VietTourAudio.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+
 var allowedOrigins = builder.Configuration
   .GetSection("Cors:AllowedOrigins")
   .Get<string[]>() ?? ["http://localhost:5173"];
@@ -34,6 +37,7 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<ICommissionService, CommissionService>();
 builder.Services.AddScoped<IAdminLogService, AdminLogService>();
 builder.Services.AddScoped<IGeofenceService, GeofenceService>();
+builder.Services.AddSingleton<PrototypeAnalyticsState>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

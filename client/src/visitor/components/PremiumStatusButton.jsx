@@ -3,8 +3,10 @@ import { LockOpen, Timer } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { usePremiumStore } from '../../stores/premiumStore';
 import { formatCountdown } from '../../utils/formatTime';
+import { useTranslation } from '../../i18n/translations';
 
 export function PremiumStatusButton({ onUpgrade }) {
+  const { t } = useTranslation();
   const isPremium = usePremiumStore((state) => state.isPremium);
   const expiresAt = usePremiumStore((state) => state.expiresAt);
   const checkExpiry = usePremiumStore((state) => state.checkExpiry);
@@ -41,7 +43,7 @@ export function PremiumStatusButton({ onUpgrade }) {
       className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-5 py-3 text-sm font-black text-white shadow-xl shadow-orange-500/30 transition duration-200 ease-out hover:bg-orange-600 active:scale-95"
     >
       <LockOpen size={17} />
-      Nâng cấp Premium (24h)
+      {t('upgradePremium')}
     </motion.button>
   );
 }

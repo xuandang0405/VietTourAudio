@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Circle, CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import { mapCenter, visitorPois } from '../../data/visitorPois';
+import { useTranslation } from '../../i18n/translations';
 
 function MapCamera({ selectedPoi, position }) {
   const map = useMap();
@@ -24,6 +25,7 @@ function MapCamera({ selectedPoi, position }) {
 }
 
 export function LeafletMap({ selectedPoi, enrichedPois, position, onSelectPoi }) {
+  const { t } = useTranslation();
   const pois = enrichedPois.length > 0 ? enrichedPois : visitorPois;
 
   return (
@@ -69,7 +71,7 @@ export function LeafletMap({ selectedPoi, enrichedPois, position, onSelectPoi })
       })}
 
       {pois
-        .filter((poi) => poi.isInsideRadius)
+        .filter((poi) => poi.isInsideRadius || selectedPoi?.id === poi.id)
         .map((poi) => (
           <Circle
             key={`${poi.id}-radius`}
@@ -96,7 +98,7 @@ export function LeafletMap({ selectedPoi, enrichedPois, position, onSelectPoi })
           }}
         >
           <Tooltip direction="top" offset={[0, -6]} opacity={1}>
-            <span className="text-xs font-bold">Vị trí của bạn</span>
+            <span className="text-xs font-bold">{t('yourLocation')}</span>
           </Tooltip>
         </CircleMarker>
       )}

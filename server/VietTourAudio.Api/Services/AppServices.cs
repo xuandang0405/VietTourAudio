@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -114,14 +115,24 @@ public class StallService : IStallService
 
 public class PoiService : IPoiService
 {
+  private readonly IGeofenceService _geofenceService;
+
+  private static readonly IReadOnlyList<PoiResponseDto> Pois =
+  [
+    new(1, 1, "stall-antiques-nam", "Sạp Đồ Cổ Chú Năm", "Không gian lưu giữ ký ức Sài Gòn xưa qua máy ảnh, đồng hồ và các món đồ cổ.", "Phố đi bộ Nguyễn Huệ", "Di sản địa phương", null, 10.77589m, 106.70184m, 35, true, "ACTIVE", null, false),
+    new(2, 1, "poi-city-hall", "Tòa nhà UBND Thành phố", "Công trình mang dấu ấn kiến trúc Pháp ở đầu phố Nguyễn Huệ.", "Phố đi bộ Nguyễn Huệ", "Kiến trúc", null, 10.77672m, 106.70102m, 45, false, "ACTIVE", null, false),
+    new(3, 1, "stall-coffee-heritage", "Quầy Cà Phê Di Sản", "Câu chuyện cà phê vỉa hè và nhịp sống đô thị Việt Nam.", "Phố đi bộ Nguyễn Huệ", "Ẩm thực địa phương", null, 10.77521m, 106.70245m, 32, false, "ACTIVE", null, false),
+    new(4, 1, "stall-book-memory", "Góc Sách Ký Ức", "Sách cũ, bưu thiếp và tranh in lưu giữ ký ức đô thị.", "Phố đi bộ Nguyễn Huệ", "Văn hóa", null, 10.77508m, 106.70136m, 30, true, "ACTIVE", null, false)
+  ];
+
+  public PoiService(IGeofenceService geofenceService)
+  {
+    _geofenceService = geofenceService;
+  }
+
   public Task<IReadOnlyList<PoiResponseDto>> GetPoisAsync(ulong? stallId = null)
   {
-    IReadOnlyList<PoiResponseDto> pois =
-    [
-      new(1, 1, "Góc rang cà phê phin", "Câu chuyện cà phê phin Việt Nam.", 10.7722100m, 106.6983100m, 35, true, "ACTIVE"),
-      new(2, 1, "Kệ quà tặng cà phê", "Gợi ý quà tặng và QR thanh toán.", 10.7720300m, 106.6981900m, 25, false, "ACTIVE"),
-      new(3, 2, "Bàn xoay gốm thủ công", "Quy trình tạo hình gốm Hội An.", 15.8801200m, 108.3381200m, 30, false, "ACTIVE")
-    ];
+    IReadOnlyList<PoiResponseDto> pois = Pois;
 
     if (stallId.HasValue)
     {
@@ -133,22 +144,34 @@ public class PoiService : IPoiService
 
   public Task<PoiResponseDto> GetByIdAsync(ulong id)
   {
-    return Task.FromResult(new PoiResponseDto(id, 1, "POI Demo", "Nội dung POI demo.", 10.7722100m, 106.6983100m, 30, false, "ACTIVE"));
+    var poi = Pois.FirstOrDefault(item => item.Id == id)
+      ?? throw new KeyNotFoundException($"Không tìm thấy POI {id}.");
+    return Task.FromResult(poi);
   }
 
   public Task<IReadOnlyList<PoiResponseDto>> GetNearbyAsync(decimal latitude, decimal longitude, int radiusMeters)
   {
-    IReadOnlyList<PoiResponseDto> nearby =
-    [
-      new(1, 1, "Góc rang cà phê phin", "POI gần vị trí demo.", latitude, longitude, radiusMeters, true, "ACTIVE")
-    ];
+    IReadOnlyList<PoiResponseDto> nearby = Pois
+      .Select(poi =>
+      {
+        var distance = _geofenceService.EstimateDistanceMeters(latitude, longitude, poi.Latitude, poi.Longitude);
+        return poi with
+        {
+          DistanceMeters = decimal.Round(distance, 1),
+          IsInsideGeofence = distance <= poi.ActivationRadius
+        };
+      })
+      .Where(poi => poi.DistanceMeters <= radiusMeters)
+      .OrderBy(poi => poi.DistanceMeters)
+      .ToList();
 
     return Task.FromResult(nearby);
   }
 
   public Task<PoiResponseDto> CreateAsync(PoiRequestDto request)
   {
-    return Task.FromResult(new PoiResponseDto(100, request.StallId, request.Name, request.Description, request.Latitude, request.Longitude, request.ActivationRadius, request.IsPremium, "ACTIVE"));
+    var slug = request.Name.ToLowerInvariant().Replace(' ', '-');
+    return Task.FromResult(new PoiResponseDto(100, request.StallId, slug, request.Name, request.Description, "Khu vực mới", "Điểm tham quan", null, request.Latitude, request.Longitude, request.ActivationRadius, request.IsPremium, "ACTIVE", null, false));
   }
 }
 
@@ -156,18 +179,46 @@ public class PoiContentService : IPoiContentService
 {
   public Task<IReadOnlyList<PoiContentResponseDto>> GetByPoiAsync(ulong poiId)
   {
-    IReadOnlyList<PoiContentResponseDto> contents =
-    [
-      new(1, poiId, "vi", "Thuyết minh tiếng Việt", "/uploads/audios/demo-vi.mp3", "NORMAL"),
-      new(2, poiId, "en", "English narration", "/uploads/audios/demo-en.mp3", "NORMAL")
-    ];
+    var scripts = GetScripts(poiId);
+    IReadOnlyList<PoiContentResponseDto> contents = scripts
+      .Select((item, index) => new PoiContentResponseDto(
+        (ulong)(poiId * 10 + (ulong)index + 1),
+        poiId,
+        item.Key,
+        $"Thuyết minh {item.Key.ToUpperInvariant()}",
+        item.Value,
+        null,
+        "BROWSER_TTS"
+      ))
+      .ToList();
 
     return Task.FromResult(contents);
   }
 
   public Task<PoiContentResponseDto> CreateAsync(PoiContentRequestDto request)
   {
-    return Task.FromResult(new PoiContentResponseDto(100, request.PoiId, request.LanguageCode, request.Title, request.AudioFileUrl, request.VoiceType));
+    return Task.FromResult(new PoiContentResponseDto(100, request.PoiId, request.LanguageCode, request.Title, request.TtsScript, request.AudioFileUrl, request.VoiceType));
+  }
+
+  private static IReadOnlyDictionary<string, string> GetScripts(ulong poiId)
+  {
+    var name = poiId switch
+    {
+      1 => "Sạp Đồ Cổ Chú Năm",
+      2 => "Tòa nhà Ủy ban Nhân dân Thành phố Hồ Chí Minh",
+      3 => "Quầy Cà Phê Di Sản",
+      4 => "Góc Sách Ký Ức",
+      _ => "điểm tham quan này"
+    };
+
+    return new Dictionary<string, string>
+    {
+      ["vi"] = $"Bạn đang ở gần {name}. Hãy dành một chút thời gian quan sát không gian và lắng nghe câu chuyện của điểm đến này.",
+      ["en"] = $"You are now near {name}. Take a moment to observe the surroundings and listen to the story of this place.",
+      ["ja"] = $"現在、{name}の近くにいます。周囲をゆっくり観察し、この場所の物語をお楽しみください。",
+      ["ko"] = $"현재 {name} 근처에 있습니다. 주변을 천천히 둘러보며 이 장소의 이야기를 들어 보세요.",
+      ["zh"] = $"您现在位于{name}附近。请花一点时间观察周围，并聆听这个地点的故事。"
+    };
   }
 }
 
@@ -184,6 +235,13 @@ public class MediaStorageService : IMediaStorageService
 
 public class QrTrackingService : IQrTrackingService
 {
+  private readonly PrototypeAnalyticsState _analyticsState;
+
+  public QrTrackingService(PrototypeAnalyticsState analyticsState)
+  {
+    _analyticsState = analyticsState;
+  }
+
   public Task<QrCodeResponseDto> CreateQrCodeAsync(QrCodeRequestDto request)
   {
     var url = $"/uploads/qr/{request.QrType.ToLowerInvariant()}-{Guid.NewGuid():N}.png";
@@ -192,12 +250,14 @@ public class QrTrackingService : IQrTrackingService
 
   public Task<object> TrackScanAsync(QrScanRequestDto request, string? ipAddress, string? userAgent)
   {
+    var accepted = _analyticsState.RecordQrScan(request.SessionId, request.QrCodeId);
     return Task.FromResult<object>(new
     {
       request.QrCodeId,
       request.SessionId,
       IpAddress = ipAddress,
       UserAgent = userAgent,
+      Accepted = accepted,
       ScannedAt = DateTime.UtcNow
     });
   }
@@ -205,26 +265,61 @@ public class QrTrackingService : IQrTrackingService
 
 public class AnalyticsService : IAnalyticsService
 {
+  private readonly PrototypeAnalyticsState _analyticsState;
+
+  public AnalyticsService(PrototypeAnalyticsState analyticsState)
+  {
+    _analyticsState = analyticsState;
+  }
+
   public Task<AnalyticsSummaryDto> GetSummaryAsync()
   {
     return Task.FromResult(new AnalyticsSummaryDto(
-      TotalStalls: 2,
-      TotalPois: 3,
-      QrScansToday: 128,
-      VisitsToday: 64,
-      AudioPlaysToday: 92,
-      RevenueToday: 548000m
+      TotalStalls: 1,
+      TotalPois: 4,
+      QrScansToday: _analyticsState.QrScanCount,
+      VisitsToday: _analyticsState.VisitCount,
+      AudioPlaysToday: _analyticsState.AudioPlayCount,
+      RevenueToday: 0m
     ));
   }
 
   public Task<object> TrackVisitAsync(VisitEventRequestDto request)
   {
-    return Task.FromResult<object>(new { request.StallId, request.PoiId, request.SessionId, VisitedAt = DateTime.UtcNow });
+    var accepted = _analyticsState.RecordVisit(request.SessionId, request.PoiId);
+    return Task.FromResult<object>(new { request.StallId, request.PoiId, request.SessionId, Accepted = accepted, VisitedAt = DateTime.UtcNow });
   }
 
   public Task<object> TrackAudioPlayAsync(AudioPlayRequestDto request)
   {
-    return Task.FromResult<object>(new { request.PoiId, request.LanguageCode, request.SessionId, PlayedAt = DateTime.UtcNow });
+    _analyticsState.RecordAudioPlay(request.SessionId, request.PoiId);
+    return Task.FromResult<object>(new { request.PoiId, request.LanguageCode, request.SessionId, Accepted = true, PlayedAt = DateTime.UtcNow });
+  }
+}
+
+public sealed class PrototypeAnalyticsState
+{
+  private readonly ConcurrentDictionary<string, byte> _visits = new();
+  private readonly ConcurrentDictionary<string, byte> _qrScans = new();
+  private int _audioPlayCount;
+
+  public int VisitCount => _visits.Count;
+  public int QrScanCount => _qrScans.Count;
+  public int AudioPlayCount => _audioPlayCount;
+
+  public bool RecordVisit(string sessionId, ulong? poiId)
+  {
+    return _visits.TryAdd($"{sessionId}:{poiId}", 0);
+  }
+
+  public bool RecordQrScan(string sessionId, ulong qrCodeId)
+  {
+    return _qrScans.TryAdd($"{sessionId}:{qrCodeId}", 0);
+  }
+
+  public void RecordAudioPlay(string sessionId, ulong poiId)
+  {
+    Interlocked.Increment(ref _audioPlayCount);
   }
 }
 

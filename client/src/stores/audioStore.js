@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { stopSpeech, speakText } from '../utils/ttsPlayer';
 import { useAudioQueueStore } from './audioQueueStore';
+import { visitorTrackingService } from '../services/visitorTrackingService';
 
 const DEFAULT_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -72,6 +73,8 @@ export const useAudioStore = create(
             [poi.id]: Date.now()
           }
         }));
+
+        visitorTrackingService.trackAudioPlay(poi, languageMeta.code);
 
         return true;
       },

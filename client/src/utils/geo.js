@@ -21,19 +21,22 @@ export function getDistanceMeters(pointA, pointB) {
   return EARTH_RADIUS_METERS * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export function formatDistance(meters) {
+export function formatDistance(meters, languageCode = 'vi') {
   if (!Number.isFinite(meters)) {
-    return 'Chưa có GPS';
+    return { vi: 'Chưa có GPS', en: 'GPS unavailable', zh: '暂无GPS', ja: 'GPS未取得', ko: 'GPS 없음' }[languageCode] ?? 'Chưa có GPS';
   }
 
+  const prefix = { vi: 'Cách bạn', en: 'Away', zh: '距离', ja: '距離', ko: '거리' }[languageCode] ?? 'Cách bạn';
   if (meters < 1000) {
-    return `Cách bạn ${Math.max(1, Math.round(meters))}m`;
+    const value = `${Math.max(1, Math.round(meters))}m`;
+    return languageCode === 'en' ? `${value} away` : `${prefix} ${value}`;
   }
 
-  return `Cách bạn ${(meters / 1000).toFixed(1)}km`;
+  const value = `${(meters / 1000).toFixed(1)}km`;
+  return languageCode === 'en' ? `${value} away` : `${prefix} ${value}`;
 }
 
-export function enrichPoisWithDistance(pois, position) {
+export function enrichPoisWithDistance(pois, position, languageCode = 'vi') {
   return pois
     .map((poi) => {
       const distanceMeters = getDistanceMeters(position, {
@@ -44,7 +47,7 @@ export function enrichPoisWithDistance(pois, position) {
       return {
         ...poi,
         distanceMeters,
-        distanceLabel: formatDistance(distanceMeters),
+        distanceLabel: formatDistance(distanceMeters, languageCode),
         isInsideRadius: distanceMeters <= poi.activationRadius
       };
     })
