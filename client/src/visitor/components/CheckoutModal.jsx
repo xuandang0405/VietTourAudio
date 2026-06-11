@@ -1,59 +1,92 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle2, Sparkles, X } from 'lucide-react';
+import { CheckCircle2, Crown, X, Copy } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useState } from 'react';
 
 const TEST_PAYMENT_VALUE = 'VietTourAudio-TestPayment-30000VND';
+const BANK_ACCOUNT = '190382910283 (Techcombank)';
+const TRANSFER_CONTENT = 'VTA PREMIUM';
 
 export function CheckoutModal({ open, onClose, onSuccess }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(TRANSFER_CONTENT);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <AnimatePresence>
       {open && (
-        <div className="absolute inset-0 z-[1600] grid place-items-center px-5">
+        <div className="absolute inset-0 z-[1600] grid place-items-center px-4">
           <motion.button
             type="button"
-            aria-label="Đóng thanh toán"
-            className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
           <motion.section
-            data-testid="checkout-modal"
-            initial={{ opacity: 0, y: 22, scale: 0.96 }}
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 18, scale: 0.96 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="relative w-full max-w-[340px] rounded-[2rem] bg-white p-5 text-center shadow-2xl"
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="relative w-full max-w-[360px] overflow-hidden rounded-[2.5rem] bg-white text-center shadow-2xl"
           >
+            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-premium-400 to-premium-600" />
+            
             <button
               type="button"
               onClick={onClose}
-              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-500 transition duration-200 ease-out hover:bg-slate-200 active:scale-95"
-              aria-label="Đóng"
+              className="absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-full bg-black/20 text-white backdrop-blur-md transition hover:bg-black/40 active:scale-95"
             >
               <X size={18} />
             </button>
-            <div className="mx-auto grid h-14 w-14 place-items-center rounded-3xl bg-orange-100 text-orange-500">
-              <Sparkles size={27} />
+            
+            <div className="relative z-10 mx-auto mt-12 grid h-20 w-20 place-items-center rounded-3xl bg-white shadow-xl shadow-premium-900/20 border-4 border-white">
+              <Crown size={40} className="text-premium-500" />
             </div>
-            <h2 className="mt-4 text-2xl font-black leading-tight text-slate-950">Mở khóa Toàn bộ Audio (24 Giờ)</h2>
-            <p className="mt-2 text-3xl font-black text-teal-700">30.000 VNĐ</p>
-            <div className="mx-auto mt-5 w-max rounded-3xl border border-slate-100 bg-white p-3 shadow-lg shadow-slate-900/10">
-              <QRCodeSVG value={TEST_PAYMENT_VALUE} size={200} level="M" includeMargin />
+
+            <div className="px-6 pb-8 pt-4">
+              <h2 className="text-2xl font-black leading-tight text-slate-900">Mở Khóa Premium</h2>
+              <p className="mt-1 text-sm font-medium text-slate-500">Kích hoạt Audio thông minh 24h</p>
+              
+              <div className="mt-4 mb-2">
+                <span className="text-4xl font-extrabold text-premium-600">30.000</span>
+                <span className="text-sm font-bold text-premium-600 ml-1">VNĐ</span>
+              </div>
+
+              <div className="mx-auto mt-4 w-max rounded-3xl border border-slate-100 bg-white p-3 shadow-md">
+                <QRCodeSVG value={TEST_PAYMENT_VALUE} size={180} level="M" includeMargin />
+              </div>
+
+              <div className="mt-6 rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                <div className="flex justify-between items-center text-sm mb-2">
+                  <span className="text-slate-500">Ngân hàng</span>
+                  <span className="font-bold text-slate-900">{BANK_ACCOUNT}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500">Nội dung</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-premium-600">{TRANSFER_CONTENT}</span>
+                    <button onClick={handleCopy} className="p-1.5 rounded-lg bg-white shadow-sm border border-slate-200 text-slate-600 active:scale-95">
+                      {copied ? <CheckCircle2 size={14} className="text-green-500" /> : <Copy size={14} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onSuccess}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-4 text-sm font-bold text-white shadow-xl shadow-slate-900/20 transition duration-300 hover:bg-black active:scale-[0.98]"
+              >
+                <CheckCircle2 size={20} className="text-premium-400" />
+                Tôi đã thanh toán
+              </button>
             </div>
-            <p className="mt-3 text-sm font-semibold leading-6 text-slate-500">
-              Quét QR test hoặc bấm nút mô phỏng bên dưới để mở Premium trên thiết bị này.
-            </p>
-            <button
-              type="button"
-              data-testid="simulate-payment"
-              onClick={onSuccess}
-              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-teal-700 px-4 py-3 text-sm font-black text-white shadow-lg shadow-teal-900/20 transition duration-200 ease-out hover:bg-teal-800 active:scale-95"
-            >
-              <CheckCircle2 size={18} />
-              Giả lập Thanh toán Thành công
-            </button>
           </motion.section>
         </div>
       )}

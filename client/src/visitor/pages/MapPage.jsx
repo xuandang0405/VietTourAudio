@@ -24,7 +24,7 @@ export function MapPage({ onUpgrade, onToast }) {
   const useDemoLocation = useLocationStore((state) => state.useDemoLocation);
   const isPremium = usePremiumStore((state) => state.isPremium);
   const canAutoPlay = useAudioStore((state) => state.canAutoPlay);
-  const playPoi = useAudioStore((state) => state.playPoi);
+  const enqueuePoi = useAudioStore((state) => state.enqueuePoi);
   const getLanguageMeta = useLanguageStore((state) => state.getLanguageMeta);
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
 
@@ -57,13 +57,11 @@ export function MapPage({ onUpgrade, onToast }) {
       return;
     }
 
-    const played = playPoi(activeAutoPoi, getLanguageMeta());
-    if (played) {
-      setSelectedPoiId(activeAutoPoi.id);
-      setSearchParams({ poi: activeAutoPoi.id }, { replace: true });
-      onToast('Đã vào vùng. Đang tự động phát âm thanh...');
-    }
-  }, [activeAutoPoi, canAutoPlay, currentLanguage, getLanguageMeta, isPremium, onToast, playPoi, setSearchParams]);
+    enqueuePoi(activeAutoPoi, getLanguageMeta());
+    setSelectedPoiId(activeAutoPoi.id);
+    setSearchParams({ poi: activeAutoPoi.id }, { replace: true });
+    onToast('Đã vào vùng. Đang thêm vào hàng đợi phát âm thanh...');
+  }, [activeAutoPoi, canAutoPlay, currentLanguage, getLanguageMeta, isPremium, onToast, enqueuePoi, setSearchParams]);
 
   function handleSelectPoi(poi) {
     setSelectedPoiId(poi.id);
@@ -155,14 +153,14 @@ export function MapPage({ onUpgrade, onToast }) {
               key={poi.id}
               type="button"
               onClick={() => handleSelectPoi(poi)}
-              className="grid grid-cols-[58px_1fr_auto] items-center gap-3 rounded-3xl bg-slate-50 p-2 text-left transition duration-200 ease-out hover:bg-teal-50 active:scale-[0.99]"
+              className="grid grid-cols-[58px_1fr_auto] items-center gap-3 rounded-3xl bg-slate-50 p-2 text-left transition duration-200 ease-out hover:bg-slate-100 active:scale-[0.99]"
             >
               <img className="h-14 w-14 rounded-2xl object-cover" src={poi.image} alt={poi.title} />
               <span className="min-w-0">
-                <span className="block truncate text-sm font-black text-slate-950">{poi.title}</span>
-                <span className="mt-1 block text-xs font-bold text-teal-700">{poi.distanceLabel}</span>
+                <span className="block truncate text-sm font-bold text-slate-900">{poi.title}</span>
+                <span className="mt-1 block text-xs font-bold text-premium-600">{poi.distanceLabel}</span>
               </span>
-              <span className={poi.isInsideRadius ? 'h-3 w-3 rounded-full bg-orange-500 shadow-lg shadow-orange-500/40' : 'h-3 w-3 rounded-full bg-slate-300'} />
+              <span className={poi.isInsideRadius ? 'h-3 w-3 rounded-full bg-premium-500 shadow-lg shadow-premium-500/40' : 'h-3 w-3 rounded-full bg-slate-300'} />
             </button>
           ))}
         </div>

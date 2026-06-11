@@ -1,86 +1,116 @@
-import { useState } from 'react';
-import { FastForward, Globe2, Pause, Rewind, Satellite, Volume2, ChevronDown, ChevronUp, Play } from 'lucide-react';
-import { triggerHaptic } from '../utils/haptics.js';
+import { useState, useEffect } from 'react';
+import { RefreshCw, Pause, ChevronDown, ChevronUp, Play, X, Headphones } from 'lucide-react';
+import { useAudioStore } from '../stores/audioStore';
+import { useAudioQueueStore } from '../stores/audioQueueStore';
+import { visitorPois } from '../data/visitorPois';
+import { useLanguageStore } from '../stores/languageStore';
 
-function AudioPlayerSheet() {
+export function AudioPlayerSheet() {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(true);
+  
+  const isPlaying = useAudioStore((state) => state.isPlaying);
+  const currentPoiId = useAudioStore((state) => state.currentPoiId);
+  const stop = useAudioStore((state) => state.stop);
+  const replayPoi = useAudioStore((state) => state.replayPoi);
+  const getCooldownRemaining = useAudioStore((state) => state.getCooldownRemaining);
+  const canAutoPlay = useAudioStore((state) => state.canAutoPlay);
+  
+  const queue = useAudioQueueStore((state) => state.queue);
+  const getLanguageMeta = useLanguageStore((state) => state.getLanguageMeta);
 
-  const toggleCollapse = () => {
-    triggerHaptic(12);
-    setIsCollapsed(!isCollapsed);
+  const [cooldownTime, setCooldownTime] = useState(0);
+
+  const activePoi = visitorPois.find(p => p.id === currentPoiId);
+
+  useEffect(() => {
+    if (!currentPoiId) return;
+    const interval = setInterval(() => {
+      setCooldownTime(getCooldownRemaining(currentPoiId));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [currentPoiId, getCooldownRemaining, isPlaying]);
+
+  if (!currentPoiId && queue.length === 0) return null;
+
+  const handleReplay = () => {
+    if (activePoi) replayPoi(activePoi, getLanguageMeta());
   };
 
-  const togglePlay = () => {
-    triggerHaptic([18, 24, 18]);
-    setIsPlaying(!isPlaying);
+  const handleStop = () => {
+    stop();
   };
 
   if (isCollapsed) {
     return (
-      <aside className="audio-sheet smart-audio-sheet collapsed haptic-ripple" aria-label="Trình phát thuyết minh thông minh" onClick={toggleCollapse}>
-        <div className="collapsed-player-content">
-          <span className="collapsed-cover">CN</span>
-          <div className="collapsed-meta">
-            <h2>Sạp Đồ Cổ Chú Năm</h2>
-            <p>{isPlaying ? 'Đang phát' : 'Tạm dừng'} · Tiếng Việt</p>
+      <aside className="fixed bottom-20 left-4 right-4 z-[1400] flex items-center justify-between rounded-2xl bg-slate-900/95 p-3 shadow-xl backdrop-blur-md border border-white/10 transition-all duration-300">
+        <div className="flex items-center gap-3 overflow-hidden" onClick={() => setIsCollapsed(false)}>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-premium-400 to-premium-600 text-white shadow-md">
+            <Headphones size={20} className={isPlaying ? 'animate-pulse' : ''} />
           </div>
-          <div className="collapsed-actions" onClick={(e) => e.stopPropagation()}>
-            <button className="collapsed-play-btn" type="button" onClick={togglePlay} aria-label={isPlaying ? 'Tạm dừng' : 'Phát'}>
-              {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
-            </button>
-            <button className="collapsed-expand-btn" type="button" onClick={toggleCollapse} aria-label="Mở rộng">
-              <ChevronUp size={18} />
-            </button>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-white">{activePoi?.title || 'Đang chờ...'}</p>
+            <p className="text-xs font-medium text-premium-400">
+              {isPlaying ? 'Đang phát' : 'Đã dừng'} {queue.length > 0 ? `• Queue: ${queue.length}` : ''}
+            </p>
           </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 border-l border-white/10 pl-3">
+          <button onClick={handleStop} className="p-2 text-slate-300 hover:text-white transition active:scale-95">
+            {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+          </button>
+          <button onClick={() => setIsCollapsed(false)} className="p-2 text-slate-300 hover:text-white transition active:scale-95">
+            <ChevronUp size={24} />
+          </button>
         </div>
       </aside>
     );
   }
 
   return (
-    <aside className="audio-sheet smart-audio-sheet" aria-label="Trình phát thuyết minh thông minh">
-      <div className="audio-breadcrumbs">
-        <span>Khu vực: Nguyễn Huệ &gt; Sạp Đồ Cổ Chú Năm</span>
-        <button className="minimize-button" type="button" aria-label="Thu nhỏ" onClick={toggleCollapse}>
-          <ChevronDown size={18} />
-        </button>
-      </div>
-      <div className="audio-cover">
-        <span>CN</span>
-      </div>
-      <div className="audio-meta">
-        <span className="audio-kicker">{isPlaying ? 'Đang phát' : 'Đang tạm dừng'} · Tiếng Việt</span>
-        <h2>Sạp Đồ Cổ Chú Năm</h2>
-        <div className={`waveform ${isPlaying ? 'playing' : 'paused'}`} aria-hidden="true">
-          {Array.from({ length: 18 }).map((_, index) => (
-            <span key={index} style={{ '--bar': `${22 + ((index * 17) % 46)}px` }} />
-          ))}
+    <aside className="fixed bottom-0 left-0 right-0 z-[1400] rounded-t-[2rem] bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl border-t border-white/10 transition-all duration-300 pb-24">
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 h-1.5 w-12 rounded-full bg-slate-600" />
+      
+      <div className="flex items-start justify-between mb-6 pt-2">
+        <div>
+          <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-premium-500">
+            {queue.length > 0 ? `Hàng chờ: ${queue.length} POI` : 'Đang nghe'}
+          </span>
+          <h2 className="mt-1 text-xl font-black text-white line-clamp-1">{activePoi?.title || 'Chưa có thông tin'}</h2>
         </div>
-        <div className="audio-progress">
-          <span>01:18</span>
-          <div><span style={{ width: isPlaying ? '36%' : '30%' }} /></div>
-          <span>04:20</span>
+        <div className="flex gap-2">
+          <button onClick={handleStop} className="rounded-full bg-white/10 p-2 text-slate-300 transition hover:bg-white/20 active:scale-95">
+            <X size={20} />
+          </button>
+          <button onClick={() => setIsCollapsed(true)} className="rounded-full bg-white/10 p-2 text-slate-300 transition hover:bg-white/20 active:scale-95">
+            <ChevronDown size={20} />
+          </button>
         </div>
       </div>
-      <p className="audio-smart-state">
-        <Satellite size={15} />
-        Bạn đang trong bán kính sạp. Audio tự động phát.
-      </p>
-      <div className="audio-controls">
-        <button type="button" aria-label="Lùi 15 giây" onClick={() => triggerHaptic(14)}><Rewind size={19} /></button>
-        <button className="play-button haptic-ripple" type="button" aria-label={isPlaying ? 'Tạm dừng' : 'Phát'} onClick={togglePlay}>
-          {isPlaying ? <Pause size={25} fill="currentColor" /> : <Play size={25} fill="currentColor" />}
-        </button>
-        <button type="button" aria-label="Tới 15 giây" onClick={() => triggerHaptic(14)}><FastForward size={19} /></button>
+
+      <div className="flex items-center justify-center py-4">
+         <div className="flex items-center gap-1.5">
+           {Array.from({ length: 8 }).map((_, i) => (
+             <span key={i} className={`w-1.5 rounded-full bg-gradient-to-t from-premium-600 to-premium-300 transition-all duration-200 ${isPlaying ? 'animate-pulse' : 'h-2 opacity-50'}`} style={{ height: isPlaying ? `${Math.max(12, Math.random() * 40)}px` : '8px' }} />
+           ))}
+         </div>
       </div>
-      <div className="audio-tools">
-        <button type="button"><Volume2 size={15} />1.0x</button>
-        <button type="button"><Globe2 size={15} />VI</button>
-        <button type="button"><Satellite size={15} />Auto GPS</button>
+
+      <div className="mt-6 flex flex-col gap-3">
+        {cooldownTime > 0 && !isPlaying ? (
+          <p className="text-center text-sm font-medium text-slate-400">
+            Có thể phát lại sau: <span className="text-premium-400 font-mono">{Math.ceil(cooldownTime / 1000)}s</span>
+          </p>
+        ) : (
+          <button
+            onClick={handleReplay}
+            disabled={!canAutoPlay(currentPoiId) && isPlaying}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-premium-500 to-premium-600 px-4 py-4 text-sm font-bold text-white shadow-lg shadow-premium-900/40 transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw size={18} className={isPlaying ? 'animate-spin' : ''} />
+            {isPlaying ? 'Đang phát...' : 'Phát lại'}
+          </button>
+        )}
       </div>
     </aside>
   );
 }
-
-export default AudioPlayerSheet;

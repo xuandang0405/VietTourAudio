@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { stopSpeech, speakText } from '../utils/ttsPlayer';
+import { useAudioQueueStore } from './audioQueueStore';
 
-const AUTO_PLAY_COOLDOWN_MS = 10 * 60 * 1000;
+const DEFAULT_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
 
 export const useAudioStore = create(
   persist(
@@ -11,21 +12,45 @@ export const useAudioStore = create(
       isPlaying: false,
       lastPlayedAtByPoi: {},
       lastError: '',
-      canAutoPlay: (poiId) => {
+      
+      canAutoPlay: (poiId, cooldownMs = DEFAULT_COOLDOWN_MS) => {
         const lastPlayedAt = get().lastPlayedAtByPoi[poiId] ?? 0;
-        return Date.now() - lastPlayedAt > AUTO_PLAY_COOLDOWN_MS;
+        return Date.now() - lastPlayedAt > cooldownMs;
       },
+
+      getCooldownRemaining: (poiId, cooldownMs = DEFAULT_COOLDOWN_MS) => {
+        const lastPlayedAt = get().lastPlayedAtByPoi[poiId] ?? 0;
+        const remaining = (lastPlayedAt + cooldownMs) - Date.now();
+        return remaining > 0 ? remaining : 0;
+      },
+
+      enqueuePoi: (poi, languageMeta) => {
+        if (!get().canAutoPlay(poi.id)) return;
+        
+        useAudioQueueStore.getState().enqueue(poi.id, () => {
+          return new Promise((resolve) => {
+            const success = get().playPoi(poi, languageMeta, {
+              onFinished: resolve
+            });
+            if (!success) resolve();
+          });
+        });
+      },
+
       playPoi: (poi, languageMeta, options = {}) => {
         const text = poi.narration?.[languageMeta.code] ?? poi.description;
+        
         const result = speakText(text, languageMeta.speechCode, {
           onEnd: () => {
             set({ isPlaying: false });
+            if (options.onFinished) options.onFinished();
           },
           onError: () => {
             set({
               isPlaying: false,
-              lastError: 'Trình duyệt không thể phát giọng đọc mô phỏng.'
+              lastError: 'Không thể phát giọng đọc.'
             });
+            if (options.onFinished) options.onFinished();
           }
         });
 
@@ -33,7 +58,7 @@ export const useAudioStore = create(
           set({
             currentPoiId: poi.id,
             isPlaying: false,
-            lastError: 'Trình duyệt hiện tại chưa hỗ trợ Web Speech API.'
+            lastError: 'Trình duyệt chưa hỗ trợ Web Speech API.'
           });
           return false;
         }
@@ -50,16 +75,21 @@ export const useAudioStore = create(
 
         return true;
       },
+
       replayPoi: (poi, languageMeta) => {
+        // Reset cooldown khi người dùng chủ động bấm phát lại
         set((state) => ({
           lastPlayedAtByPoi: {
             ...state.lastPlayedAtByPoi,
             [poi.id]: 0
           }
         }));
-
+        
+        useAudioQueueStore.getState().clearQueue();
+        get().stop();
         return get().playPoi(poi, languageMeta, { force: true });
       },
+
       stop: () => {
         stopSpeech();
         set({ isPlaying: false });

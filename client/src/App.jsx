@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { PREMIUM_ACTIVATION_CODE } from './data/visitorPois';
 import { usePremiumStore } from './stores/premiumStore';
 import { CheckoutModal } from './visitor/components/CheckoutModal';
@@ -13,11 +13,21 @@ import { ListPage } from './visitor/pages/ListPage';
 import { MapPage } from './visitor/pages/MapPage';
 import { SettingsPage } from './visitor/pages/SettingsPage';
 
+import { VendorLayout } from './vendor/components/VendorLayout';
+import { VendorDashboard } from './vendor/pages/VendorDashboard';
+import { VendorPOIs } from './vendor/pages/VendorPOIs';
+import { VendorRevenue } from './vendor/pages/VendorRevenue';
+
+import { AdminLayout } from './admin/components/AdminLayout';
+import { AdminAnalytics } from './admin/pages/AdminAnalytics';
+import { AdminVendors } from './admin/pages/AdminVendors';
+import { AdminContent } from './admin/pages/AdminContent';
+import { AdminGeofences } from './admin/pages/AdminGeofences';
+
 function AppRoutes() {
   const location = useLocation();
   const navigate = useNavigate();
   const activatePremium = usePremiumStore((state) => state.activatePremium);
-  const hydrateFromLegacy = usePremiumStore((state) => state.hydrateFromLegacy);
   const checkExpiry = usePremiumStore((state) => state.checkExpiry);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [toast, setToast] = useState('');
@@ -28,9 +38,14 @@ function AppRoutes() {
   }, []);
 
   useEffect(() => {
-    hydrateFromLegacy();
     checkExpiry();
-  }, [checkExpiry, hydrateFromLegacy]);
+  }, [checkExpiry]);
+
+  useEffect(() => {
+    const handleOpenCheckout = () => setCheckoutOpen(true);
+    window.addEventListener('open-checkout', handleOpenCheckout);
+    return () => window.removeEventListener('open-checkout', handleOpenCheckout);
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(checkExpiry, 10000);
@@ -77,31 +92,39 @@ function AppRoutes() {
   }
 
   return (
-    <VisitorShell>
-      <OfflineBanner />
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={location.pathname}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.18, ease: 'easeOut' }}
-          className="absolute inset-0"
-        >
-          <Routes location={location}>
-            <Route path="/" element={<LandingPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
-            <Route path="/map" element={<MapPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
-            <Route path="/list" element={<ListPage onUpgrade={() => setCheckoutOpen(true)} />} />
-            <Route path="/settings" element={<SettingsPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </motion.div>
-      </AnimatePresence>
+    <>
+      <Routes location={location}>
+        {/* VISITOR APP - Wrap inside VisitorShell but as a layout */}
+        <Route element={<VisitorShell><Outlet /></VisitorShell>}>
+          <Route path="/" element={<LandingPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
+          <Route path="/map" element={<MapPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
+          <Route path="/list" element={<ListPage onUpgrade={() => setCheckoutOpen(true)} />} />
+          <Route path="/settings" element={<SettingsPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
+        </Route>
 
+        {/* VENDOR PORTAL */}
+        <Route path="/vendor" element={<VendorLayout />}>
+          <Route index element={<VendorDashboard />} />
+          <Route path="pois" element={<VendorPOIs />} />
+          <Route path="revenue" element={<VendorRevenue />} />
+        </Route>
+
+        {/* ADMIN PORTAL */}
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<AdminAnalytics />} />
+          <Route path="vendors" element={<AdminVendors />} />
+          <Route path="content" element={<AdminContent />} />
+          <Route path="geofences" element={<AdminGeofences />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+
+      <OfflineBanner />
       <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} onSuccess={handlePaymentSuccess} />
       <Toast message={toast} />
       <Confetti show={showConfetti} />
-    </VisitorShell>
+    </>
   );
 }
 

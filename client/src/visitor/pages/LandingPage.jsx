@@ -1,9 +1,8 @@
 import { motion } from 'framer-motion';
-import { ChevronRight, Compass, Headphones, MapPinned, ShieldCheck } from 'lucide-react';
+import { ChevronRight, Compass, Headphones, MapPinned, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo/logo.png';
 import logoText from '../../assets/logo/logo-text.png';
-import { PREMIUM_ACTIVATION_CODE } from '../../data/visitorPois';
 import { useLocationStore } from '../../stores/locationStore';
 import { usePremiumStore } from '../../stores/premiumStore';
 import { TopBar } from '../components/TopBar';
@@ -16,102 +15,107 @@ export function LandingPage({ onUpgrade, onToast }) {
   const useDemoLocation = useLocationStore((state) => state.useDemoLocation);
   const isPremium = usePremiumStore((state) => state.isPremium);
 
+  const initAudioContext = () => {
+    // Kích hoạt audio context trên iOS
+    if ('speechSynthesis' in window) {
+      const msg = new SpeechSynthesisUtterance('');
+      msg.volume = 0;
+      window.speechSynthesis.speak(msg);
+    }
+  };
+
   async function handleStart() {
+    initAudioContext();
     const allowed = await requestLocation();
 
     if (allowed) {
-      onToast('GPS đã sẵn sàng. Mở bản đồ khám phá.');
+      onToast('GPS đã sẵn sàng. Hãy bắt đầu khám phá.');
       navigate('/map');
       return;
     }
 
-    onToast('Chưa lấy được GPS. Bạn vẫn có thể dùng chế độ demo.');
+    onToast('Chưa lấy được GPS. Bạn có thể cấp quyền lại hoặc dùng bản demo.');
   }
 
   function handleDemo() {
+    initAudioContext();
     useDemoLocation();
-    onToast('Đang dùng vị trí demo tại Phố đi bộ Nguyễn Huệ.');
+    onToast('Đang dùng chế độ Demo. Vị trí giả lập tại trung tâm.');
     navigate('/map');
   }
 
   return (
-    <section className="relative h-full overflow-hidden bg-slate-950 text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(20,184,166,0.42),transparent_28%),radial-gradient(circle_at_82%_16%,rgba(249,115,22,0.28),transparent_26%),linear-gradient(165deg,#073b48_0%,#061c2d_48%,#0f172a_100%)]" />
-      <div className="absolute left-[-18%] top-[17%] h-[420px] w-[420px] rounded-full border border-white/10 opacity-70" />
-      <div className="absolute right-[-22%] top-[30%] h-[360px] w-[360px] rounded-full border border-teal-300/20" />
-      <div className="soundwave-watermark absolute inset-x-0 bottom-16 h-48 opacity-30" />
-
+    <section className="relative h-full overflow-hidden bg-slate-900 text-white font-sans">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(217,119,6,0.15),transparent_35%),radial-gradient(circle_at_80%_80%,rgba(15,23,42,0.8),transparent_50%),linear-gradient(135deg,#0f172a_0%,#1e293b_100%)]" />
+      <div className="absolute -left-20 top-20 h-[500px] w-[500px] rounded-full border-[1px] border-premium-500/10" />
+      <div className="absolute -right-20 bottom-20 h-[400px] w-[400px] rounded-full border-[1px] border-premium-400/10" />
+      
       <TopBar />
 
-      <div className="relative z-10 flex h-full flex-col px-5 pb-8 pt-28">
+      <div className="relative z-10 flex h-full flex-col px-6 pb-12 pt-32">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: 'easeOut' }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
           className="mt-auto"
         >
-          <img className="h-16 w-16 rounded-3xl shadow-2xl shadow-teal-900/30" src={logo} alt="VietTourAudio logo" />
-          <img className="mt-5 h-12 max-w-[260px] object-contain" src={logoText} alt="VietTourAudio" />
-          <h1 className="mt-7 text-4xl font-black leading-[1.05] tracking-normal">
-            Nghe câu chuyện du lịch ngay tại nơi bạn đứng.
+          <div className="flex justify-center mb-8">
+             <img className="h-20 w-20 rounded-2xl shadow-2xl shadow-premium-900/40" src={logo} alt="VietTourAudio" />
+          </div>
+          
+          <h1 className="text-center text-4xl font-extrabold leading-[1.1] tracking-tight text-white mb-4">
+            Khám phá vẻ đẹp qua <span className="text-transparent bg-clip-text bg-gradient-to-r from-premium-300 to-premium-500">giọng kể AI</span>
           </h1>
-          <p className="mt-4 max-w-[330px] text-base leading-7 text-white/80">
-            PWA thuyết minh tự động theo GPS, QR và giọng đọc AI đa ngôn ngữ. Không cần đăng nhập, mở lên là khám phá.
+          <p className="text-center text-base leading-relaxed text-slate-300 mb-10 max-w-sm mx-auto">
+            Tự động phát audio theo vị trí GPS. Trải nghiệm du lịch thông minh, tiện lợi, không cần đăng nhập.
           </p>
 
-          <div className="mt-6 grid gap-3">
+          <div className="grid gap-4 max-w-sm mx-auto">
             <button
               type="button"
               onClick={handleStart}
               disabled={permissionStatus === 'requesting'}
-              className="group inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 text-sm font-black text-white shadow-xl shadow-orange-500/25 transition duration-200 ease-out hover:bg-orange-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+              className="group relative inline-flex min-h-[60px] w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-premium-500 to-premium-600 px-6 text-base font-bold text-white shadow-xl shadow-premium-500/30 transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {permissionStatus === 'requesting' ? 'Đang xin quyền GPS...' : 'Bắt đầu hành trình'}
-              <ChevronRight className="transition duration-200 group-hover:translate-x-0.5" size={19} />
+              <MapPinned size={22} className="opacity-90" />
+              {permissionStatus === 'requesting' ? 'Đang xin quyền GPS...' : 'Bắt đầu trải nghiệm'}
             </button>
+            
             <button
               type="button"
               onClick={handleDemo}
-              className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 text-sm font-black text-white backdrop-blur-xl transition duration-200 ease-out hover:bg-white/20 active:scale-[0.98]"
+              className="inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-6 text-sm font-semibold text-slate-300 backdrop-blur-md transition-all duration-300 ease-out hover:bg-white/10 active:scale-[0.98]"
             >
-              <Compass size={18} />
-              Xem bản đồ demo
+              <Compass size={20} />
+              Trải nghiệm Demo
             </button>
           </div>
 
           {permissionStatus === 'denied' && (
-            <p className="mt-3 rounded-2xl bg-white/10 px-4 py-3 text-sm font-semibold leading-6 text-white/80">
-              {lastError || 'GPS bị từ chối. Bạn có thể cấp quyền lại trong cài đặt trình duyệt.'}
-            </p>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6 rounded-2xl bg-red-500/10 border border-red-500/20 p-4">
+              <p className="text-sm font-medium leading-relaxed text-red-200 text-center">
+                {lastError || 'GPS bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt để tiếp tục.'}
+              </p>
+            </motion.div>
           )}
         </motion.div>
 
-        <div className="relative z-10 mt-7 grid grid-cols-3 gap-2">
-          <FeatureBadge icon={MapPinned} label="GPS" value="Tự phát" />
-          <FeatureBadge icon={Headphones} label="Audio" value={isPremium ? 'Đã mở' : 'Premium'} />
-          <FeatureBadge icon={ShieldCheck} label="Demo" value={PREMIUM_ACTIVATION_CODE} compact />
+        <div className="relative z-10 mt-10 grid grid-cols-2 gap-3 max-w-sm mx-auto w-full">
+          <FeatureBadge icon={MapPinned} label="GPS TỰ ĐỘNG" />
+          <FeatureBadge icon={Headphones} label={isPremium ? 'AUDIO PREMIUM' : 'TEXT & ẢNH'} isPremium={isPremium} />
         </div>
-
-        {!isPremium && (
-          <button
-            type="button"
-            onClick={onUpgrade}
-            className="relative z-10 mt-4 rounded-2xl bg-white px-4 py-3 text-sm font-black text-teal-800 shadow-xl shadow-slate-950/20 transition duration-200 ease-out hover:bg-teal-50 active:scale-[0.98]"
-          >
-            Mở khóa Premium 24h bằng QR test
-          </button>
-        )}
       </div>
     </section>
   );
 }
 
-function FeatureBadge({ icon: Icon, label, value, compact = false }) {
+function FeatureBadge({ icon: Icon, label, isPremium }) {
   return (
-    <article className="rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur-xl">
-      <Icon className="text-orange-300" size={19} />
-      <p className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/60">{label}</p>
-      <p className={compact ? 'mt-1 truncate text-[11px] font-black text-white' : 'mt-1 text-sm font-black text-white'}>{value}</p>
-    </article>
+    <div className={`flex flex-col items-center justify-center rounded-2xl border ${isPremium ? 'border-premium-500/30 bg-premium-500/10' : 'border-white/10 bg-white/5'} p-4 backdrop-blur-md`}>
+      <Icon className={isPremium ? 'text-premium-400' : 'text-slate-400'} size={24} strokeWidth={1.5} />
+      <span className={`mt-2 text-xs font-bold uppercase tracking-wider ${isPremium ? 'text-premium-300' : 'text-slate-400'}`}>
+        {label}
+      </span>
+    </div>
   );
 }

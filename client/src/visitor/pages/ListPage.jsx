@@ -1,4 +1,4 @@
-import { ChevronRight, Download, Headphones, Lock } from 'lucide-react';
+import { ChevronRight, Download, Headphones, Lock, Crown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { destinationPreviews, visitorPois } from '../../data/visitorPois';
 import { usePremiumStore } from '../../stores/premiumStore';
@@ -12,30 +12,39 @@ export function ListPage({ onUpgrade }) {
     <section className="relative h-full overflow-y-auto bg-slate-50 px-4 pb-28 pt-24 hide-scrollbar">
       <TopBar title="Danh sách" compact />
 
-      <header className="mb-4">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-500">Trong khu vực</p>
-        <h1 className="mt-1 text-3xl font-black leading-tight text-slate-950">Sạp và điểm thuyết minh</h1>
+      <header className="mb-6">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-premium-600">Trong khu vực</p>
+        <h1 className="mt-1 text-3xl font-extrabold leading-tight text-slate-900">Sạp và Điểm đến</h1>
       </header>
 
-      <div className="grid gap-3">
+      <div className="grid gap-4">
         {visitorPois.map((poi) => (
           <Link
             key={poi.id}
             to={`/map?poi=${poi.id}`}
-            className="glass-panel grid grid-cols-[74px_1fr_auto] items-center gap-3 rounded-3xl p-3 text-left transition duration-200 ease-out hover:-translate-y-0.5 active:scale-[0.99]"
+            className="flex items-center gap-4 rounded-3xl bg-white p-3 shadow-md border border-slate-100 transition-all duration-300 ease-out hover:shadow-lg active:scale-[0.98]"
           >
-            <img className="h-[74px] w-[74px] rounded-2xl object-cover" src={poi.image} alt={poi.title} />
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-black text-slate-950">{poi.title}</span>
-              <span className="mt-1 block text-xs font-semibold text-slate-500">
+            <div className="relative h-20 w-20 flex-shrink-0">
+              <img className="h-full w-full rounded-2xl object-cover" src={poi.image} alt={poi.title} />
+              {isPremium && (
+                <div className="absolute -top-1 -right-1 rounded-full bg-gradient-to-r from-premium-400 to-premium-600 p-1 shadow-md">
+                   <Headphones size={12} className="text-white" />
+                </div>
+              )}
+            </div>
+            
+            <div className="min-w-0 flex-1">
+              <span className="block truncate text-base font-bold text-slate-900">{poi.title}</span>
+              <span className="mt-1 block text-xs font-medium text-slate-500">
                 {poi.category} • {poi.duration}
               </span>
-              <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-black text-teal-700">
-                {isPremium ? <Headphones size={13} /> : <Lock size={13} />}
-                {isPremium ? 'Audio đã mở' : 'Bản chữ miễn phí'}
-              </span>
-            </span>
-            <ChevronRight className="text-slate-400" size={18} />
+              <div className="mt-2 flex items-center gap-2">
+                <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${isPremium ? 'bg-premium-50 text-premium-700' : 'bg-slate-100 text-slate-500'}`}>
+                  {isPremium ? 'AUDIO ĐÃ MỞ' : 'BẢN CHỮ MIỄN PHÍ'}
+                </span>
+              </div>
+            </div>
+            <ChevronRight className="text-slate-300" size={20} />
           </Link>
         ))}
       </div>
@@ -44,10 +53,10 @@ export function ListPage({ onUpgrade }) {
         <button
           type="button"
           onClick={onUpgrade}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/25 transition duration-200 ease-out hover:bg-orange-600 active:scale-95"
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-premium-500 to-premium-600 px-4 py-4 text-sm font-bold text-white shadow-lg shadow-premium-500/30 transition duration-300 hover:scale-[1.02] active:scale-[0.98]"
         >
-          <Download size={18} />
-          Mở khóa toàn bộ audio 24h
+          <Crown size={20} />
+          Mở khóa Premium 24h
         </button>
       )}
 
