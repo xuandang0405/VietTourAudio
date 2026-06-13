@@ -1,82 +1,188 @@
-// prisma/seed.ts
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient, UserRole } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+async function upsertUser(email: string, role: UserRole, displayName: string, password: string) {
+  return prisma.user.upsert({
+    where: { email },
+    update: { role, displayName, status: 'ACTIVE' },
+    create: {
+      email,
+      passwordHash: await bcrypt.hash(password, 10),
+      displayName,
+      role,
+      status: 'ACTIVE'
+    }
+  });
+}
+
+async function findOrCreateVendor(data: {
+  businessName: string;
+  ownerEmail: string;
+  ownerDisplayName: string;
+  verificationStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+  contactPhone: string;
+}) {
+  const existing = await prisma.vendor.findFirst({ where: { ownerEmail: data.ownerEmail } });
+  if (existing) {
+    return prisma.vendor.update({ where: { id: existing.id }, data });
+  }
+
+  return prisma.vendor.create({ data });
+}
+
 async function main() {
-  // 1. Tạo Admin users
-  const superAdmin = await prisma.user.upsert({
-    where: { email: 'superadmin@viettour.vn' },
-    update: {},
+  const [superAdmin] = await Promise.all([
+    upsertUser('superadmin@viettour.vn', 'SUPER_ADMIN', 'Super Admin', 'Admin@123'),
+    upsertUser('admin@viettour.vn', 'ADMIN', 'Admin Operator', 'Admin@123'),
+    upsertUser('mod@viettour.vn', 'MODERATOR', 'Moderator', 'Mod@123'),
+    upsertUser('finance@viettour.vn', 'FINANCE', 'Finance Admin', 'Finance@123')
+  ]);
+
+  const basicPlan = await prisma.subscriptionPlan.upsert({
+    where: { id: 1 },
+    update: { name: 'Basic Vendor', monthlyPrice: new Prisma.Decimal('299000.00'), isPremium: false },
     create: {
-      email: 'superadmin@viettour.vn',
-      passwordHash: await bcrypt.hash('Admin@123', 10),
-      displayName: 'Super Admin',
-      role: 'SUPER_ADMIN'
+      id: 1,
+      name: 'Basic Vendor',
+      monthlyPrice: new Prisma.Decimal('299000.00'),
+      isPremium: false,
+      maxPois: 3,
+      maxImages: 10,
+      maxVideos: 1
     }
   });
 
-  const moderator = await prisma.user.upsert({
-    where: { email: 'mod@viettour.vn' },
-    update: {},
+  const premiumPlan = await prisma.subscriptionPlan.upsert({
+    where: { id: 2 },
+    update: { name: 'Premium Vendor', monthlyPrice: new Prisma.Decimal('599000.00'), isPremium: true },
     create: {
-      email: 'mod@viettour.vn',
-      passwordHash: await bcrypt.hash('Mod@123', 10),
-      displayName: 'Kiểm duyệt viên',
-      role: 'MODERATOR'
+      id: 2,
+      name: 'Premium Vendor',
+      monthlyPrice: new Prisma.Decimal('599000.00'),
+      isPremium: true,
+      maxPois: 10,
+      maxImages: 30,
+      maxVideos: 3,
+      priorityWeight: 10
     }
   });
 
-  // 2. Subscription Plans
-  await prisma.subscriptionPlan.createMany({
-    skipDuplicates: true,
-    data: [
-      { name: 'Gói Cơ Bản', monthlyPrice: 299000, isPremium: false, maxPois: 3, maxImages: 10, maxVideos: 1 },
-      { name: 'Gói Premium', monthlyPrice: 599000, isPremium: true, maxPois: 10, maxImages: 30, maxVideos: 3, priorityWeight: 10 }
-    ]
-  });
+  const vendorRows = [
+    ['Sạp Bánh Mì Phượng', 'phuong@hoian.vn', 'APPROVED', '0901000001'],
+    ['Hội quán Trà Đạo Nhật', 'tradao@hoian.vn', 'PENDING', '0901000002'],
+    ['Lụa Hội An Truyền Thống', 'lua@hoian.vn', 'APPROVED', '0901000003'],
+    ['Đồ Gỗ Mỹ Nghệ Kim Bồng', 'kimbong@hoian.vn', 'PENDING', '0901000004'],
+    ['Quán Cao Lầu Bà Bé', 'caolau@hoian.vn', 'APPROVED', '0901000005'],
+    ['Tiệm Đèn Lồng Trúc', 'denlong@hoian.vn', 'SUSPENDED', '0901000006']
+  ] as const;
 
-  // 3. Vendors mẫu (10 vendors — mix trạng thái)
-  const plans = await prisma.subscriptionPlan.findMany();
-  const vendorData = [
-    { name: 'Sạp Bánh Mì Phượng', email: 'phuong@hoian.vn', status: 'APPROVED' },
-    { name: 'Hội quán Trà Đạo Nhật', email: 'tradao@hoian.vn', status: 'PENDING' },
-    { name: 'Lụa Hội An Truyền Thống', email: 'lua@hoian.vn', status: 'APPROVED' },
-    { name: 'Đồ Gỗ Mỹ Nghệ Kim Bồng', email: 'kimbong@hoian.vn', status: 'PENDING' },
-    { name: 'Quán Cao Lầu Bà Bé', email: 'caolau@hoian.vn', status: 'APPROVED' },
-    { name: 'Tiệm Đèn Lồng Trúc', email: 'denlong@hoian.vn', status: 'SUSPENDED' },
-    { name: 'Tour Xuồng Bảy Mẫu', email: 'xuong@hoian.vn', status: 'APPROVED' },
-    { name: 'Cà Phê Phố Cổ', email: 'caphe@hoian.vn', status: 'PENDING' },
-    { name: 'Áo Dài Thanh Mai', email: 'aodai@hoian.vn', status: 'APPROVED' },
-    { name: 'Ẩm Thực Miền Trung', email: 'amthuc@hoian.vn', status: 'REJECTED' },
-  ];
+  const vendors = [];
+  for (const [businessName, ownerEmail, verificationStatus, contactPhone] of vendorRows) {
+    const vendor = await findOrCreateVendor({
+      businessName,
+      ownerEmail,
+      ownerDisplayName: businessName.split(' ').slice(-1)[0],
+      verificationStatus,
+      contactPhone
+    });
+    vendors.push(vendor);
 
-  for (const v of vendorData) {
-    const vendor = await prisma.vendor.create({
-      data: {
-        businessName: v.name,
-        ownerEmail: v.email,
-        ownerDisplayName: v.name.split(' ').pop(),
-        verificationStatus: v.status as any,
-        contactPhone: `09${Math.floor(10000000 + Math.random() * 90000000)}`
+    await prisma.vendorWallet.upsert({
+      where: { vendorId: vendor.id },
+      update: {},
+      create: {
+        vendorId: vendor.id,
+        balance: verificationStatus === 'APPROVED' ? new Prisma.Decimal('850000.00') : new Prisma.Decimal('50000.00'),
+        totalTopUp: verificationStatus === 'APPROVED' ? new Prisma.Decimal('1000000.00') : new Prisma.Decimal('50000.00')
       }
     });
 
-    if (v.status === 'APPROVED') {
-      await prisma.vendorSubscription.create({
-        data: {
+    if (verificationStatus === 'APPROVED') {
+      await prisma.vendorSubscription.upsert({
+        where: { vendorId: vendor.id },
+        update: { planId: vendor.id % BigInt(2) === BigInt(0) ? premiumPlan.id : basicPlan.id, status: 'ACTIVE' },
+        create: {
           vendorId: vendor.id,
-          planId: plans[0].id,
+          planId: vendor.id % BigInt(2) === BigInt(0) ? premiumPlan.id : basicPlan.id,
           status: 'ACTIVE',
           periodStart: new Date(),
-          periodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          periodEnd: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
+          autoRenew: true
+        }
+      });
+    }
+
+    const stallName = `${businessName} - điểm chính`;
+    const existingStall = await prisma.stall.findFirst({ where: { vendorId: vendor.id, name: stallName } });
+    if (!existingStall) {
+      await prisma.stall.create({
+        data: {
+          vendorId: vendor.id,
+          name: stallName,
+          latitude: 10.775 + Number(vendor.id) * 0.0001,
+          longitude: 106.701 + Number(vendor.id) * 0.0001,
+          activationRadius: 25,
+          status: verificationStatus === 'APPROVED' ? 'ACTIVE' : 'PENDING_REVIEW'
         }
       });
     }
   }
 
-  console.log('✅ Seed hoàn tất');
+  const pendingVendor = vendors.find((vendor) => vendor.verificationStatus === 'PENDING');
+  if (pendingVendor) {
+    const existingTopup = await prisma.topUpRequest.findFirst({ where: { vendorId: pendingVendor.id, status: 'PENDING' } });
+    if (!existingTopup) {
+      await prisma.topUpRequest.create({
+        data: {
+          vendorId: pendingVendor.id,
+          amount: new Prisma.Decimal('300000.00'),
+          provider: 'BANK_QR',
+          proofImageUrl: 'https://placehold.co/640x480?text=Bank+Proof'
+        }
+      });
+    }
+  }
+
+  const approvedVendor = vendors.find((vendor) => vendor.verificationStatus === 'APPROVED');
+  if (approvedVendor) {
+    const stall = await prisma.stall.findFirst({ where: { vendorId: approvedVendor.id } });
+    const existingMedia = await prisma.mediaFile.findFirst({ where: { vendorId: approvedVendor.id, moderationStatus: 'PENDING' } });
+    if (!existingMedia) {
+      await prisma.mediaFile.create({
+        data: {
+          vendorId: approvedVendor.id,
+          stallId: stall?.id,
+          mediaType: 'AUDIO',
+          storagePath: 'seed/audio/demo.mp3',
+          publicUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+          mimeType: 'audio/mpeg',
+          sizeBytes: BigInt(1024),
+          durationSeconds: 40
+        }
+      });
+    }
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  await prisma.revenueDaily.upsert({
+    where: { date_source_provider: { date: today, source: 'TOP_UP', provider: 'BANK_QR' } },
+    update: { totalAmount: new Prisma.Decimal('300000.00') },
+    create: { date: today, source: 'TOP_UP', provider: 'BANK_QR', totalAmount: new Prisma.Decimal('300000.00') }
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      performedById: superAdmin.id,
+      action: 'SEED_READY',
+      targetType: 'system',
+      targetLabel: 'Initial admin portal seed'
+    }
+  });
+
+  console.log('Seed completed');
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());

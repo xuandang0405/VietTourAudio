@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 
-export function AudioVisualizer({ locked = false, active = true }) {
-  const bars = useMemo(() => [24, 40, 28, 52, 34, 46, 30, 58, 36, 48, 26, 42], []);
+function AudioVisualizerComponent({ locked = false, active = true }) {
+  const bars = useMemo(() => [28, 46, 36, 56, 40], []);
 
   return (
     <div
@@ -18,3 +18,5 @@ export function AudioVisualizer({ locked = false, active = true }) {
     </div>
   );
 }
+
+export const AudioVisualizer = memo(AudioVisualizerComponent);

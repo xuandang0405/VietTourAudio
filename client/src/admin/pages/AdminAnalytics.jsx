@@ -1,71 +1,137 @@
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ShieldCheck, Activity, Map, Mic } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
+import { CircleDollarSign, MapPin, ShieldAlert, Store } from 'lucide-react';
+import { AdminPageHeader } from '../components/AdminPageHeader';
+import { AdminStatCard } from '../components/AdminStatCard';
+import { dashboardKpis, subscriptions, trafficSeries, vendors } from '../data/adminMockData';
+import { AdminBadge } from '../components/AdminBadge';
 
-const mockSystemData = [
-  { name: 'T2', activeUsers: 1200, premiumUsers: 300 },
-  { name: 'T3', activeUsers: 1500, premiumUsers: 420 },
-  { name: 'T4', activeUsers: 1800, premiumUsers: 500 },
-  { name: 'T5', activeUsers: 1400, premiumUsers: 380 },
-  { name: 'T6', activeUsers: 2200, premiumUsers: 650 },
-  { name: 'T7', activeUsers: 3500, premiumUsers: 1200 },
-  { name: 'CN', activeUsers: 3800, premiumUsers: 1400 },
-];
+const kpiIcons = [Store, ShieldAlert, MapPin, CircleDollarSign];
 
 export function AdminAnalytics() {
+  const pendingVendors = vendors.filter((vendor) => vendor.verificationStatus === 'PENDING');
+  const overdueSubscriptions = subscriptions.filter((subscription) => subscription.status === 'OVERDUE');
+
   return (
-    <div className="max-w-6xl mx-auto">
-      <header className="mb-8">
-        <h2 className="text-2xl font-black text-slate-900">System Analytics</h2>
-        <p className="text-slate-500 mt-1">Thống kê toàn cục hệ thống VietTourAudio</p>
-      </header>
+    <div className="mx-auto max-w-[1600px] space-y-6">
+      <AdminPageHeader
+        eyebrow="Tổng quan hệ thống"
+        title="Dashboard vận hành"
+        description="Theo dõi vendor, kiểm duyệt nội dung, geofence, doanh thu và trạng thái subscription trong một màn hình mật độ cao."
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <AdminCard icon={<Activity />} label="Người dùng Active" value="15.4K" trend="+24%" color="text-teal-600" bg="bg-teal-50" />
-        <AdminCard icon={<ShieldCheck />} label="Premium Users" value="4.2K" trend="+32%" color="text-premium-600" bg="bg-premium-50" />
-        <AdminCard icon={<Map />} label="Tổng số POI" value="128" trend="+12" color="text-blue-600" bg="bg-blue-50" />
-        <AdminCard icon={<Mic />} label="Thời lượng Audio" value="45.5h" trend="+2.5h" color="text-purple-600" bg="bg-purple-50" />
-      </div>
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {dashboardKpis.map((kpi, index) => (
+          <AdminStatCard key={kpi.label} {...kpi} icon={kpiIcons[index]} />
+        ))}
+      </section>
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-        <h3 className="text-lg font-bold text-slate-900 mb-6">Lưu lượng truy cập (Tuần qua)</h3>
-        <div className="h-96">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={mockSystemData}>
-              <defs>
-                <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#0D9488" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#0D9488" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorPremium" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12 }} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12 }} dx={-10} />
-              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-              <Area type="monotone" dataKey="activeUsers" stroke="#0D9488" strokeWidth={3} fillOpacity={1} fill="url(#colorActive)" name="Active Users" />
-              <Area type="monotone" dataKey="premiumUsers" stroke="#F59E0B" strokeWidth={3} fillOpacity={1} fill="url(#colorPremium)" name="Premium Users" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_420px]">
+        <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-base font-black text-slate-950">Lưu lượng 7 ngày</h2>
+              <p className="text-sm font-semibold text-slate-500">QR scans, GPS visits và lượt mua Premium</p>
+            </div>
+            <div className="flex gap-2 text-xs font-bold">
+              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">QR</span>
+              <span className="rounded-full bg-green-50 px-2.5 py-1 text-green-700">GPS</span>
+              <span className="rounded-full bg-orange-50 px-2.5 py-1 text-orange-700">Premium</span>
+            </div>
+          </div>
+          <TrafficChart />
+        </article>
+
+        <aside className="space-y-4">
+          <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-base font-black text-slate-950">Vendor chờ duyệt</h2>
+            <div className="mt-4 space-y-3">
+              {pendingVendors.map((vendor) => (
+                <div key={vendor.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-slate-950">{vendor.businessName}</p>
+                      <p className="mt-1 truncate text-xs font-semibold text-slate-500">{vendor.ownerEmail}</p>
+                    </div>
+                    <AdminBadge status={vendor.verificationStatus} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="rounded-2xl border border-orange-200 bg-orange-50 p-4 shadow-sm">
+            <h2 className="text-base font-black text-orange-950">Subscription quá hạn</h2>
+            <div className="mt-4 space-y-3">
+              {overdueSubscriptions.map((subscription) => (
+                <div key={subscription.id} className="flex items-center justify-between gap-3 rounded-xl bg-white/75 p-3">
+                  <div>
+                    <p className="text-sm font-black text-slate-950">{subscription.vendorName}</p>
+                    <p className="text-xs font-semibold text-orange-700">Quá hạn {Math.abs(subscription.daysLeft)} ngày</p>
+                  </div>
+                  <AdminBadge status={subscription.status} />
+                </div>
+              ))}
+            </div>
+          </article>
+        </aside>
+      </section>
     </div>
   );
 }
 
-function AdminCard({ icon, label, value, trend, color, bg }) {
+function TrafficChart() {
+  const wrapperRef = useRef(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const element = wrapperRef.current;
+    if (!element) {
+      return undefined;
+    }
+
+    const observer = new ResizeObserver(([entry]) => {
+      const width = Math.floor(entry.contentRect.width);
+      const height = Math.floor(entry.contentRect.height);
+
+      if (width > 0 && height > 0) {
+        setSize({ width, height });
+      }
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`p-3 rounded-xl ${bg} ${color}`}>
-          {icon}
-        </div>
-        <span className="text-xs font-bold text-green-500 bg-green-50 px-2.5 py-1 rounded-full">{trend}</span>
-      </div>
-      <p className="text-sm font-semibold text-slate-500">{label}</p>
-      <p className="text-2xl font-black text-slate-900 mt-1">{value}</p>
+    <div ref={wrapperRef} className="h-[320px] min-w-0 lg:h-[420px]">
+      {size.width > 0 && size.height > 0 && (
+        <AreaChart width={size.width} height={size.height} data={trafficSeries} margin={{ left: -14, right: 10, top: 8, bottom: 0 }}>
+          <defs>
+            <linearGradient id="qrGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.28} />
+              <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="gpsGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#22C55E" stopOpacity={0.22} />
+              <stop offset="95%" stopColor="#22C55E" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12, fontWeight: 700 }} />
+          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12, fontWeight: 700 }} />
+          <Tooltip
+            contentStyle={{
+              border: '1px solid #E2E8F0',
+              borderRadius: 14,
+              boxShadow: '0 18px 45px rgba(15, 23, 42, 0.12)'
+            }}
+          />
+          <Area type="monotone" dataKey="qrScans" name="QR scans" stroke="#3B82F6" strokeWidth={3} fill="url(#qrGradient)" />
+          <Area type="monotone" dataKey="gpsVisits" name="GPS visits" stroke="#22C55E" strokeWidth={3} fill="url(#gpsGradient)" />
+          <Area type="monotone" dataKey="premium" name="Premium" stroke="#F97316" strokeWidth={3} fill="transparent" />
+        </AreaChart>
+      )}
     </div>
   );
 }

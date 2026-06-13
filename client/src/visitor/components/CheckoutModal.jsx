@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle2, Crown, X, Copy } from 'lucide-react';
+import { CheckCircle2, Copy, Crown, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
 
@@ -10,69 +10,87 @@ const TRANSFER_CONTENT = 'VTA PREMIUM';
 export function CheckoutModal({ open, onClose, onSuccess }) {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(TRANSFER_CONTENT);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  async function handleCopy() {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(TRANSFER_CONTENT);
+      }
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
 
   return (
     <AnimatePresence>
       {open && (
-        <div className="absolute inset-0 z-[1600] grid place-items-center px-4">
+        <div className="fixed inset-0 z-[1600] grid place-items-center px-4">
           <motion.button
             type="button"
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            className="absolute inset-0 bg-bgAbyss/78 backdrop-blur-md"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
+            aria-label="Đóng thanh toán Premium"
           />
           <motion.section
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="relative w-full max-w-[360px] overflow-hidden rounded-[2.5rem] bg-white text-center shadow-2xl"
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="relative w-full max-w-[360px] overflow-hidden rounded-2xl border border-glassBorder bg-bgSurface/95 text-center text-textCrisp shadow-2xl shadow-black/45 backdrop-blur-xl tablet:max-w-[480px] pc:max-w-[520px]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="checkout-title"
           >
-            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-premium-400 to-premium-600" />
-            
+            <div className="absolute left-0 right-0 top-0 h-32 bg-gradient-to-br from-premiumNeon/70 via-abyssIndigo/70 to-oceanCyan/65" />
+
             <button
               type="button"
               onClick={onClose}
-              className="absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-full bg-black/20 text-white backdrop-blur-md transition hover:bg-black/40 active:scale-95"
+              className="absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-full border border-white/20 bg-bgAbyss/35 text-white backdrop-blur-md transition duration-150 ease-out hover:bg-bgAbyss/55 active:scale-[0.98]"
+              aria-label="Đóng"
             >
               <X size={18} />
             </button>
-            
-            <div className="relative z-10 mx-auto mt-12 grid h-20 w-20 place-items-center rounded-3xl bg-white shadow-xl shadow-premium-900/20 border-4 border-white">
-              <Crown size={40} className="text-premium-500" />
+
+            <div className="relative z-10 mx-auto mt-12 grid h-20 w-20 place-items-center rounded-2xl border-4 border-bgSurface bg-bgAbyss shadow-neon-premium">
+              <Crown size={40} className="text-premiumNeon" />
             </div>
 
             <div className="px-6 pb-8 pt-4">
-              <h2 className="text-2xl font-black leading-tight text-slate-900">Mở Khóa Premium</h2>
-              <p className="mt-1 text-sm font-medium text-slate-500">Kích hoạt Audio thông minh 24h</p>
-              
-              <div className="mt-4 mb-2">
-                <span className="text-4xl font-extrabold text-premium-600">30.000</span>
-                <span className="text-sm font-bold text-premium-600 ml-1">VNĐ</span>
+              <h2 id="checkout-title" className="font-display text-2xl font-bold leading-tight text-textCrisp">
+                Mở khóa Toàn bộ Audio (24 Giờ)
+              </h2>
+              <p className="mt-1 text-sm font-medium text-textSeafoam">Quét QR hoặc dùng nút giả lập cho môi trường demo</p>
+
+              <div className="mb-2 mt-4">
+                <span className="bg-gradient-to-r from-premiumNeon to-electricBlue bg-clip-text font-display text-4xl font-bold text-transparent">30.000</span>
+                <span className="ml-1 text-sm font-bold text-electricBlue">VNĐ</span>
               </div>
 
-              <div className="mx-auto mt-4 w-max rounded-3xl border border-slate-100 bg-white p-3 shadow-md">
-                <QRCodeSVG value={TEST_PAYMENT_VALUE} size={180} level="M" includeMargin />
+              <div className="mx-auto mt-4 flex aspect-square w-full max-w-[200px] items-center justify-center rounded-2xl bg-white p-4 shadow-2xl ring-4 ring-premiumNeon/20">
+                <QRCodeSVG value={TEST_PAYMENT_VALUE} size={168} level="M" includeMargin />
               </div>
 
-              <div className="mt-6 rounded-2xl bg-slate-50 p-4 border border-slate-100">
-                <div className="flex justify-between items-center text-sm mb-2">
-                  <span className="text-slate-500">Ngân hàng</span>
-                  <span className="font-bold text-slate-900">{BANK_ACCOUNT}</span>
+              <div className="mt-6 rounded-2xl border border-glassBorder bg-white/5 p-4 shadow-glass-inner">
+                <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                  <span className="text-textSeafoam">Ngân hàng</span>
+                  <span className="text-right font-bold text-textCrisp">{BANK_ACCOUNT}</span>
                 </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">Nội dung</span>
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-textSeafoam">Nội dung</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-premium-600">{TRANSFER_CONTENT}</span>
-                    <button onClick={handleCopy} className="p-1.5 rounded-lg bg-white shadow-sm border border-slate-200 text-slate-600 active:scale-95">
-                      {copied ? <CheckCircle2 size={14} className="text-green-500" /> : <Copy size={14} />}
+                    <span className="font-bold text-oceanCyan">{TRANSFER_CONTENT}</span>
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      className="rounded-full border border-glassBorder bg-white/5 p-1.5 text-textSeafoam shadow-glass-inner transition duration-150 ease-out hover:border-electricBlue/40 hover:text-oceanCyan active:scale-[0.98]"
+                      aria-label="Sao chép nội dung chuyển khoản"
+                    >
+                      {copied ? <CheckCircle2 size={14} className="text-success" /> : <Copy size={14} />}
                     </button>
                   </div>
                 </div>
@@ -81,10 +99,10 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
               <button
                 type="button"
                 onClick={onSuccess}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-4 text-sm font-bold text-white shadow-xl shadow-slate-900/20 transition duration-300 hover:bg-black active:scale-[0.98]"
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-premiumNeon to-electricBlue px-4 py-4 text-sm font-bold text-white shadow-neon-premium transition duration-150 ease-out hover:brightness-110 active:scale-[0.98]"
               >
-                <CheckCircle2 size={20} className="text-premium-400" />
-                Tôi đã thanh toán
+                <CheckCircle2 size={20} className="text-white" />
+                Giả lập Thanh toán Thành công
               </button>
             </div>
           </motion.section>

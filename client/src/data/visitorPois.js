@@ -23,7 +23,7 @@ export const visitorPois = [
     activationRadius: 35,
     isPremiumPoi: true,
     description:
-      'Sạp Đồ Cổ Chú Năm lưu giữ những món vật dụng gắn với đời sống Sài Gòn xưa: máy ảnh film, đồng hồ để bàn, hộp trà cũ và các món lưu niệm đã đi qua nhiều thế hệ. Đây là điểm dừng lý tưởng để nghe câu chuyện về nhịp buôn bán, ký ức đô thị và cách người dân địa phương gìn giữ những món đồ có linh hồn riêng.',
+      'Sạp Đồ Cổ Chú Năm lưu giữ những món vật dụng gắn với đời sống Sài Gòn xưa: máy ảnh phim, đồng hồ để bàn, hộp trà cũ và các món lưu niệm đã đi qua nhiều thế hệ. Đây là điểm dừng lý tưởng để nghe câu chuyện về nhịp buôn bán, ký ức đô thị và cách người dân địa phương gìn giữ những món đồ có linh hồn riêng.',
     narration: {
       vi:
         'Bạn đang đứng trước Sạp Đồ Cổ Chú Năm. Những món đồ nhỏ ở đây không chỉ để bán, mà còn kể lại nhịp sống Sài Gòn qua từng thời kỳ. Hãy nhìn kỹ những chiếc máy ảnh, đồng hồ và hộp trà cũ. Mỗi món đều giữ một mảnh ký ức của phố thị.',
@@ -97,7 +97,7 @@ export const visitorPois = [
       vi:
         'Góc Sách Ký Ức là nơi những trang sách cũ gặp lại nhịp sống hôm nay. Những bưu thiếp, tranh in và tập sách nhỏ ở đây lưu giữ một phần ký ức đô thị, dành cho người thích khám phá thành phố bằng nhịp chậm.',
       en:
-        'Memory Book Corner is where old pages meet today’s city rhythm. Postcards, prints, and small books preserve a quiet urban memory for travelers who enjoy discovering the city slowly.'
+        'Memory Book Corner is where old pages meet today city rhythm. Postcards, prints, and small books preserve a quiet urban memory for travelers who enjoy discovering the city slowly.'
     }
   }
 ];

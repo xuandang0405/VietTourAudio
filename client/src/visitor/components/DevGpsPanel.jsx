@@ -10,8 +10,8 @@ export function DevGpsPanel({ onToast }) {
   }
 
   return (
-    <div className="absolute bottom-[calc(38%+112px)] left-4 right-20 z-[1200] rounded-3xl border border-dashed border-teal-200 bg-white/90 p-3 shadow-xl shadow-slate-900/10 backdrop-blur-xl">
-      <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-teal-700">
+    <div className="absolute bottom-[calc(38%+112px)] left-4 right-20 z-[1200] rounded-2xl border border-dashed border-oceanCyan/30 bg-bgSurface/85 p-3 shadow-xl shadow-black/30 backdrop-blur-xl">
+      <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase text-oceanCyan">
         <MapPin size={14} />
         Dev GPS
       </div>
@@ -22,9 +22,9 @@ export function DevGpsPanel({ onToast }) {
             type="button"
             onClick={() => {
               simulateNearPoi(poi);
-              onToast(`Đã giả lập GPS gần ${poi.title}.`);
+              onToast?.(`Đã giả lập GPS gần ${poi.title}.`);
             }}
-            className="shrink-0 rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition duration-200 ease-out hover:bg-teal-50 hover:text-teal-700 active:scale-95"
+            className="shrink-0 rounded-full border border-glassBorder bg-white/5 px-3 py-2 text-xs font-bold text-textSeafoam transition duration-150 ease-out hover:border-oceanCyan/50 hover:bg-white/10 hover:text-textCrisp active:scale-[0.98]"
           >
             {poi.title}
           </button>

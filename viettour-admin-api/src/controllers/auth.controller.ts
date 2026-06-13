@@ -26,7 +26,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const accessToken = jwt.sign(
-      { userId: user.id, role: user.role, email: user.email },
+      { userId: user.id.toString(), role: user.role, email: user.email },
       JWT_SECRET,
       { expiresIn: '15m' }
     );
@@ -92,7 +92,7 @@ export const refresh = async (req: Request, res: Response) => {
     }
 
     const accessToken = jwt.sign(
-      { userId: tokenRecord.user.id, role: tokenRecord.user.role, email: tokenRecord.user.email },
+      { userId: tokenRecord.user.id.toString(), role: tokenRecord.user.role, email: tokenRecord.user.email },
       JWT_SECRET,
       { expiresIn: '15m' }
     );

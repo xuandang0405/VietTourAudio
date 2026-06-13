@@ -1,8 +1,26 @@
-import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { AdminGuard } from './admin/components/AdminGuard';
+import { AdminLayout } from './admin/components/AdminLayout';
+import { AdminAnalytics } from './admin/pages/AdminAnalytics';
+import { AdminAuditLogs } from './admin/pages/AdminAuditLogs';
+import { AdminCommissions } from './admin/pages/AdminCommissions';
+import { AdminContent } from './admin/pages/AdminContent';
+import { AdminGeofences } from './admin/pages/AdminGeofences';
+import { AdminLoginPage } from './admin/pages/AdminLoginPage';
+import { AdminPois } from './admin/pages/AdminPois';
+import { AdminRevenue } from './admin/pages/AdminRevenue';
+import { AdminSubscriptions } from './admin/pages/AdminSubscriptions';
+import { AdminUsers } from './admin/pages/AdminUsers';
+import { AdminVendorDetail } from './admin/pages/AdminVendorDetail';
+import { AdminVendors } from './admin/pages/AdminVendors';
 import { PREMIUM_ACTIVATION_CODE } from './data/visitorPois';
 import { usePremiumStore } from './stores/premiumStore';
+import { VendorLayout } from './vendor/components/VendorLayout';
+import { VendorDashboard } from './vendor/pages/VendorDashboard';
+import { VendorPOIs } from './vendor/pages/VendorPOIs';
+import { VendorRevenue } from './vendor/pages/VendorRevenue';
+import { AppErrorBoundary } from './visitor/components/AppErrorBoundary';
 import { CheckoutModal } from './visitor/components/CheckoutModal';
 import { Confetti } from './visitor/components/Confetti';
 import { OfflineBanner } from './visitor/components/OfflineBanner';
@@ -12,17 +30,6 @@ import { LandingPage } from './visitor/pages/LandingPage';
 import { ListPage } from './visitor/pages/ListPage';
 import { MapPage } from './visitor/pages/MapPage';
 import { SettingsPage } from './visitor/pages/SettingsPage';
-
-import { VendorLayout } from './vendor/components/VendorLayout';
-import { VendorDashboard } from './vendor/pages/VendorDashboard';
-import { VendorPOIs } from './vendor/pages/VendorPOIs';
-import { VendorRevenue } from './vendor/pages/VendorRevenue';
-
-import { AdminLayout } from './admin/components/AdminLayout';
-import { AdminAnalytics } from './admin/pages/AdminAnalytics';
-import { AdminVendors } from './admin/pages/AdminVendors';
-import { AdminContent } from './admin/pages/AdminContent';
-import { AdminGeofences } from './admin/pages/AdminGeofences';
 
 function AppRoutes() {
   const location = useLocation();
@@ -53,10 +60,7 @@ function AppRoutes() {
   }, [checkExpiry]);
 
   useEffect(() => {
-    if (!toast) {
-      return undefined;
-    }
-
+    if (!toast) return undefined;
     const timer = window.setTimeout(() => setToast(''), 2800);
     return () => window.clearTimeout(timer);
   }, [toast]);
@@ -65,26 +69,18 @@ function AppRoutes() {
     const params = new URLSearchParams(location.search);
     const activationCode = params.get('activate');
 
-    if (activationCode !== PREMIUM_ACTIVATION_CODE) {
-      return;
-    }
+    if (activationCode !== PREMIUM_ACTIVATION_CODE) return;
 
-    activatePremium();
+    activatePremium('demo-url');
     params.delete('activate');
     showToast('Premium demo đã được kích hoạt 24 giờ.');
     setShowConfetti(true);
     window.setTimeout(() => setShowConfetti(false), 1500);
-    navigate(
-      {
-        pathname: location.pathname,
-        search: params.toString()
-      },
-      { replace: true }
-    );
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
   }, [activatePremium, location.pathname, location.search, navigate, showToast]);
 
   function handlePaymentSuccess() {
-    activatePremium();
+    activatePremium('demo-payment');
     setCheckoutOpen(false);
     showToast('Thanh toán thành công. Premium đã mở khóa 24 giờ.');
     setShowConfetti(true);
@@ -93,32 +89,41 @@ function AppRoutes() {
 
   return (
     <>
-      <Routes location={location}>
-        {/* VISITOR APP - Wrap inside VisitorShell but as a layout */}
-        <Route element={<VisitorShell><Outlet /></VisitorShell>}>
-          <Route path="/" element={<LandingPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
-          <Route path="/map" element={<MapPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
-          <Route path="/list" element={<ListPage onUpgrade={() => setCheckoutOpen(true)} />} />
-          <Route path="/settings" element={<SettingsPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
-        </Route>
+      <AppErrorBoundary resetKey={location.pathname}>
+        <Routes location={location}>
+          <Route element={<VisitorShell><Outlet /></VisitorShell>}>
+            <Route path="/" element={<LandingPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
+            <Route path="/map" element={<MapPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
+            <Route path="/list" element={<ListPage onUpgrade={() => setCheckoutOpen(true)} />} />
+            <Route path="/settings" element={<SettingsPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
+          </Route>
 
-        {/* VENDOR PORTAL */}
-        <Route path="/vendor" element={<VendorLayout />}>
-          <Route index element={<VendorDashboard />} />
-          <Route path="pois" element={<VendorPOIs />} />
-          <Route path="revenue" element={<VendorRevenue />} />
-        </Route>
+          <Route path="/vendor" element={<VendorLayout />}>
+            <Route index element={<VendorDashboard />} />
+            <Route path="pois" element={<VendorPOIs />} />
+            <Route path="revenue" element={<VendorRevenue />} />
+          </Route>
 
-        {/* ADMIN PORTAL */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminAnalytics />} />
-          <Route path="vendors" element={<AdminVendors />} />
-          <Route path="content" element={<AdminContent />} />
-          <Route path="geofences" element={<AdminGeofences />} />
-        </Route>
+          <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route element={<AdminGuard />}>
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminAnalytics />} />
+              <Route path="vendors" element={<AdminVendors />} />
+              <Route path="vendors/:id" element={<AdminVendorDetail />} />
+              <Route path="content" element={<AdminContent />} />
+              <Route path="pois" element={<AdminPois />} />
+              <Route path="revenue" element={<AdminRevenue />} />
+              <Route path="commissions" element={<AdminCommissions />} />
+              <Route path="subscriptions" element={<AdminSubscriptions />} />
+              <Route path="geofences" element={<AdminGeofences />} />
+              <Route path="audit-logs" element={<AdminAuditLogs />} />
+              <Route path="settings/users" element={<AdminUsers />} />
+            </Route>
+          </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AppErrorBoundary>
 
       <OfflineBanner />
       <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} onSuccess={handlePaymentSuccess} />
