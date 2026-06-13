@@ -4,7 +4,9 @@ title VietTourAudio - Frontend
 
 set "ROOT=%~dp0"
 set "CLIENT=%ROOT%client"
-set "PORTABLE_NODE="
+set "NODE_EXE="
+set "NPM_CMD="
+set "KNOWN_NODE=%USERPROFILE%\Documents\Codex\2026-05-30\xuandang0405-viettouraudio-https-github-com-xuandang0405-2\work\tools\node-v22.14.0-win-x64"
 
 echo ==================================================
 echo  VietTourAudio - Chay Frontend
@@ -16,23 +18,32 @@ if not exist "%CLIENT%\package.json" (
   goto ERROR
 )
 
-where node >nul 2>nul
-if errorlevel 1 (
-  for /f "delims=" %%N in ('where /r "%USERPROFILE%\Documents\Codex" node.exe 2^>nul') do if not defined PORTABLE_NODE set "PORTABLE_NODE=%%~dpN"
-  if defined PORTABLE_NODE if exist "%PORTABLE_NODE%node.exe" (
-    set "PATH=%PORTABLE_NODE%;%PATH%"
-  ) else (
-    echo LOI: Chua co NodeJS.
-    echo Tai NodeJS LTS tai: https://nodejs.org/
-    goto ERROR
-  )
+if exist "%KNOWN_NODE%\node.exe" (
+  set "NODE_EXE=%KNOWN_NODE%\node.exe"
+  set "NPM_CMD=%KNOWN_NODE%\npm.cmd"
 )
+
+if not defined NODE_EXE (
+  for /f "delims=" %%N in ('where node 2^>nul') do if not defined NODE_EXE set "NODE_EXE=%%N"
+  for /f "delims=" %%N in ('where npm.cmd 2^>nul') do if not defined NPM_CMD set "NPM_CMD=%%N"
+)
+
+if not defined NODE_EXE (
+  echo LOI: Chua co NodeJS.
+  echo Tai NodeJS LTS tai: https://nodejs.org/
+  goto ERROR
+)
+
+for %%N in ("%NODE_EXE%") do set "NODE_DIR=%%~dpN"
+set "PATH=%NODE_DIR%;%PATH%"
+
+if not defined NPM_CMD set "NPM_CMD=npm.cmd"
 
 pushd "%CLIENT%"
 
 if not exist "node_modules\vite\bin\vite.js" (
   echo Dang cai thu vien frontend lan dau...
-  call npm install
+  call "%NPM_CMD%" install
   if errorlevel 1 (
     popd
     echo LOI: Khong cai duoc thu vien frontend.
@@ -46,7 +57,7 @@ echo Nhan Ctrl+C de dung frontend.
 echo.
 
 popd
-call node "%ROOT%scripts\start-frontend.mjs"
+call "%NODE_EXE%" "%ROOT%scripts\start-frontend.mjs"
 set "EXIT_CODE=%ERRORLEVEL%"
 
 if not "%EXIT_CODE%"=="0" goto ERROR
