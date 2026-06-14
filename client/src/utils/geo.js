@@ -32,7 +32,8 @@ export function formatDistance(meters, languageCode = 'vi') {
     return languageCode === 'en' ? `${value} away` : `${prefix} ${value}`;
   }
 
-  const value = `${(meters / 1000).toFixed(1)}km`;
+  const locale = { vi: 'vi-VN', en: 'en-US', zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR' }[languageCode] ?? 'vi-VN';
+  const value = `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(meters / 1000)} km`;
   return languageCode === 'en' ? `${value} away` : `${prefix} ${value}`;
 }
 

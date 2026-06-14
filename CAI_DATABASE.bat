@@ -39,7 +39,7 @@ if errorlevel 2 exit /b 0
 pushd "%ROOT%"
 echo.
 echo Nhap mat khau tai khoan root MySQL khi duoc hoi.
-"%MYSQL_EXE%" -u root -p < "database\setup-local.sql"
+"%MYSQL_EXE%" --default-character-set=utf8mb4 -u root -p < "database\setup-local.sql"
 set "EXIT_CODE=%ERRORLEVEL%"
 popd
 

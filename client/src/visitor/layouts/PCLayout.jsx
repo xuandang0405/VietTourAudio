@@ -25,6 +25,7 @@ export function PCLayout({
           onUpgrade={onUpgrade}
           handleLocate={handleLocate}
           permissionStatus={permissionStatus}
+          isFakeMode={isFakeMode}
           enrichedPois={enrichedPois}
           selectedPoi={selectedPoi}
           handleSelectPoi={handleSelectPoi}
@@ -37,7 +38,7 @@ export function PCLayout({
             <LeafletMap selectedPoi={selectedPoi} enrichedPois={enrichedPois} position={position} onSelectPoi={handleSelectPoi} />
           </div>
 
-          {(isFakeMode || searchParams.get('debug') === 'gps') && <DevGpsPanel onToast={onToast} />}
+          {(isFakeMode || searchParams.get('debug') === 'gps') && <DevGpsPanel pois={enrichedPois} onToast={onToast} />}
 
           {!position && (
             <article className="glass-card absolute left-6 right-6 top-6 z-[1200] mx-auto max-w-md p-4 text-center">

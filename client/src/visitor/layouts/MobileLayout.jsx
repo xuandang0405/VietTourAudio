@@ -57,7 +57,7 @@ export function MobileLayout({
         </button>
       </div>
 
-      {(isFakeMode || searchParams.get('debug') === 'gps') && <DevGpsPanel onToast={onToast} />}
+      {(isFakeMode || searchParams.get('debug') === 'gps') && <DevGpsPanel pois={enrichedPois} onToast={onToast} />}
 
       {!position && (
         <article className="glass-card absolute left-4 right-4 top-[150px] z-[1200] p-4 text-center">

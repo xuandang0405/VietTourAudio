@@ -19,6 +19,7 @@ export function SidebarContent({
   onUpgrade,
   handleLocate,
   permissionStatus,
+  isFakeMode,
   enrichedPois = [],
   selectedPoi,
   handleSelectPoi
@@ -81,7 +82,9 @@ export function SidebarContent({
             <p className="text-[10px] font-bold uppercase text-textGhost">Định vị GPS</p>
           </div>
           <div className="flex items-center justify-between rounded-xl border border-glassBorder bg-white/5 p-3">
-            <span className="text-xs font-semibold text-textSeafoam">{gpsLabels[permissionStatus] ?? 'Chưa bật'}</span>
+            <span className="text-xs font-semibold text-textSeafoam">
+              {isFakeMode ? 'Đang dùng demo' : (gpsLabels[permissionStatus] ?? 'Chưa bật')}
+            </span>
             <button
               type="button"
               onClick={handleLocate}

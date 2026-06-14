@@ -1,9 +1,8 @@
 import { MapPin } from 'lucide-react';
-import { visitorPois } from '../../data/visitorPois';
 import { useLocationStore } from '../../stores/locationStore';
 import { useTranslation } from '../../i18n/translations';
 
-export function DevGpsPanel({ onToast }) {
+export function DevGpsPanel({ pois = [], onToast }) {
   const { t } = useTranslation();
   const simulateNearPoi = useLocationStore((state) => state.simulateNearPoi);
   return (
@@ -13,7 +12,7 @@ export function DevGpsPanel({ onToast }) {
         Dev GPS
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
-        {visitorPois.map((poi) => (
+        {pois.map((poi) => (
           <button
             key={poi.id}
             type="button"

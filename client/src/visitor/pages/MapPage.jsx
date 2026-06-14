@@ -27,6 +27,7 @@ export function MapPage({ onUpgrade, onToast }) {
   const permissionStatus = useLocationStore((state) => state.permissionStatus);
   const requestLocation = useLocationStore((state) => state.requestLocation);
   const useDemoLocation = useLocationStore((state) => state.useDemoLocation);
+  const simulateNearPoi = useLocationStore((state) => state.simulateNearPoi);
   const isFakeMode = useLocationStore((state) => state.isFakeMode);
   const isPremium = usePremiumStore((state) => state.isPremium);
   const canAutoPlay = useAudioStore((state) => state.canAutoPlay);
@@ -62,6 +63,13 @@ export function MapPage({ onUpgrade, onToast }) {
       if (!active) return;
       const apiPois = response.data?.data ?? [];
       if (apiPois.length === 0) return;
+      const demoTarget = apiPois.find((poi) => poi.slug === selectedPoiId) ?? apiPois[0];
+      if (isFakeMode && demoTarget) {
+        simulateNearPoi({
+          latitude: Number(demoTarget.latitude),
+          longitude: Number(demoTarget.longitude)
+        });
+      }
       setPois((currentPois) => apiPois.map((apiPoi) => {
         const apiId = Number(apiPoi.id);
         const localPoi = currentPois.find((candidate) => candidate.apiId === apiId);
@@ -92,7 +100,7 @@ export function MapPage({ onUpgrade, onToast }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isFakeMode, simulateNearPoi]);
 
   useEffect(() => {
     setSelectedPoiId(searchParams.get('poi'));
