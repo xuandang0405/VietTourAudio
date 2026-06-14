@@ -75,7 +75,8 @@ public sealed record PoiResponseDto(
   bool IsPremium,
   string Status,
   decimal? DistanceMeters,
-  bool IsInsideGeofence
+  bool IsInsideGeofence,
+  ulong? QrCodeId = null
 );
 
 public sealed record PoiContentRequestDto(

@@ -1,7 +1,7 @@
 // src/middleware/auth.middleware.ts
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../types/domain';
 
 export interface AuthPayload {
   userId: bigint;

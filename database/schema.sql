@@ -243,6 +243,10 @@ CREATE TABLE media_files (
   mime_type VARCHAR(120) NOT NULL,
   file_size BIGINT UNSIGNED NOT NULL,
   checksum_sha256 CHAR(64) NULL,
+  moderation_status ENUM('PENDING', 'APPROVED', 'REJECTED', 'HIDDEN') NOT NULL DEFAULT 'PENDING',
+  moderated_by_user_id BIGINT UNSIGNED NULL,
+  moderated_at TIMESTAMP NULL DEFAULT NULL,
+  rejection_reason VARCHAR(500) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -250,6 +254,8 @@ CREATE TABLE media_files (
   KEY idx_media_files_stall_id (stall_id),
   KEY idx_media_files_poi_id (poi_id),
   KEY idx_media_files_uploaded_by_user_id (uploaded_by_user_id),
+  KEY idx_media_files_moderation_status (moderation_status),
+  KEY idx_media_files_moderated_by_user_id (moderated_by_user_id),
   KEY idx_media_files_created_at (created_at),
   CONSTRAINT fk_media_files_vendor
     FOREIGN KEY (vendor_id) REFERENCES vendors(id)
@@ -262,6 +268,9 @@ CREATE TABLE media_files (
     ON UPDATE CASCADE ON DELETE SET NULL,
   CONSTRAINT fk_media_files_uploaded_by
     FOREIGN KEY (uploaded_by_user_id) REFERENCES users(id)
+    ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT fk_media_files_moderated_by
+    FOREIGN KEY (moderated_by_user_id) REFERENCES users(id)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

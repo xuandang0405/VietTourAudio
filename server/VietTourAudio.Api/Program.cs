@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using VietTourAudio.Api.Data;
 using VietTourAudio.Api.Interfaces;
@@ -27,13 +28,14 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IStallService, StallService>();
-builder.Services.AddScoped<IPoiService, PoiService>();
-builder.Services.AddScoped<IPoiContentService, PoiContentService>();
-builder.Services.AddScoped<IMediaStorageService, MediaStorageService>();
-builder.Services.AddScoped<IQrTrackingService, QrTrackingService>();
-builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
-builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IStallService, DatabaseStallService>();
+builder.Services.AddScoped<IPoiService, DatabasePoiService>();
+builder.Services.AddScoped<IPoiContentService, DatabasePoiContentService>();
+builder.Services.AddScoped<IMediaStorageService, DatabaseMediaStorageService>();
+builder.Services.AddScoped<DatabaseTrackingService>();
+builder.Services.AddScoped<IQrTrackingService>(services => services.GetRequiredService<DatabaseTrackingService>());
+builder.Services.AddScoped<IAnalyticsService>(services => services.GetRequiredService<DatabaseTrackingService>());
+builder.Services.AddScoped<IPaymentService, DatabasePaymentService>();
 builder.Services.AddScoped<ICommissionService, CommissionService>();
 builder.Services.AddScoped<IAdminLogService, AdminLogService>();
 builder.Services.AddScoped<IGeofenceService, GeofenceService>();
@@ -110,6 +112,12 @@ builder.Services
 
 var app = builder.Build();
 
+var uploadsPath = Path.GetFullPath(Path.Combine(
+  app.Environment.ContentRootPath,
+  app.Configuration["Storage:BasePath"] ?? "../uploads"
+));
+Directory.CreateDirectory(uploadsPath);
+
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
@@ -119,9 +127,29 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles(new StaticFileOptions
+{
+  FileProvider = new PhysicalFileProvider(uploadsPath),
+  RequestPath = "/uploads"
+});
 app.UseCors("ClientApp");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapGet("/health", async (AppDbContext db) =>
+{
+  try
+  {
+    var connection = await DatabaseSql.OpenConnectionAsync(db);
+    await using var command = connection.CreateCommand();
+    command.CommandText = "SELECT 1";
+    await command.ExecuteScalarAsync();
+    return Results.Ok(new { ok = true, database = "connected" });
+  }
+  catch (Exception error)
+  {
+    return Results.Json(new { ok = false, database = "disconnected", error = error.Message }, statusCode: 503);
+  }
+});
 
 app.Run();

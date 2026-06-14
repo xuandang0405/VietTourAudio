@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../types/domain';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { ok } from '../types/api.types';
 import { query, pool } from '../lib/db';

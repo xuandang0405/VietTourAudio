@@ -3,7 +3,7 @@ import { appConfig } from '../../config/appConfig';
 import { useAdminAuthStore } from '../store/adminAuthStore';
 
 export const adminApiClient = axios.create({
-  baseURL: appConfig.apiBaseUrl,
+  baseURL: appConfig.adminApiBaseUrl,
   timeout: 20000,
   headers: {
     'Content-Type': 'application/json'
@@ -17,7 +17,7 @@ function unwrap(response) {
 }
 
 function getAuthUrl(path) {
-  return `${appConfig.apiBaseUrl}${path}`;
+  return `${appConfig.adminApiBaseUrl}${path}`;
 }
 
 async function refreshAccessToken() {

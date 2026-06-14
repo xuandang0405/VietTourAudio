@@ -1,10 +1,7 @@
-import { Prisma } from '@prisma/client';
-
 export function serializeForJson<T>(value: T): T {
   return JSON.parse(
     JSON.stringify(value, (_key, item) => {
       if (typeof item === 'bigint') return item.toString();
-      if (item instanceof Prisma.Decimal) return item.toString();
       if (item instanceof Date) return item.toISOString();
       return item;
     })
@@ -37,14 +34,16 @@ export function requireString(value: unknown, label: string): string {
   return value.trim();
 }
 
-export function parseMoney(value: unknown, label = 'amount'): Prisma.Decimal {
-  try {
-    const decimal = new Prisma.Decimal(String(value));
-    if (!decimal.isFinite() || decimal.lte(0)) {
-      throw new Error('Amount must be positive');
-    }
-    return decimal.toDecimalPlaces(2);
-  } catch {
+export function parseMoney(value: unknown, label = 'amount'): string {
+  const raw = String(value ?? '').trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(raw)) {
     throw Object.assign(new Error(`${label} must be a positive decimal amount`), { statusCode: 400 });
   }
+
+  const amount = Number(raw);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw Object.assign(new Error(`${label} must be a positive decimal amount`), { statusCode: 400 });
+  }
+
+  return amount.toFixed(2);
 }

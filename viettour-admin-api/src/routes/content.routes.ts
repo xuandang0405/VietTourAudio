@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../types/domain';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { ok } from '../types/api.types';
 import { query } from '../lib/db';
@@ -26,9 +26,11 @@ router.get(
        LEFT JOIN vendors v ON v.id = mf.vendor_id
        LEFT JOIN stalls s ON s.id = mf.stall_id
        LEFT JOIN pois p ON p.id = mf.poi_id
+       ${status === 'ALL' ? '' : 'WHERE mf.moderation_status = ?'}
        ORDER BY mf.created_at ASC`
+      , status === 'ALL' ? [] : [status]
     );
-    const items = rows.map(mapMedia).filter((item) => status === 'ALL' || item.moderationStatus === status);
+    const items = rows.map(mapMedia);
 
     res.json(ok(items));
   })
@@ -44,7 +46,8 @@ router.post(
       return;
     }
 
-    const result = { ...item, moderationStatus: 'APPROVED' };
+    await updateModeration(id, 'APPROVED', req.user!.userId);
+    const result = await getMedia(id);
     req.auditMeta = {
       action: 'APPROVE_CONTENT',
       targetType: 'media_files',
@@ -68,7 +71,8 @@ router.post(
       return;
     }
 
-    const result = { ...item, moderationStatus: 'REJECTED', rejectionReason: reason };
+    await updateModeration(id, 'REJECTED', req.user!.userId, reason);
+    const result = await getMedia(id);
     req.auditMeta = {
       action: 'REJECT_CONTENT',
       targetType: 'media_files',
@@ -93,7 +97,8 @@ router.post(
       return;
     }
 
-    const result = { ...item, moderationStatus: 'HIDDEN', rejectionReason: reason };
+    await updateModeration(id, 'HIDDEN', req.user!.userId, reason);
+    const result = await getMedia(id);
     req.auditMeta = {
       action: 'HIDE_CONTENT',
       targetType: 'media_files',
@@ -115,6 +120,14 @@ router.patch(
       res.status(400).json({ success: false, error: 'ids are required' });
       return;
     }
+
+    const placeholders = ids.map(() => '?').join(',');
+    await query(
+      `UPDATE media_files
+       SET moderation_status = 'APPROVED', moderated_by_user_id = ?, moderated_at = NOW(), rejection_reason = NULL
+       WHERE id IN (${placeholders})`,
+      [req.user!.userId.toString(), ...ids]
+    );
 
     req.auditMeta = {
       action: 'BULK_APPROVE_CONTENT',
@@ -145,6 +158,15 @@ async function getMedia(id: bigint) {
   return rows[0] ? mapMedia(rows[0]) : null;
 }
 
+async function updateModeration(id: bigint, status: 'APPROVED' | 'REJECTED' | 'HIDDEN', actorId: bigint, reason?: string) {
+  await query(
+    `UPDATE media_files
+     SET moderation_status = ?, moderated_by_user_id = ?, moderated_at = NOW(), rejection_reason = ?
+     WHERE id = ?`,
+    [status, actorId.toString(), reason ?? null, id.toString()]
+  );
+}
+
 function mapMedia(row: any) {
   return {
     id: String(row.id),
@@ -156,7 +178,8 @@ function mapMedia(row: any) {
     publicUrl: row.public_url || row.file_path,
     mimeType: row.mime_type,
     sizeBytes: row.file_size,
-    moderationStatus: 'PENDING',
+    moderationStatus: row.moderation_status,
+    rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
     vendor: row.trade_name ? { businessName: row.trade_name } : null,
     stall: row.stall_name ? { name: row.stall_name } : null,

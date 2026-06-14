@@ -61,17 +61,29 @@ export function MapPage({ onUpgrade, onToast }) {
     poiService.getAll().then((response) => {
       if (!active) return;
       const apiPois = response.data?.data ?? [];
-      setPois((currentPois) => currentPois.map((localPoi) => {
-        const apiPoi = apiPois.find((candidate) => Number(candidate.id) === localPoi.apiId);
-        if (!apiPoi) return localPoi;
+      if (apiPois.length === 0) return;
+      setPois((currentPois) => apiPois.map((apiPoi) => {
+        const apiId = Number(apiPoi.id);
+        const localPoi = currentPois.find((candidate) => candidate.apiId === apiId);
+        const fallback = localPoi ?? currentPois[0];
+        const description = apiPoi.description ?? fallback.description;
         return {
-          ...localPoi,
-          title: apiPoi.name ?? localPoi.title,
-          description: apiPoi.description ?? localPoi.description,
+          ...fallback,
+          id: apiPoi.slug ?? String(apiPoi.id),
+          apiId,
+          stallId: Number(apiPoi.stallId),
+          title: apiPoi.name ?? fallback.title,
+          zoneName: apiPoi.zoneName ?? fallback.zoneName,
+          category: apiPoi.category ?? fallback.category,
+          image: apiPoi.imageUrl ?? fallback.image,
+          description,
+          descriptions: localPoi?.descriptions ?? { vi: description },
+          narration: localPoi?.narration ?? { vi: description },
           latitude: Number(apiPoi.latitude),
           longitude: Number(apiPoi.longitude),
-          activationRadius: apiPoi.activationRadius ?? localPoi.activationRadius,
-          isPremiumPoi: apiPoi.isPremium ?? localPoi.isPremiumPoi
+          activationRadius: apiPoi.activationRadius ?? fallback.activationRadius,
+          isPremiumPoi: apiPoi.isPremium ?? fallback.isPremiumPoi,
+          qrCodeId: apiPoi.qrCodeId ?? localPoi?.qrCodeId ?? apiId
         };
       }));
     }).catch(() => {
