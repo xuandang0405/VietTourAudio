@@ -11,7 +11,7 @@ export function OfflineBanner() {
   }
 
   return (
-    <div className="absolute inset-x-4 top-4 z-[1700] flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white shadow-2xl">
+    <div className="fixed inset-x-4 top-4 z-[1700] flex items-center justify-center gap-2 rounded-2xl border border-warning/25 bg-bgSurface/94 px-4 py-3 text-sm font-bold text-textCrisp shadow-2xl shadow-black/35 backdrop-blur-xl">
       <WifiOff size={17} />
       {t('offline')}
     </div>

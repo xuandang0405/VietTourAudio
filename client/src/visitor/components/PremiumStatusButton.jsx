@@ -1,11 +1,10 @@
-import { motion } from 'framer-motion';
 import { LockOpen, Timer } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { usePremiumStore } from '../../stores/premiumStore';
 import { formatCountdown } from '../../utils/formatTime';
 import { useTranslation } from '../../i18n/translations';
 
-export function PremiumStatusButton({ onUpgrade }) {
+function PremiumStatusButtonComponent({ onUpgrade }) {
   const { t } = useTranslation();
   const isPremium = usePremiumStore((state) => state.isPremium);
   const expiresAt = usePremiumStore((state) => state.expiresAt);
@@ -23,27 +22,23 @@ export function PremiumStatusButton({ onUpgrade }) {
 
   if (isPremium) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="inline-flex items-center gap-2 rounded-full bg-teal-700 px-4 py-3 text-sm font-black text-white shadow-xl shadow-teal-900/20"
-      >
+      <div className="inline-flex items-center gap-2 rounded-full border border-premiumNeon/30 bg-premiumNeon/10 px-4 py-3 text-sm font-bold text-premiumNeon shadow-neon-premium">
         <Timer size={17} />
         Premium: {formatCountdown(expiresAt - now)}
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <motion.button
+    <button
       type="button"
       onClick={onUpgrade}
-      animate={{ scale: [1, 1.035, 1] }}
-      transition={{ repeat: Infinity, duration: 1.35, ease: 'easeInOut' }}
-      className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-5 py-3 text-sm font-black text-white shadow-xl shadow-orange-500/30 transition duration-200 ease-out hover:bg-orange-600 active:scale-95"
+      className="inline-flex items-center justify-center gap-2 rounded-full border border-premiumNeon/30 bg-premiumNeon/10 px-5 py-3 text-sm font-bold uppercase text-premiumNeon shadow-neon-premium transition duration-150 ease-out hover:border-premiumNeon/50 hover:bg-premiumNeon/15 active:scale-[0.98]"
     >
       <LockOpen size={17} />
       {t('upgradePremium')}
-    </motion.button>
+    </button>
   );
 }
+
+export const PremiumStatusButton = memo(PremiumStatusButtonComponent);

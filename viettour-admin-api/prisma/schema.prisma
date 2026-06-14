@@ -10,21 +10,21 @@ datasource db {
 // ─── USERS & AUTH ───────────────────────────────────────────
 
 model User {
-  id           BigInt    @id @default(autoincrement())
-  email        String    @unique @db.VarChar(255)
-  phone        String?   @db.VarChar(30)
-  passwordHash String    @map("password_hash") @db.VarChar(255)
-  displayName  String?   @map("display_name") @db.VarChar(255)
-  role         UserRole  @default(ADMIN)
+  id           BigInt     @id @default(autoincrement())
+  email        String     @unique @db.VarChar(255)
+  phone        String?    @db.VarChar(30)
+  passwordHash String     @map("password_hash") @db.VarChar(255)
+  displayName  String?    @map("display_name") @db.VarChar(255)
+  role         UserRole   @default(ADMIN)
   status       UserStatus @default(ACTIVE)
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
   // Relations
-  refreshTokens  RefreshToken[]
-  auditLogs      AuditLog[]     @relation("PerformedBy")
+  refreshTokens   RefreshToken[]
+  auditLogs       AuditLog[]     @relation("PerformedBy")
   approvedVendors Vendor[]       @relation("ApprovedBy")
-  approvedMedia  MediaFile[]    @relation("ModeratedBy")
+  approvedMedia   MediaFile[]    @relation("ModeratedBy")
 
   @@map("users")
 }
@@ -57,25 +57,27 @@ model RefreshToken {
 // ─── VENDORS & STALLS ────────────────────────────────────────
 
 model Vendor {
-  id                 BigInt           @id @default(autoincrement())
-  businessName       String           @map("business_name") @db.VarChar(255)
-  contactPhone       String?          @map("contact_phone") @db.VarChar(30)
-  ownerEmail         String           @map("owner_email") @db.VarChar(255)
-  ownerDisplayName   String?          @map("owner_display_name") @db.VarChar(255)
-  taxCode            String?          @map("tax_code") @db.VarChar(50)
-  verificationStatus VendorStatus     @default(PENDING) @map("verification_status")
-  rejectionReason    String?          @map("rejection_reason") @db.Text
-  approvedById       BigInt?          @map("approved_by_id")
-  approvedAt         DateTime?        @map("approved_at")
-  createdAt          DateTime         @default(now()) @map("created_at")
-  updatedAt          DateTime         @updatedAt @map("updated_at")
+  id                 BigInt       @id @default(autoincrement())
+  businessName       String       @map("business_name") @db.VarChar(255)
+  contactPhone       String?      @map("contact_phone") @db.VarChar(30)
+  ownerEmail         String       @map("owner_email") @db.VarChar(255)
+  ownerDisplayName   String?      @map("owner_display_name") @db.VarChar(255)
+  taxCode            String?      @map("tax_code") @db.VarChar(50)
+  verificationStatus VendorStatus @default(PENDING) @map("verification_status")
+  rejectionReason    String?      @map("rejection_reason") @db.Text
+  approvedById       BigInt?      @map("approved_by_id")
+  approvedAt         DateTime?    @map("approved_at")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
 
-  approvedBy         User?            @relation("ApprovedBy", fields: [approvedById], references: [id])
-  subscription       VendorSubscription?
-  stalls             Stall[]
-  payments           Payment[]
-  commissions        CommissionEarning[]
-  mediaFiles         MediaFile[]
+  approvedBy    User?               @relation("ApprovedBy", fields: [approvedById], references: [id])
+  subscription  VendorSubscription?
+  wallet        VendorWallet?
+  topUpRequests TopUpRequest[]
+  stalls        Stall[]
+  payments      Payment[]
+  commissions   CommissionEarning[]
+  mediaFiles    MediaFile[]
 
   @@index([verificationStatus, createdAt])
   @@map("vendors")
@@ -89,18 +91,18 @@ enum VendorStatus {
 }
 
 model SubscriptionPlan {
-  id              Int      @id @default(autoincrement())
-  name            String   @db.VarChar(100)
-  monthlyPrice    Decimal  @map("monthly_price") @db.Decimal(12, 2)
-  isPremium       Boolean  @default(false) @map("is_premium")
-  maxPois         Int      @default(3) @map("max_pois")
-  maxImages       Int      @default(10) @map("max_images")
-  maxVideos       Int      @default(1) @map("max_videos")
+  id               Int     @id @default(autoincrement())
+  name             String  @db.VarChar(100)
+  monthlyPrice     Decimal @map("monthly_price") @db.Decimal(12, 2)
+  isPremium        Boolean @default(false) @map("is_premium")
+  maxPois          Int     @default(3) @map("max_pois")
+  maxImages        Int     @default(10) @map("max_images")
+  maxVideos        Int     @default(1) @map("max_videos")
   maxAudioVariants Int     @default(1) @map("max_audio_variants")
-  priorityWeight  Int      @default(0) @map("priority_weight")
-  isActive        Boolean  @default(true) @map("is_active")
+  priorityWeight   Int     @default(0) @map("priority_weight")
+  isActive         Boolean @default(true) @map("is_active")
 
-  subscriptions   VendorSubscription[]
+  subscriptions VendorSubscription[]
 
   @@map("subscription_plans")
 }
@@ -115,8 +117,8 @@ model VendorSubscription {
   autoRenew   Boolean            @default(false) @map("auto_renew")
   createdAt   DateTime           @default(now()) @map("created_at")
 
-  vendor      Vendor             @relation(fields: [vendorId], references: [id])
-  plan        SubscriptionPlan   @relation(fields: [planId], references: [id])
+  vendor Vendor           @relation(fields: [vendorId], references: [id])
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
 
   @@index([status, periodEnd])
   @@map("vendor_subscriptions")
@@ -146,9 +148,9 @@ model Stall {
   createdAt         DateTime    @default(now()) @map("created_at")
   updatedAt         DateTime    @updatedAt @map("updated_at")
 
-  vendor            Vendor      @relation(fields: [vendorId], references: [id])
-  pois              POI[]
-  mediaFiles        MediaFile[]
+  vendor     Vendor      @relation(fields: [vendorId], references: [id])
+  pois       POI[]
+  mediaFiles MediaFile[]
 
   @@index([vendorId, status])
   @@map("stalls")
@@ -165,22 +167,22 @@ enum StallStatus {
 // ─── POI & CONTENT ───────────────────────────────────────────
 
 model POI {
-  id               BigInt       @id @default(autoincrement())
-  stallId          BigInt?      @map("stall_id")
-  name             String       @db.VarChar(255)
-  category         String       @db.VarChar(50)
+  id               BigInt    @id @default(autoincrement())
+  stallId          BigInt?   @map("stall_id")
+  name             String    @db.VarChar(255)
+  category         String    @db.VarChar(50)
   latitude         Float
   longitude        Float
-  activationRadius Int          @default(30) @map("activation_radius")
-  isPremiumContent Boolean      @default(false) @map("is_premium_content")
-  status           POIStatus    @default(DRAFT)
-  sortOrder        Int          @default(0) @map("sort_order")
-  createdAt        DateTime     @default(now()) @map("created_at")
-  updatedAt        DateTime     @updatedAt @map("updated_at")
+  activationRadius Int       @default(30) @map("activation_radius")
+  isPremiumContent Boolean   @default(false) @map("is_premium_content")
+  status           POIStatus @default(DRAFT)
+  sortOrder        Int       @default(0) @map("sort_order")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  stall            Stall?       @relation(fields: [stallId], references: [id])
-  contents         POIContent[]
-  mediaFiles       MediaFile[]
+  stall      Stall?       @relation(fields: [stallId], references: [id])
+  contents   POIContent[]
+  mediaFiles MediaFile[]
 
   @@index([stallId, status])
   @@map("pois")
@@ -201,7 +203,7 @@ model POIContent {
   audioFileUrl String? @map("audio_file_url") @db.VarChar(500)
   duration     Int     @default(0)
 
-  poi          POI     @relation(fields: [poiId], references: [id], onDelete: Cascade)
+  poi POI @relation(fields: [poiId], references: [id], onDelete: Cascade)
 
   @@unique([poiId, languageCode])
   @@map("poi_contents")
@@ -229,10 +231,10 @@ model MediaFile {
   rejectionReason  String?          @map("rejection_reason") @db.Text
   createdAt        DateTime         @default(now()) @map("created_at")
 
-  vendor           Vendor?          @relation(fields: [vendorId], references: [id])
-  stall            Stall?           @relation(fields: [stallId], references: [id])
-  poi              POI?             @relation(fields: [poiId], references: [id])
-  moderatedBy      User?            @relation("ModeratedBy", fields: [moderatedById], references: [id])
+  vendor      Vendor? @relation(fields: [vendorId], references: [id])
+  stall       Stall?  @relation(fields: [stallId], references: [id])
+  poi         POI?    @relation(fields: [poiId], references: [id])
+  moderatedBy User?   @relation("ModeratedBy", fields: [moderatedById], references: [id])
 
   @@index([vendorId, stallId, mediaType])
   @@index([moderationStatus, createdAt])
@@ -256,22 +258,69 @@ enum ModerationStatus {
 // ─── PAYMENTS & REVENUE ──────────────────────────────────────
 
 model Payment {
-  id            BigInt        @id @default(autoincrement())
-  vendorId      BigInt?       @map("vendor_id")
-  stallId       BigInt?       @map("stall_id")
-  paymentType   PaymentType   @map("payment_type")
-  provider      PaymentProvider
-  amount        Decimal       @db.Decimal(14, 2)
-  currency      String        @default("VND") @db.VarChar(10)
-  status        PaymentStatus @default(PENDING)
-  transactionRef String?      @unique @map("transaction_ref") @db.VarChar(255)
-  paidAt        DateTime?     @map("paid_at")
-  createdAt     DateTime      @default(now()) @map("created_at")
+  id             BigInt          @id @default(autoincrement())
+  vendorId       BigInt?         @map("vendor_id")
+  stallId        BigInt?         @map("stall_id")
+  paymentType    PaymentType     @map("payment_type")
+  provider       PaymentProvider
+  amount         Decimal         @db.Decimal(14, 2)
+  currency       String          @default("VND") @db.VarChar(10)
+  status         PaymentStatus   @default(PENDING)
+  transactionRef String?         @unique @map("transaction_ref") @db.VarChar(255)
+  paidAt         DateTime?       @map("paid_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
 
-  vendor        Vendor?       @relation(fields: [vendorId], references: [id])
+  vendor Vendor? @relation(fields: [vendorId], references: [id])
 
   @@index([vendorId, status, createdAt])
   @@map("payments")
+}
+
+model VendorWallet {
+  id         BigInt   @id @default(autoincrement())
+  vendorId   BigInt   @unique @map("vendor_id")
+  balance    Decimal  @default(0) @db.Decimal(14, 2)
+  totalTopUp Decimal  @default(0) @map("total_top_up") @db.Decimal(14, 2)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  vendor       Vendor              @relation(fields: [vendorId], references: [id])
+  transactions WalletTransaction[]
+
+  @@map("vendor_wallets")
+}
+
+model WalletTransaction {
+  id           BigInt       @id @default(autoincrement())
+  walletId     BigInt       @map("wallet_id")
+  type         WalletTxType
+  amount       Decimal      @db.Decimal(14, 2)
+  balanceAfter Decimal      @map("balance_after") @db.Decimal(14, 2)
+  description  String       @db.VarChar(500)
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  wallet VendorWallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId, createdAt])
+  @@map("wallet_transactions")
+}
+
+model TopUpRequest {
+  id            BigInt          @id @default(autoincrement())
+  vendorId      BigInt          @map("vendor_id")
+  amount        Decimal         @db.Decimal(14, 2)
+  provider      PaymentProvider
+  status        TopUpStatus     @default(PENDING)
+  proofImageUrl String?         @map("proof_image_url") @db.VarChar(800)
+  rejectReason  String?         @map("reject_reason") @db.Text
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  vendor Vendor @relation(fields: [vendorId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([vendorId, status])
+  @@map("top_up_requests")
 }
 
 enum PaymentType {
@@ -288,6 +337,21 @@ enum PaymentProvider {
   BANK_QR
   CASH
   MANUAL
+}
+
+enum WalletTxType {
+  TOP_UP
+  SUBSCRIPTION_FEE
+  REFUND
+  MANUAL_DEBIT
+  MANUAL_CREDIT
+}
+
+enum TopUpStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
 }
 
 enum PaymentStatus {
@@ -307,7 +371,7 @@ model CommissionEarning {
   status           CommissionStatus @default(PENDING)
   createdAt        DateTime         @default(now()) @map("created_at")
 
-  vendor           Vendor           @relation(fields: [vendorId], references: [id])
+  vendor Vendor @relation(fields: [vendorId], references: [id])
 
   @@index([vendorId, status])
   @@map("commission_earnings")
@@ -338,22 +402,32 @@ model AnalyticsDailyStall {
   @@map("analytics_daily_stall")
 }
 
+model RevenueDaily {
+  date        DateTime @db.Date
+  source      String   @db.VarChar(50)
+  provider    String   @db.VarChar(30)
+  totalAmount Decimal  @default(0) @map("total_amount") @db.Decimal(14, 2)
+
+  @@id([date, source, provider])
+  @@map("revenue_daily")
+}
+
 // ─── AUDIT LOGS ──────────────────────────────────────────────
 
 model AuditLog {
-  id           BigInt   @id @default(autoincrement())
-  performedById BigInt? @map("performed_by_id")
-  action       String   @db.VarChar(100)
-  targetType   String   @map("target_type") @db.VarChar(50) // "vendor", "stall", "media", "poi"
-  targetId     BigInt?  @map("target_id")
-  targetLabel  String?  @map("target_label") @db.VarChar(255)
-  reason       String?  @db.Text
-  beforeData   Json?    @map("before_data")
-  afterData    Json?    @map("after_data")
-  ipAddress    String?  @map("ip_address") @db.VarChar(45)
-  createdAt    DateTime @default(now()) @map("created_at")
+  id            BigInt   @id @default(autoincrement())
+  performedById BigInt?  @map("performed_by_id")
+  action        String   @db.VarChar(100)
+  targetType    String   @map("target_type") @db.VarChar(50) // "vendor", "stall", "media", "poi"
+  targetId      BigInt?  @map("target_id")
+  targetLabel   String?  @map("target_label") @db.VarChar(255)
+  reason        String?  @db.Text
+  beforeData    Json?    @map("before_data")
+  afterData     Json?    @map("after_data")
+  ipAddress     String?  @map("ip_address") @db.VarChar(45)
+  createdAt     DateTime @default(now()) @map("created_at")
 
-  performedBy  User?    @relation("PerformedBy", fields: [performedById], references: [id])
+  performedBy User? @relation("PerformedBy", fields: [performedById], references: [id])
 
   @@index([performedById, createdAt])
   @@index([targetType, targetId, createdAt])

@@ -18,8 +18,12 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'secret') as AuthPayload;
-    req.user = payload;
+    const payload = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
+    req.user = {
+      userId: BigInt(payload.userId),
+      role: payload.role,
+      email: payload.email
+    };
     next();
   } catch {
     res.status(401).json({ error: 'Token invalid or expired' });

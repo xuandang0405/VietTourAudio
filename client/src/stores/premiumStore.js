@@ -3,12 +3,52 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 export const PREMIUM_DURATION_MS = 24 * 60 * 60 * 1000;
 
+function createDeviceId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return Math.random().toString(36).slice(2, 15);
+}
+
+function writeLegacyPremium(isPremium, expiresAt) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem('isPremium', isPremium ? 'true' : 'false');
+  if (isPremium && expiresAt > Date.now()) {
+    window.localStorage.setItem('premiumExpiry', String(expiresAt));
+  } else {
+    window.localStorage.removeItem('premiumExpiry');
+  }
+}
+
+function readLegacyPremium() {
+  if (typeof window === 'undefined') {
+    return { isPremium: false, expiresAt: 0 };
+  }
+
+  const isPremium = window.localStorage.getItem('isPremium') === 'true';
+  const expiresAt = Number(window.localStorage.getItem('premiumExpiry') ?? 0);
+
+  if (!isPremium || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+    writeLegacyPremium(false, 0);
+    return { isPremium: false, expiresAt: 0 };
+  }
+
+  return { isPremium: true, expiresAt };
+}
+
 export const usePremiumStore = create(
   persist(
-    (set, get) => ({
-      deviceId: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
-      isPremium: false,
-      expiresAt: 0,
+    (set, get) => {
+      const legacyPremium = readLegacyPremium();
+
+      return ({
+      deviceId: createDeviceId(),
+      isPremium: legacyPremium.isPremium,
+      expiresAt: legacyPremium.expiresAt,
       purchasedAt: 0,
       paymentRef: null,
 
@@ -20,6 +60,7 @@ export const usePremiumStore = create(
           purchasedAt: Date.now(),
           paymentRef: ref
         });
+        writeLegacyPremium(true, expiresAt);
       },
 
       deactivatePremium: () => {
@@ -28,6 +69,7 @@ export const usePremiumStore = create(
           expiresAt: 0,
           paymentRef: null
         });
+        writeLegacyPremium(false, 0);
       },
 
       checkExpiry: () => {
@@ -56,7 +98,8 @@ export const usePremiumStore = create(
 
         return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
       }
-    }),
+    });
+    },
     {
       name: 'vta-premium-store',
       storage: createJSONStorage(() => window.localStorage),

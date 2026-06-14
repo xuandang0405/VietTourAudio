@@ -119,7 +119,13 @@ function ensureDependencies(targetRoot) {
 
   const nodeModulesPath = path.join(targetRoot, 'node_modules');
   assertInside(targetRoot, nodeModulesPath);
-  fs.rmSync(nodeModulesPath, { recursive: true, force: true });
+  try {
+    if (fs.existsSync(nodeModulesPath)) {
+      fs.rmSync(nodeModulesPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    }
+  } catch (err) {
+    console.warn(`[vite-safe] Warning: Failed to remove node_modules cleanly (${err.code}). Will proceed with npm install anyway.`);
+  }
 
   console.log('[vite-safe] Installing client dependencies in temporary dev workspace...');
   const install = npmInstallCommand();
@@ -142,7 +148,7 @@ function ensureDependencies(targetRoot) {
 
 function runVite(cwd) {
   const viteBin = path.join(cwd, 'node_modules', 'vite', 'bin', 'vite.js');
-  const child = spawn(nodeCommand(), [viteBin, ...viteArgs], {
+  const child = spawn(nodeCommand(), [viteBin, '--configLoader', 'runner', ...viteArgs], {
     cwd,
     stdio: 'inherit',
     shell: false,

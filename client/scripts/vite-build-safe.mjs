@@ -115,7 +115,7 @@ function ensureDependencies(targetRoot) {
 
 function runViteBuild(cwd) {
   const viteBin = path.join(cwd, 'node_modules', 'vite', 'bin', 'vite.js');
-  const result = spawnSync(nodeCommand(), [viteBin, 'build', ...buildArgs], {
+  const result = spawnSync(nodeCommand(), [viteBin, 'build', '--configLoader', 'runner', ...buildArgs], {
     cwd,
     stdio: 'inherit',
     shell: false,

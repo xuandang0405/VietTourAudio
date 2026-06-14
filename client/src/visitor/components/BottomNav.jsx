@@ -1,78 +1,75 @@
-import { Compass, List, Settings, Crown } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { Compass, Crown, List, Settings } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { usePremiumStore } from '../../stores/premiumStore';
 import { useTranslation } from '../../i18n/translations';
 
+const navigationTabs = [
+  {
+    id: 'explore',
+    labelKey: 'explore',
+    to: '/map',
+    icon: Compass
+  },
+  {
+    id: 'list',
+    labelKey: 'list',
+    to: '/list',
+    icon: List
+  },
+  {
+    id: 'settings',
+    labelKey: 'settings',
+    to: '/settings',
+    icon: Settings
+  }
+];
+
 export function BottomNav() {
   const { t } = useTranslation();
+  const { pathname } = useLocation();
   const isPremium = usePremiumStore((state) => state.isPremium);
 
-  const tabs = [
-    {
-      id: 'explore',
-      label: t('explore'),
-      to: '/map',
-      icon: Compass
-    },
-    {
-      id: 'list',
-      label: t('list'),
-      to: '/list',
-      icon: List
-    },
-    {
-      id: 'premium',
-      label: isPremium ? 'Premium' : t('unlock'),
-      to: '/', // Sẽ mở modal mua Premium
-      icon: Crown,
-      isAction: true
-    },
-    {
-      id: 'settings',
-      label: t('settings'),
-      to: '/settings',
-      icon: Settings
-    }
-  ];
+  function openCheckout() {
+    window.dispatchEvent(new CustomEvent('open-checkout'));
+  }
 
   return (
-    <nav className="absolute bottom-0 left-0 right-0 z-[1300] bg-white/90 backdrop-blur-xl border-t border-slate-200 pb-safe">
-      <div className="flex items-center justify-around px-2 py-3 max-w-md mx-auto relative">
-        {tabs.map(({ id, label, to, icon: Icon, isAction }) => (
-          <NavLink
-            key={id}
-            to={isAction ? '#' : to}
-            onClick={(e) => {
-              if (isAction) {
-                e.preventDefault();
-                // TODO: trigger checkout modal
-                window.dispatchEvent(new CustomEvent('open-checkout'));
-              }
-            }}
-            className={({ isActive }) =>
-              [
-                'flex flex-col items-center justify-center gap-1 min-w-[64px] transition-all duration-300',
-                isActive && !isAction ? 'text-premium-600 font-bold' : 'text-slate-400 hover:text-slate-800',
-                isAction ? 'relative' : ''
-              ].join(' ')
-            }
-          >
-            {({ isActive }) => (
-              <>
-                {isAction ? (
-                  <div className={`p-2 rounded-xl flex flex-col items-center justify-center transition-all ${isPremium ? 'bg-premium-50 text-premium-600 shadow-sm' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>
-                    <Icon size={22} strokeWidth={isPremium ? 2.5 : 2} className={isPremium ? 'drop-shadow-sm' : ''} />
-                  </div>
-                ) : (
-                  <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-                )}
-                <span className={`text-[10px] mt-0.5 ${isActive || isAction ? 'font-bold' : 'font-medium'}`}>
-                  {label}
-                </span>
-              </>
-            )}
-          </NavLink>
-        ))}
+    <nav className="fixed inset-x-0 bottom-0 z-[1300] border-t border-glassBorder bg-bgSurface/85 pb-safe shadow-[0_-18px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl tablet:bottom-6 tablet:left-1/2 tablet:right-auto tablet:w-[430px] tablet:-translate-x-1/2 tablet:rounded-2xl tablet:border tablet:pb-0">
+      <div className="mx-auto flex max-w-md items-center justify-around px-2 py-3">
+        {navigationTabs.map(({ id, labelKey, to, icon: Icon }) => {
+          const active = pathname === to || (id === 'explore' && pathname === '/');
+
+          return (
+            <Link
+              key={id}
+              to={to}
+              className={[
+                'flex min-w-[68px] flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1 transition duration-200 ease-out active:scale-95',
+                active ? 'text-oceanCyan' : 'text-textSeafoam hover:text-textCrisp'
+              ].join(' ')}
+              aria-current={active ? 'page' : undefined}
+            >
+              <span className={active ? 'grid h-10 w-10 place-items-center rounded-full bg-gradient-to-r from-abyssIndigo to-electricBlue text-white shadow-neon-cyan' : 'grid h-10 w-10 place-items-center rounded-full bg-white/5 text-textSeafoam'}>
+                <Icon size={22} strokeWidth={active ? 2.5 : 2} />
+              </span>
+              <span className={active ? 'text-[10px] font-black' : 'text-[10px] font-semibold'}>{t(labelKey)}</span>
+            </Link>
+          );
+        })}
+
+        <button
+          type="button"
+          onClick={openCheckout}
+          className={[
+            'flex min-w-[68px] flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1 transition duration-200 ease-out active:scale-95',
+            isPremium ? 'text-premiumNeon' : 'text-warning hover:text-textCrisp'
+          ].join(' ')}
+        >
+          <span className={isPremium ? 'grid h-10 w-10 place-items-center rounded-full border border-premiumNeon/30 bg-premiumNeon/10 text-premiumNeon shadow-neon-premium' : 'grid h-10 w-10 place-items-center rounded-full border border-warning/25 bg-warning/10 text-warning'}>
+            <Crown size={22} strokeWidth={isPremium ? 2.5 : 2} />
+          </span>
+          <span className="text-[10px] font-black">{isPremium ? 'Premium' : t('unlock')}</span>
+        </button>
       </div>
     </nav>
   );

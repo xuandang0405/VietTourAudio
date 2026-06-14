@@ -1,5 +1,4 @@
-import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
-import { useMemo } from 'react';
+import { MapPin } from 'lucide-react';
 import { visitorPois } from '../../data/visitorPois';
 import { useLocationStore } from '../../stores/locationStore';
 import { useTranslation } from '../../i18n/translations';
@@ -7,40 +6,27 @@ import { useTranslation } from '../../i18n/translations';
 export function DevGpsPanel({ onToast }) {
   const { t } = useTranslation();
   const simulateNearPoi = useLocationStore((state) => state.simulateNearPoi);
-  const position = useLocationStore((state) => state.position);
-  const currentIndex = useMemo(() => {
-    if (!position) return 0;
-    let nearestIndex = 0;
-    let nearestDistance = Number.POSITIVE_INFINITY;
-    visitorPois.forEach((poi, index) => {
-      const distance = Math.hypot(poi.latitude - position.lat, poi.longitude - position.lng);
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestIndex = index;
-      }
-    });
-    return nearestIndex;
-  }, [position]);
-
-  function moveTo(offset) {
-    const nextIndex = (currentIndex + offset + visitorPois.length) % visitorPois.length;
-    const poi = visitorPois[nextIndex];
-    simulateNearPoi(poi);
-    onToast(t('demoMoved', { name: poi.title }));
-  }
-
   return (
-    <div className="absolute bottom-[calc(38%+112px)] left-4 z-[1200] flex items-center gap-2 rounded-2xl border border-teal-200 bg-white/95 p-2 shadow-xl shadow-slate-900/10 backdrop-blur-xl">
-      <button type="button" onClick={() => moveTo(-1)} className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-700" aria-label={t('explore')}>
-        <ChevronLeft size={18} />
-      </button>
-      <div className="flex min-w-0 items-center gap-2 px-1 text-xs font-black text-teal-700">
+    <div className="absolute bottom-[calc(38%+112px)] left-4 right-20 z-[1200] rounded-2xl border border-dashed border-oceanCyan/30 bg-bgSurface/85 p-3 shadow-xl shadow-black/30 backdrop-blur-xl">
+      <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase text-oceanCyan">
         <MapPin size={14} />
-        <span className="max-w-28 truncate">GPS DEMO</span>
+        Dev GPS
       </div>
-      <button type="button" onClick={() => moveTo(1)} className="grid h-9 w-9 place-items-center rounded-xl bg-teal-700 text-white" aria-label={t('explore')}>
-        <ChevronRight size={18} />
-      </button>
+      <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
+        {visitorPois.map((poi) => (
+          <button
+            key={poi.id}
+            type="button"
+            onClick={() => {
+              simulateNearPoi(poi);
+              onToast?.(t('demoMoved', { name: poi.title }));
+            }}
+            className="shrink-0 rounded-full border border-glassBorder bg-white/5 px-3 py-2 text-xs font-bold text-textSeafoam transition duration-150 ease-out hover:border-oceanCyan/50 hover:bg-white/10 hover:text-textCrisp active:scale-[0.98]"
+          >
+            {poi.title}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
