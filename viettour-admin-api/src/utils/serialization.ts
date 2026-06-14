@@ -11,7 +11,11 @@ export function serializeForJson<T>(value: T): T {
   );
 }
 
-export function toBigIntId(value: string | number | bigint, label = 'id'): bigint {
+export function toBigIntId(value: string | string[] | number | bigint | undefined, label = 'id'): bigint {
+  if (Array.isArray(value) || value === undefined || value === '') {
+    throw Object.assign(new Error(`Invalid ${label}`), { statusCode: 400 });
+  }
+
   try {
     return BigInt(value);
   } catch {
