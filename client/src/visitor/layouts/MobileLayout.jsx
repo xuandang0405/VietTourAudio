@@ -1,4 +1,5 @@
 import { Crosshair, QrCode, SatelliteDish, Search } from 'lucide-react';
+import { AudioPlayerSheet } from '../../components/AudioPlayerSheet';
 import { useTranslation } from '../../i18n/translations';
 import { BottomNav } from '../components/BottomNav';
 import { DevGpsPanel } from '../components/DevGpsPanel';
@@ -112,6 +113,7 @@ export function MobileLayout({
       </section>
 
       <BottomNav />
+      <AudioPlayerSheet />
       <PoiBottomSheet poi={selectedPoi} onClose={() => setSearchParams({})} onUpgrade={onUpgrade} onToast={onToast} />
     </section>
   );
