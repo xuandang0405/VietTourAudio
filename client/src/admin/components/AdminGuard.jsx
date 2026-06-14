@@ -1,7 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAdminAuthStore } from '../store/adminAuthStore';
 
-export function AdminGuard({ roles = [] }) {
+export function AdminGuard({ roles = [], children }) {
   const location = useLocation();
   const isAuthenticated = useAdminAuthStore((state) => state.isAuthenticated);
   const hasAnyRole = useAdminAuthStore((state) => state.hasAnyRole);
@@ -14,5 +14,5 @@ export function AdminGuard({ roles = [] }) {
     return <Navigate to="/admin" replace />;
   }
 
-  return <Outlet />;
+  return children ?? <Outlet />;
 }

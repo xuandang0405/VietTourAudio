@@ -1,13 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-const demoUser = {
-  id: 'U-001',
-  email: 'superadmin@viettouraudio.vn',
-  displayName: 'Super Admin',
-  role: 'SUPER_ADMIN'
-};
-
 export const useAdminAuthStore = create(
   persist(
     (set, get) => ({
@@ -15,14 +8,22 @@ export const useAdminAuthStore = create(
       accessToken: '',
       refreshToken: '',
       isAuthenticated: false,
-      loginDemo: () => {
+      setSession: ({ user, accessToken, refreshToken }) => {
         set({
-          user: demoUser,
-          accessToken: 'demo-access-token',
-          refreshToken: 'demo-refresh-token',
-          isAuthenticated: true
+          user: user ?? get().user,
+          accessToken: accessToken ?? get().accessToken,
+          refreshToken: refreshToken ?? get().refreshToken,
+          isAuthenticated: Boolean(accessToken || refreshToken || user)
         });
       },
+      setAccessToken: (accessToken) => set({ accessToken, isAuthenticated: Boolean(accessToken || get().refreshToken) }),
+      clearSession: () =>
+        set({
+          user: null,
+          accessToken: '',
+          refreshToken: '',
+          isAuthenticated: false
+        }),
       logout: () => {
         set({
           user: null,

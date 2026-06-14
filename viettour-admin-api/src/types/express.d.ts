@@ -10,8 +10,8 @@ declare global {
         targetId?: bigint;
         targetLabel?: string;
         reason?: string;
-        beforeData?: object | null;
-        afterData?: object | null;
+        beforeData?: unknown;
+        afterData?: unknown;
       };
     }
   }

@@ -12,14 +12,12 @@ export function serializeForJson<T>(value: T): T {
 }
 
 export function toBigIntId(value: unknown, label = 'id'): bigint {
-  const candidate = Array.isArray(value) && value.length === 1 ? value[0] : value;
-
-  if (!['string', 'number', 'bigint'].includes(typeof candidate)) {
+  if (Array.isArray(value) || value === undefined || value === '') {
     throw Object.assign(new Error(`Invalid ${label}`), { statusCode: 400 });
   }
 
   try {
-    return BigInt(candidate as string | number | bigint);
+    return BigInt(value as string | number | bigint);
   } catch {
     throw Object.assign(new Error(`Invalid ${label}`), { statusCode: 400 });
   }

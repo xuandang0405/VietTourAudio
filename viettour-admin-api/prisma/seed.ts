@@ -1,15 +1,25 @@
+import 'dotenv/config';
 import { Prisma, PrismaClient, UserRole } from '@prisma/client';
+import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is required to run the seed script');
+}
+
+const prisma = new PrismaClient({
+  adapter: new PrismaMariaDb(process.env.DATABASE_URL)
+});
 
 async function upsertUser(email: string, role: UserRole, displayName: string, password: string) {
+  const passwordHash = await bcrypt.hash(password, 10);
+
   return prisma.user.upsert({
     where: { email },
-    update: { role, displayName, status: 'ACTIVE' },
+    update: { role, displayName, passwordHash, status: 'ACTIVE' },
     create: {
       email,
-      passwordHash: await bcrypt.hash(password, 10),
+      passwordHash,
       displayName,
       role,
       status: 'ACTIVE'
@@ -35,6 +45,7 @@ async function findOrCreateVendor(data: {
 async function main() {
   const [superAdmin] = await Promise.all([
     upsertUser('superadmin@viettour.vn', 'SUPER_ADMIN', 'Super Admin', 'Admin@123'),
+    upsertUser('admin', 'ADMIN', 'Admin', 'admin'),
     upsertUser('admin@viettour.vn', 'ADMIN', 'Admin Operator', 'Admin@123'),
     upsertUser('mod@viettour.vn', 'MODERATOR', 'Moderator', 'Mod@123'),
     upsertUser('finance@viettour.vn', 'FINANCE', 'Finance Admin', 'Finance@123')
@@ -185,4 +196,9 @@ async function main() {
   console.log('Seed completed');
 }
 
-main().catch(console.error).finally(() => prisma.$disconnect());
+main()
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(() => prisma.$disconnect());

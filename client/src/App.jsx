@@ -11,7 +11,9 @@ import { AdminLoginPage } from './admin/pages/AdminLoginPage';
 import { AdminPois } from './admin/pages/AdminPois';
 import { AdminRevenue } from './admin/pages/AdminRevenue';
 import { AdminSubscriptions } from './admin/pages/AdminSubscriptions';
+import { AdminTopUps } from './admin/pages/AdminTopUps';
 import { AdminUsers } from './admin/pages/AdminUsers';
+import { AdminVendorAccounts } from './admin/pages/AdminVendorAccounts';
 import { AdminVendorDetail } from './admin/pages/AdminVendorDetail';
 import { AdminVendors } from './admin/pages/AdminVendors';
 import { PREMIUM_ACTIVATION_CODE } from './data/visitorPois';
@@ -110,16 +112,19 @@ function AppRoutes() {
           <Route element={<AdminGuard />}>
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminAnalytics />} />
-              <Route path="vendors" element={<AdminVendors />} />
-              <Route path="vendors/:id" element={<AdminVendorDetail />} />
-              <Route path="content" element={<AdminContent />} />
-              <Route path="pois" element={<AdminPois />} />
-              <Route path="revenue" element={<AdminRevenue />} />
+              <Route path="vendors" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminVendors /></AdminGuard>} />
+              <Route path="vendors/:id" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminVendorDetail /></AdminGuard>} />
+              <Route path="content" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN', 'MODERATOR']}><AdminContent /></AdminGuard>} />
+              <Route path="pois" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminPois /></AdminGuard>} />
+              <Route path="vendor-accounts" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN', 'FINANCE']}><AdminVendorAccounts /></AdminGuard>} />
+              <Route path="topup" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN', 'FINANCE']}><AdminTopUps /></AdminGuard>} />
+              <Route path="revenue" element={<Navigate to="/admin/revenue/dashboard" replace />} />
+              <Route path="revenue/dashboard" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN', 'FINANCE']}><AdminRevenue /></AdminGuard>} />
               <Route path="commissions" element={<AdminCommissions />} />
               <Route path="subscriptions" element={<AdminSubscriptions />} />
-              <Route path="geofences" element={<AdminGeofences />} />
-              <Route path="audit-logs" element={<AdminAuditLogs />} />
-              <Route path="settings/users" element={<AdminUsers />} />
+              <Route path="geofences" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminGeofences /></AdminGuard>} />
+              <Route path="audit-logs" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminAuditLogs /></AdminGuard>} />
+              <Route path="settings/users" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminUsers /></AdminGuard>} />
             </Route>
           </Route>
 
