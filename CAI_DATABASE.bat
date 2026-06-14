@@ -11,10 +11,17 @@ if not errorlevel 1 (
 )
 
 if not defined MYSQL_EXE if exist "C:\xampp\mysql\bin\mysql.exe" set "MYSQL_EXE=C:\xampp\mysql\bin\mysql.exe"
+if not defined MYSQL_EXE if exist "%ProgramFiles%\MySQL\MySQL Server 8.0\bin\mysql.exe" set "MYSQL_EXE=%ProgramFiles%\MySQL\MySQL Server 8.0\bin\mysql.exe"
 
 if not defined MYSQL_EXE (
-  echo LOI: May chua co MySQL 8 hoac mysql.exe khong nam trong PATH.
-  echo Hay cai MySQL Community Server 8, sau do chay lai file nay.
+  for /d %%D in ("%ProgramFiles%\MySQL\MySQL Server *") do (
+    if not defined MYSQL_EXE if exist "%%~fD\bin\mysql.exe" set "MYSQL_EXE=%%~fD\bin\mysql.exe"
+  )
+)
+
+if not defined MYSQL_EXE (
+  echo LOI: Khong tim thay mysql.exe.
+  echo Hay kiem tra MySQL Community Server da duoc cai dat day du.
   pause
   exit /b 1
 )
