@@ -6,7 +6,7 @@ set "ROOT=%~dp0"
 set "CLIENT=%ROOT%client"
 set "NODE_EXE="
 set "NPM_CMD="
-set "KNOWN_NODE=%USERPROFILE%\Documents\Codex\2026-05-30\xuandang0405-viettouraudio-https-github-com-xuandang0405-2\work\tools\node-v22.14.0-win-x64"
+set "CODEX_NODE=%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin"
 
 echo ==================================================
 echo  VietTourAudio - Chay Frontend
@@ -18,9 +18,14 @@ if not exist "%CLIENT%\package.json" (
   goto ERROR
 )
 
-if exist "%KNOWN_NODE%\node.exe" (
-  set "NODE_EXE=%KNOWN_NODE%\node.exe"
-  set "NPM_CMD=%KNOWN_NODE%\npm.cmd"
+if exist "%CODEX_NODE%\node.exe" (
+  set "NODE_EXE=%CODEX_NODE%\node.exe"
+  if exist "%CODEX_NODE%\npm.cmd" set "NPM_CMD=%CODEX_NODE%\npm.cmd"
+)
+
+if not defined NODE_EXE if exist "%ProgramFiles%\nodejs\node.exe" (
+  set "NODE_EXE=%ProgramFiles%\nodejs\node.exe"
+  if exist "%ProgramFiles%\nodejs\npm.cmd" set "NPM_CMD=%ProgramFiles%\nodejs\npm.cmd"
 )
 
 if not defined NODE_EXE (
@@ -37,11 +42,15 @@ if not defined NODE_EXE (
 for %%N in ("%NODE_EXE%") do set "NODE_DIR=%%~dpN"
 set "PATH=%NODE_DIR%;%PATH%"
 
-if not defined NPM_CMD set "NPM_CMD=npm.cmd"
-
 pushd "%CLIENT%"
 
 if not exist "node_modules\vite\bin\vite.js" (
+  if not defined NPM_CMD (
+    popd
+    echo LOI: Thieu thu vien frontend va khong tim thay npm de cai dat.
+    echo Hay cai NodeJS LTS tai: https://nodejs.org/
+    goto ERROR
+  )
   echo Dang cai thu vien frontend lan dau...
   call "%NPM_CMD%" install
   if errorlevel 1 (
