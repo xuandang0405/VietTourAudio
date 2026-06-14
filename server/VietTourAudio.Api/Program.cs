@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.FileProviders;
@@ -14,12 +15,19 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
+var dataProtectionPath = Path.Combine(builder.Environment.ContentRootPath, ".data-protection-keys");
+Directory.CreateDirectory(dataProtectionPath);
+builder.Services
+  .AddDataProtection()
+  .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath))
+  .SetApplicationName("VietTourAudio.Api");
+
 var allowedOrigins = builder.Configuration
   .GetSection("Cors:AllowedOrigins")
   .Get<string[]>() ?? ["http://localhost:5173"];
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-  ?? "server=localhost;port=3306;database=viettuoraudio;user=root;password=your_password;";
+  ?? "server=localhost;port=3306;database=viettuoraudio;user=viettour_user;password=viettour_password;SslMode=None;AllowPublicKeyRetrieval=True;";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {

@@ -14,10 +14,9 @@ echo API khach: http://localhost:5000
 echo Admin API: http://localhost:5001
 echo.
 
-start "VietTourAudio - Backend" cmd /k "call ""%ROOT%CHAY_SERVER.bat"""
-start "VietTourAudio - Admin API" cmd /k "call ""%ROOT%CHAY_ADMIN.bat"""
-start "VietTourAudio - Frontend" cmd /k "call ""%ROOT%CHAY_FRONTEND.bat"""
+start "VietTourAudio - Backend" "%ComSpec%" /d /k call "%ROOT%CHAY_SERVER.bat"
+start "VietTourAudio - Admin API" "%ComSpec%" /d /k call "%ROOT%CHAY_ADMIN.bat"
+start "VietTourAudio - Frontend" "%ComSpec%" /d /k call "%ROOT%CHAY_FRONTEND.bat"
 
 echo Da mo ba cua so chay du an.
-timeout /t 4 /nobreak >nul
 endlocal

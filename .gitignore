@@ -16,6 +16,7 @@ pnpm-debug.log*
 # .NET
 bin/
 obj/
+.data-protection-keys/
 *.user
 *.suo
 *.rsuser
