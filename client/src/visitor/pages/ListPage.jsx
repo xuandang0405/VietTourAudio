@@ -1,29 +1,99 @@
 import { ChevronRight, Crown, Headphones } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import heroTravel from '../../assets/img/hero-travel.png';
 import { destinationPreviews, localizeDestination, localizePoi, visitorPois } from '../../data/visitorPois';
 import { useTranslation } from '../../i18n/translations';
+import { poiService } from '../../services/poiService';
+import { stallService } from '../../services/stallService';
 import { useLanguageStore } from '../../stores/languageStore';
 import { useLocationStore } from '../../stores/locationStore';
 import { usePremiumStore } from '../../stores/premiumStore';
-import { enrichPoisWithDistance } from '../../utils/geo';
+import { enrichPoisWithDistance, formatDistance } from '../../utils/geo';
 import { BottomNav } from '../components/BottomNav';
 import { TopBar } from '../components/TopBar';
 
 export function ListPage({ onUpgrade }) {
   const { t } = useTranslation();
+  const [databasePois, setDatabasePois] = useState(null);
+  const [databaseDestinations, setDatabaseDestinations] = useState(null);
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
   const isPremium = usePremiumStore((state) => state.isPremium);
   const position = useLocationStore((state) => state.position);
+  const isFakeMode = useLocationStore((state) => state.isFakeMode);
+  const simulateNearPoi = useLocationStore((state) => state.simulateNearPoi);
+
+  useEffect(() => {
+    let active = true;
+
+    poiService.getAll().then((response) => {
+      if (!active) return;
+      const apiPois = response.data?.data ?? [];
+      if (apiPois.length === 0) return;
+      setDatabasePois(apiPois.map((apiPoi) => {
+        const description = apiPoi.description ?? '';
+        return {
+          id: apiPoi.slug ?? String(apiPoi.id),
+          apiId: Number(apiPoi.id),
+          stallId: Number(apiPoi.stallId),
+          qrCodeId: apiPoi.qrCodeId ?? Number(apiPoi.id),
+          title: apiPoi.name,
+          zoneName: apiPoi.zoneName,
+          category: apiPoi.category,
+          image: apiPoi.imageUrl ?? heroTravel,
+          latitude: Number(apiPoi.latitude),
+          longitude: Number(apiPoi.longitude),
+          activationRadius: Number(apiPoi.activationRadius),
+          isPremiumPoi: Boolean(apiPoi.isPremium),
+          description,
+          descriptions: { vi: description },
+          narration: { vi: description }
+        };
+      }));
+    }).catch(() => {
+      // Keep bundled POIs available when the API is offline.
+    });
+
+    stallService.getAll().then((response) => {
+      if (!active) return;
+      const apiStalls = response.data?.data ?? [];
+      const approvedStalls = apiStalls.filter((stall) => stall.status === 'APPROVED');
+      if (approvedStalls.length === 0) return;
+      setDatabaseDestinations(approvedStalls.map((stall) => ({
+        id: `stall-${stall.id}`,
+        name: stall.name,
+        city: stall.address ?? 'Hội An, Quảng Nam',
+        label: stall.isPremium ? 'Premium' : 'Đang mở',
+        image: heroTravel
+      })));
+    }).catch(() => {
+      // Keep bundled destination previews available when the API is offline.
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isFakeMode || !databasePois?.length) return;
+    simulateNearPoi(databasePois[0]);
+  }, [databasePois, isFakeMode, simulateNearPoi]);
+
   const pois = useMemo(() => {
-    const localizedPois = visitorPois.map((poi) => localizePoi(poi, currentLanguage));
+    const sourcePois = databasePois ?? visitorPois;
+    const localizedPois = sourcePois.map((poi) => localizePoi(poi, currentLanguage));
     return position
       ? enrichPoisWithDistance(localizedPois, position, currentLanguage)
-      : localizedPois.map((poi) => ({ ...poi, distanceLabel: poi.distanceHint }));
-  }, [currentLanguage, position]);
+      : localizedPois.map((poi) => ({
+        ...poi,
+        distanceLabel: poi.distanceHint ?? formatDistance(Number.POSITIVE_INFINITY, currentLanguage)
+      }));
+  }, [currentLanguage, databasePois, position]);
   const destinations = useMemo(
-    () => destinationPreviews.map((destination) => localizeDestination(destination, currentLanguage)),
-    [currentLanguage]
+    () => (databaseDestinations ?? destinationPreviews)
+      .map((destination) => localizeDestination(destination, currentLanguage)),
+    [currentLanguage, databaseDestinations]
   );
 
   return (
@@ -52,7 +122,9 @@ export function ListPage({ onUpgrade }) {
 
                 <div className="min-w-0 flex-1">
                   <span className="block truncate text-base font-bold text-textCrisp">{poi.title}</span>
-                  <span className="mt-1 block text-xs font-medium text-textSeafoam">{poi.category} · {poi.duration}</span>
+                  <span className="mt-1 block text-xs font-medium text-textSeafoam">
+                    {poi.category}{poi.duration ? ` · ${poi.duration}` : ''}
+                  </span>
                   <span className="mt-1 block text-xs font-bold text-oceanCyan">{poi.distanceLabel}</span>
                   <span className={audioAvailable
                     ? 'mt-2 inline-flex rounded-full border border-oceanCyan/20 bg-oceanCyan/10 px-2 py-1 text-[10px] font-bold uppercase text-oceanCyan'
