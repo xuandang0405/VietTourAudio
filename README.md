@@ -1,137 +1,163 @@
 # VietTourAudio
 
-VietTourAudio là web app/PWA thuyết minh du lịch tự động theo GPS, QR và nội dung audio đa ngôn ngữ. Hệ thống hỗ trợ khách du lịch, chủ sạp/gian hàng, admin, gói premium, thống kê lượt quét QR, lượt ghé sạp, lượt nghe audio và doanh thu.
+VietTourAudio la ung dung web/PWA thuyet minh du lich theo GPS va QR. Du an gom giao dien khach, API .NET, Admin API Node.js va MySQL.
 
-Repo GitHub: <https://github.com/xuandang0405/VietTourAudio>
+Nhanh nay khong su dung file `.bat`. Tat ca thanh phan duoc cai dat va khoi dong bang cac lenh ben duoi, nen co the lam viec tren Windows, macOS hoac Linux.
 
-## 1. Giới thiệu dự án
+## Thanh phan du an
 
-VietTourAudio giúp khách du lịch mở web app bằng QR, cấp quyền GPS và nghe thuyết minh khi đến gần sạp hoặc POI. Chủ sạp có dashboard để quản lý nội dung, media, QR, thanh toán và thống kê. Admin quản trị người dùng, duyệt sạp, kiểm tra thanh toán, premium, hoa hồng và nội dung upload.
+| Thanh phan | Thu muc | Cong mac dinh |
+| --- | --- | --- |
+| Frontend React/Vite | `client/` | `5173` |
+| API khach .NET | `server/VietTourAudio.Api/` | `5000` |
+| Admin API Node.js | `viettour-admin-api/` | `5001` |
+| MySQL | `database/` | `3306` |
 
-## 2. Tính năng chính
+## Yeu cau
 
-- Khách quét QR để mở PWA nhanh trên điện thoại.
-- App xin quyền GPS và tìm POI/sạp ở gần.
-- Tự phát audio thuyết minh theo bán kính kích hoạt.
-- Nội dung thuyết minh đa ngôn ngữ: `vi`, `en`, `ja`, `ko`, `zh`.
-- Chủ sạp đăng ký tài khoản và quản lý sạp/gian hàng.
-- Gói tháng và gói Premium cho chủ sạp.
-- Dashboard chủ sạp: lượt ghé, lượt quét QR, lượt nghe audio, doanh thu, tiền mặt, khách Premium.
-- Payment qua MoMo, Bank QR, Stripe và ghi nhận tiền mặt thủ công.
-- Hoa hồng 5-10% khi khách đăng ký Premium qua QR của sạp.
-- Admin dashboard quản lý người dùng, sạp, media, QR, thanh toán, premium và log thao tác.
+- Git
+- Node.js LTS va npm
+- .NET SDK 10
+- MySQL 8.x
+- Docker Desktop (tuy chon, neu muon chay MySQL bang Docker)
 
-## 3. Công nghệ sử dụng
-
-| Lớp | Công nghệ |
-|-----|-----------|
-| Frontend | ReactJS, Vite, PWA, React Router, Zustand, Axios |
-| UI | CSS responsive, glassmorphism nhẹ, logo `logo.png` và `logo-text.png` |
-| Backend | .NET 8 Web API, C#, Swagger/OpenAPI, JWT scaffold, CORS |
-| Database | MySQL/MariaDB, InnoDB, utf8mb4, `POINT`, `SPATIAL INDEX` |
-| Storage | Local file storage cho ảnh, video, audio, logo, QR |
-| DevOps | Docker Compose cho MySQL/phpMyAdmin, script Windows/Linux |
-
-## 4. Kiến trúc hệ thống
-
-```text
-React PWA
-  -> Axios API client
-  -> .NET Web API Controllers
-  -> Services / DTOs / Helpers
-  -> MySQL viettuoraudio
-  -> Local uploads storage
-```
-
-Backend hiện là scaffold có route, DTO, response JSON thống nhất, Swagger, CORS, JWT scaffold và service layer. Business logic sâu như auth thật, payment webhook thật, upload thật và migration EF Core sẽ được hoàn thiện ở các phase sau.
-
-## 5. Cấu trúc thư mục
-
-```text
-VietTourAudio/
-├── README.md
-├── .env.example
-├── docker-compose.yml
-├── run-windows.bat
-├── docs/
-├── database/
-│   ├── schema.sql
-│   ├── seed.sql
-│   └── README.md
-├── server/
-│   ├── VietTourAudio.Api/
-│   └── uploads/
-├── client/
-│   ├── package.json
-│   └── src/
-├── scripts/
-└── assets/
-```
-
-Backend chạy chính nằm trong `server/VietTourAudio.Api/`, namespace code là `VietTourAudio.Api`.
-
-## 6. Yêu cầu môi trường
-
-- NodeJS LTS.
-- npm.
-- .NET SDK 8.
-- MySQL 8.x.
-- Docker Desktop nếu muốn chạy MySQL bằng Docker Compose.
-- Git nếu muốn commit/push lên GitHub.
-
-## 7. Cài đặt database MySQL
-
-Database bắt buộc là `viettuoraudio`.
+Kiem tra nhanh:
 
 ```bash
-mysql -u root -p < database/schema.sql
-mysql -u root -p viettuoraudio < database/seed.sql
+node --version
+npm --version
+dotnet --version
+mysql --version
 ```
 
-Kiểm tra nhanh:
+## 1. Lay ma nguon
+
+```bash
+git clone https://github.com/xuandang0405/VietTourAudio.git
+cd VietTourAudio
+git switch project-ready-database-integration
+```
+
+## 2. Cai database
+
+### Cach A: MySQL da cai tren may
+
+Mo MySQL client tai thu muc goc cua du an:
+
+```bash
+mysql --default-character-set=utf8mb4 -u root -p
+```
+
+Sau khi dang nhap, chay:
 
 ```sql
-USE viettuoraudio;
-SHOW TABLES;
-SELECT COUNT(*) FROM users;
-SELECT COUNT(*) FROM stalls;
-SELECT COUNT(*) FROM pois;
+SOURCE database/setup-local.sql;
 ```
 
-`schema.sql` đã có `DROP TABLE IF EXISTS` đúng thứ tự, có khóa ngoại, index và spatial index. File media không lưu trực tiếp vào database, chỉ lưu path/url. Schema dùng `POINT NOT NULL` thay vì `POINT NOT NULL SRID 4326` để chạy được trên MariaDB.
+Lenh nay se:
 
-## 8. Cấu hình backend .NET
+- Tao database `viettuoraudio`.
+- Tao schema va du lieu mau UTF-8.
+- Tao user `viettour_user` cho moi truong local.
 
-Sửa file `server/VietTourAudio.Api/appsettings.json`:
+Thong tin ket noi local mac dinh:
 
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "server=localhost;port=3306;database=viettuoraudio;user=root;password=your_password;"
-  }
-}
+```text
+Database: viettuoraudio
+Host: localhost
+Port: 3306
+User: viettour_user
+Password: viettour_password
 ```
 
-JWT dev key nằm trong `Jwt:Key`. Khi lên production phải thay bằng secret đủ dài và không commit vào Git.
+Chi su dung mat khau mac dinh nay cho moi truong phat trien local.
 
-## 9. Chạy backend
+### Cach B: Docker Compose
+
+```bash
+docker compose up -d mysql phpmyadmin
+```
+
+MySQL chay tai `localhost:3306`. phpMyAdmin chay tai <http://localhost:8080>.
+
+Neu volume MySQL cu da ton tai va can tao lai du lieu mau:
+
+```bash
+docker compose down -v
+docker compose up -d mysql phpmyadmin
+```
+
+Lenh `down -v` xoa du lieu MySQL local trong Docker, chi dung khi chac chan muon reset.
+
+## 3. Cau hinh
+
+Repo co file `.env.example` tai thu muc goc va `viettour-admin-api/.env.example`.
+
+Tao file cau hinh local:
+
+```bash
+cp .env.example .env
+cp viettour-admin-api/.env.example viettour-admin-api/.env
+```
+
+Tren Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+Copy-Item viettour-admin-api/.env.example viettour-admin-api/.env
+```
+
+Frontend co the tao `client/.env` nhu sau:
+
+```env
+VITE_API_BASE_URL=http://localhost:5000/api
+VITE_ADMIN_API_BASE_URL=http://localhost:5001/api
+VITE_DEFAULT_LANGUAGE=vi
+```
+
+Khong commit cac file `.env` chua secret hoac mat khau that.
+
+## 4. Chay API khach
+
+Mo terminal thu nhat:
 
 ```bash
 cd server/VietTourAudio.Api
 dotnet restore
-dotnet run
+dotnet run --urls http://0.0.0.0:5000
 ```
 
-Swagger thường mở tại:
+Kiem tra:
+
+- Health: <http://localhost:5000/health>
+- Swagger: <http://localhost:5000/swagger>
+- POI: <http://localhost:5000/api/pois>
+
+## 5. Chay Admin API
+
+Mo terminal thu hai:
+
+```bash
+cd viettour-admin-api
+npm install
+npm run build
+npm start
+```
+
+Kiem tra health tai <http://localhost:5001/health>.
+
+Tai khoan admin demo:
 
 ```text
-http://localhost:5000/swagger
-https://localhost:5001/swagger
+Email: superadmin@viettouraudio.vn
+Password: Admin123
 ```
 
-URL thực tế sẽ hiển thị trong terminal khi chạy `dotnet run`.
+Tai khoan nay chi dung cho du lieu phat trien.
 
-## 10. Chạy frontend
+## 6. Chay frontend
+
+Mo terminal thu ba:
 
 ```bash
 cd client
@@ -139,119 +165,70 @@ npm install
 npm run dev
 ```
 
-Frontend mặc định chạy tại:
+Mo <http://localhost:5173>.
+
+Frontend can ca API khach va Admin API de su dung day du chuc nang.
+
+## Build kiem tra
+
+Frontend:
+
+```bash
+cd client
+npm run build
+```
+
+Backend:
+
+```bash
+cd server/VietTourAudio.Api
+dotnet build
+```
+
+Admin API:
+
+```bash
+cd viettour-admin-api
+npm run build
+```
+
+## Du lieu mau
+
+File `database/seed.sql` tao du lieu phat trien, bao gom:
+
+- 4 tai khoan quan tri.
+- 8 vendor.
+- 8 sap.
+- 15 POI, trong do API khach chi tra cac POI `ACTIVE`.
+- Noi dung thuyet minh da ngon ngu, QR, analytics va payment mau.
+
+Trang ban do va trang danh sach khach lay POI/sap tu API va MySQL. Anh minh hoa mac dinh duoc dung khi database chua co media da duyet.
+
+## Cau truc chinh
 
 ```text
-http://localhost:5173
+VietTourAudio/
+|-- client/                 # React/Vite frontend
+|-- server/                 # .NET API va uploads
+|-- viettour-admin-api/     # Admin API Node.js/TypeScript
+|-- database/               # schema, seed va setup local
+|-- docs/                   # tai lieu bo sung
+|-- scripts/                # script Node.js ho tro build/chay frontend
+|-- docker-compose.yml
+|-- .env.example
+`-- README.md
 ```
 
-API base URL nằm trong `.env` của client:
+## Luu y bao mat
 
-```env
-VITE_API_BASE_URL=http://localhost:5000/api
-```
+- Doi tat ca mat khau va JWT secret truoc khi deploy.
+- Khong dua `.env`, backup database, log, `node_modules`, `bin`, `obj` hoac `dist` len Git.
+- Khong dung tai khoan va mat khau demo trong production.
+- File media duoc luu tren storage; MySQL chi luu duong dan va metadata.
 
-## 11. Tài khoản demo
+## Xu ly loi nhanh
 
-Seed tạo tài khoản demo:
-
-| Vai trò | Email | Ghi chú |
-|---------|-------|---------|
-| Admin | `admin@viettouraudio.local` | Password gợi ý: `Admin@123456` |
-| Chủ sạp | `owner.benthanh@viettouraudio.local` | Dữ liệu demo |
-| Chủ sạp | `owner.hoian@viettouraudio.local` | Dữ liệu demo |
-| Tourist | `tourist@viettouraudio.local` | Dữ liệu demo |
-
-`password_hash` trong seed chỉ là hash mẫu. Không dùng cho production.
-
-## 12. API docs / Swagger
-
-Sau khi chạy backend, mở `/swagger` để xem các nhóm API:
-
-- `api/auth`
-- `api/users`
-- `api/stalls`
-- `api/pois`
-- `api/poi-contents`
-- `api/media`
-- `api/qr-codes`
-- `api/analytics`
-- `api/payments`
-- `api/admin`
-
-Response JSON dùng format:
-
-```json
-{
-  "success": true,
-  "message": "Success",
-  "data": {}
-}
-```
-
-## 13. Hướng dẫn upload ảnh/video/audio
-
-Upload đi qua endpoint:
-
-```text
-POST /api/media/upload
-```
-
-Form-data:
-
-- `file`: file upload.
-- `fileType`: `IMAGE`, `VIDEO`, `AUDIO`, `LOGO`, `QR`.
-- `ownerId`: id người upload.
-- `stallId`: optional.
-- `poiId`: optional.
-
-Nguyên tắc:
-
-- Không lưu binary vào MySQL.
-- Lưu file trên server trong `server/uploads/`.
-- Database chỉ lưu `file_path`, `file_name`, `mime_type`, `file_size`.
-- Phase tiếp theo cần bổ sung validate MIME type, dung lượng, virus scan và quyền upload.
-
-## 14. Hướng dẫn deploy
-
-Tổng quan deploy production:
-
-1. Build frontend bằng `npm run build`.
-2. Publish backend bằng `dotnet publish -c Release`.
-3. Import `database/schema.sql` và `database/seed.sql` nếu cần dữ liệu mẫu.
-4. Cấu hình Nginx reverse proxy.
-5. Trỏ domain và bật HTTPS bằng Let's Encrypt.
-6. Cấu hình backup MySQL định kỳ.
-7. Đưa secret vào biến môi trường hoặc secret manager.
-
-Xem thêm `docs/DEPLOYMENT_GUIDE.md`.
-
-## 15. Phân công công việc
-
-| Người | Vai trò | Công việc | Folder phụ trách |
-|------|---------|-----------|------------------|
-| Người 1 | Frontend Developer | Thiết kế UI React, landing page, map page, dashboard chủ sạp, admin dashboard, tích hợp logo | client/ |
-| Người 2 | Backend .NET Developer | API C#, auth, user, stall, POI, QR, payment, upload, analytics | server/ |
-| Người 3 | Database + DevOps + Tester | MySQL schema, seed data, docs, deploy, test GPS/QR/payment | database/, docs/, scripts/ |
-
-## 16. Ghi chú phát triển tiếp
-
-- Hoàn thiện auth thật với BCrypt/Argon2 và refresh token.
-- Thêm EF Core migration hoặc quy trình SQL migration rõ ràng.
-- Kết nối service với MySQL thay vì dữ liệu demo trong memory.
-- Hoàn thiện upload file thật, validate file type và file size.
-- Tích hợp cổng thanh toán sandbox trước khi production.
-- Test GPS/geofence trên thiết bị thật.
-- Bổ sung CI/CD, unit test, integration test và backup database.
-
-## Chạy nhanh trên Windows
-
-Double-click:
-
-```bat
-run-windows.bat
-```
-
-Script sẽ kiểm tra NodeJS/npm/.NET SDK, cài dependencies client nếu thiếu, restore backend, mở client và server. Nếu máy có Docker, script mở thêm MySQL/phpMyAdmin.
-
-Trên Windows, nếu repo nằm trong đường dẫn có ký tự `#`, `npm run dev` sẽ tự chạy Vite từ workspace tạm trong `%TEMP%` để tránh lỗi `Failed to load url /src/main.jsx`.
+- Chu tieng Viet sai: import SQL voi `--default-character-set=utf8mb4` hoac dung `database/setup-local.sql`.
+- API khong ket noi MySQL: kiem tra service MySQL, cong `3306` va thong tin trong `.env`/connection string.
+- Frontend khong co du lieu: kiem tra <http://localhost:5000/health> va <http://localhost:5000/api/pois>.
+- Cong da duoc su dung: dung tien trinh cu hoac doi cong khi khoi dong service.
