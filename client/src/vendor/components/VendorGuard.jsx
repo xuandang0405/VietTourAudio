@@ -1,0 +1,13 @@
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useVendorAuthStore } from '../store/vendorAuthStore';
+
+export function VendorGuard({ children }) {
+  const location = useLocation();
+  const isAuthenticated = useVendorAuthStore((state) => state.isAuthenticated);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/vendor/login" replace state={{ from: location }} />;
+  }
+
+  return children ?? <Outlet />;
+}

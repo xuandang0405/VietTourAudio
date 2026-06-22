@@ -1,0 +1,122 @@
+import axios from 'axios';
+import { appConfig } from '../../config/appConfig';
+import { useVendorAuthStore } from '../store/vendorAuthStore';
+
+export const vendorApiClient = axios.create({
+  baseURL: appConfig.vendorApiBaseUrl,
+  timeout: 20000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+let refreshPromise = null;
+
+function unwrap(response) {
+  return response.data?.data ?? response.data;
+}
+
+function getAuthUrl(path) {
+  return `${appConfig.vendorAuthApiBaseUrl}${path}`;
+}
+
+async function refreshAccessToken() {
+  const { refreshToken, user, setSession, clearSession } = useVendorAuthStore.getState();
+
+  if (!refreshToken) {
+    clearSession();
+    return '';
+  }
+
+  refreshPromise =
+    refreshPromise ??
+    axios
+      .post(getAuthUrl('/refresh'), { refreshToken })
+      .then((response) => {
+        const data = unwrap(response);
+        setSession({
+          user: data.user ?? user,
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken
+        });
+        return data.accessToken;
+      })
+      .catch((error) => {
+        clearSession();
+        throw error;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+
+  return refreshPromise;
+}
+
+vendorApiClient.interceptors.request.use(async (config) => {
+  const state = useVendorAuthStore.getState();
+  let token = state.accessToken;
+
+  if (!token && state.refreshToken) {
+    token = await refreshAccessToken();
+  }
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+vendorApiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status !== 401 || originalRequest?._retry) {
+      return Promise.reject(error);
+    }
+
+    originalRequest._retry = true;
+    const token = await refreshAccessToken();
+    originalRequest.headers.Authorization = `Bearer ${token}`;
+    return vendorApiClient(originalRequest);
+  }
+);
+
+export async function vendorLogin(credentials) {
+  return unwrap(await axios.post(getAuthUrl('/login'), credentials));
+}
+
+export async function vendorLogout() {
+  const { accessToken, refreshToken } = useVendorAuthStore.getState();
+  return unwrap(
+    await axios.post(
+      getAuthUrl('/logout'),
+      { refreshToken },
+      {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
+      }
+    )
+  );
+}
+
+export async function fetchVendorMe() {
+  const { accessToken } = useVendorAuthStore.getState();
+  return unwrap(
+    await axios.get(getAuthUrl('/me'), {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
+    })
+  );
+}
+
+export async function fetchVendorDashboard() {
+  return unwrap(await vendorApiClient.get('/dashboard'));
+}
+
+export async function fetchVendorPois() {
+  return unwrap(await vendorApiClient.get('/pois'));
+}
+
+export async function fetchVendorRevenue() {
+  return unwrap(await vendorApiClient.get('/revenue'));
+}

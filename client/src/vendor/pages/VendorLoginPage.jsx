@@ -1,0 +1,102 @@
+import { LockKeyhole, Store } from 'lucide-react';
+import { useState } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { vendorLogin } from '../api/vendorApi';
+import { useVendorAuthStore } from '../store/vendorAuthStore';
+
+export function VendorLoginPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isAuthenticated = useVendorAuthStore((state) => state.isAuthenticated);
+  const setSession = useVendorAuthStore((state) => state.setSession);
+  const [form, setForm] = useState({ email: 'an@heritagefoods.vn', password: 'Vendor123' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const from = location.state?.from?.pathname ?? '/vendor';
+
+  if (isAuthenticated) {
+    return <Navigate to="/vendor" replace />;
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const session = await vendorLogin(form);
+      setSession(session);
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.error ?? 'Không thể đăng nhập vendor portal. Kiểm tra backend hoặc tài khoản.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white">
+      <div className="mx-auto grid min-h-[calc(100vh-64px)] w-full max-w-6xl items-center gap-8 lg:grid-cols-[1fr_420px]">
+        <section className="hidden rounded-[2rem] border border-white/10 bg-white/5 p-8 shadow-2xl shadow-black/20 backdrop-blur lg:block">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-cyan-500/15 text-cyan-300">
+            <Store size={28} />
+          </div>
+          <p className="mt-8 text-xs font-black uppercase tracking-[0.14em] text-cyan-300">Vendor Portal</p>
+          <h1 className="mt-4 max-w-xl text-4xl font-black leading-tight text-white">
+            Quản trị sạp, POI và doanh thu ngay trong cổng vendor riêng.
+          </h1>
+          <p className="mt-4 max-w-lg text-sm leading-7 text-slate-300">
+            Theo dõi lượt nghe, số dư ví, commission và danh sách nội dung đang vận hành cho từng vendor đã được duyệt.
+          </p>
+        </section>
+
+        <section className="mx-auto w-full max-w-md rounded-2xl border border-white/10 bg-white p-6 text-slate-950 shadow-xl shadow-black/20">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-600">Vendor login</p>
+            <h2 className="mt-2 text-2xl font-black text-slate-950">Đăng nhập vendor portal</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Tài khoản mẫu local: an@heritagefoods.vn / Vendor123</p>
+          </div>
+
+          {error && (
+            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+              {error}
+            </div>
+          )}
+
+          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">Email</span>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none transition duration-200 ease-out focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+                autoComplete="username"
+                required
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">Mật khẩu</span>
+              <input
+                type="password"
+                value={form.password}
+                onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+                className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none transition duration-200 ease-out focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+                autoComplete="current-password"
+                required
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 text-sm font-black text-white shadow-lg shadow-cyan-600/20 transition duration-200 ease-out hover:bg-cyan-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-cyan-300"
+            >
+              <LockKeyhole size={18} />
+              {loading ? 'Đang đăng nhập...' : 'Đăng nhập vendor'}
+            </button>
+          </form>
+        </section>
+      </div>
+    </main>
+  );
+}

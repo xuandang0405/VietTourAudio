@@ -1,0 +1,18 @@
+{
+  "name": "VietTourAudio",
+  "short_name": "VTA",
+  "description": "PWA thuyet minh du lich tu dong theo GPS, QR va audio da ngon ngu.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f766e",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
