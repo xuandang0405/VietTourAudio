@@ -1,9 +1,9 @@
 import { MapPin } from 'lucide-react';
 import { useLocationStore } from '../../stores/locationStore';
-import { useTranslation } from '../../i18n/translations';
+import { useTranslation } from 'react-i18next';
 
 export function DevGpsPanel({ pois = [], onToast }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation('translation', { keyPrefix: 'landing' });
   const simulateNearPoi = useLocationStore((state) => state.simulateNearPoi);
   return (
     <div className="absolute bottom-[calc(38%+112px)] left-4 right-20 z-[1200] rounded-2xl border border-dashed border-oceanCyan/30 bg-bgSurface/85 p-3 shadow-xl shadow-black/30 backdrop-blur-xl">

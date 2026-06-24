@@ -71,6 +71,17 @@ public sealed class DatabaseStallService : IStallService
     return await GetByIdAsync(id);
   }
 
+  public async Task<StallResponseDto?> GetByZoneCodeAsync(string zoneCode)
+  {
+    var connection = await DatabaseSql.OpenConnectionAsync(_db);
+    await using var command = connection.CreateCommand();
+    command.CommandText = $"{SelectSql} WHERE s.zone_code = @zoneCode LIMIT 1";
+    command.AddParameter("@zoneCode", zoneCode);
+    await using var reader = await command.ExecuteReaderAsync();
+    if (!await reader.ReadAsync()) return null;
+    return Map(reader);
+  }
+
   private const string SelectSql = """
     SELECT s.*,
       EXISTS(
@@ -92,7 +103,7 @@ public sealed class DatabaseStallService : IStallService
     reader.UInt64("id"), reader.UInt64("vendor_id"), reader.GetString(reader.GetOrdinal("name")),
     reader.GetString(reader.GetOrdinal("slug")), reader.NullableString("description"), reader.NullableString("address"),
     reader.Decimal("latitude"), reader.Decimal("longitude"), reader.GetString(reader.GetOrdinal("status")),
-    reader.Boolean("is_premium"), reader.Int32("premium_priority"));
+    reader.Boolean("is_premium"), reader.Int32("premium_priority"), reader.NullableString("zone_code"));
 }
 
 public sealed class DatabasePoiService : IPoiService
@@ -613,4 +624,13 @@ public sealed class DatabasePaymentService : IPaymentService
     "COMMISSION_PAYOUT" => "COMMISSION_PAYOUT",
     _ => "OTHER"
   };
+
+  public async Task<string?> GetPremiumPaymentQrAsync()
+  {
+    var connection = await DatabaseSql.OpenConnectionAsync(_db);
+    await using var command = connection.CreateCommand();
+    command.CommandText = "SELECT value FROM AppSettings WHERE `key` = 'PREMIUM_PAYMENT_QR' LIMIT 1";
+    var result = await command.ExecuteScalarAsync();
+    return result?.ToString();
+  }
 }

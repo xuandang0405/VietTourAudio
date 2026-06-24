@@ -21,6 +21,7 @@ public interface IStallService
   Task<StallResponseDto> GetByIdAsync(ulong id);
   Task<StallResponseDto> CreateAsync(StallRequestDto request);
   Task<StallResponseDto> UpdateStatusAsync(ulong id, string status);
+  Task<StallResponseDto?> GetByZoneCodeAsync(string zoneCode);
 }
 
 public interface IPoiService
@@ -60,6 +61,7 @@ public interface IPaymentService
   Task<PaymentResponseDto> CreateAsync(PaymentRequestDto request);
   Task<object> HandleWebhookAsync(object payload);
   Task<PaymentResponseDto> RecordManualCashAsync(PaymentRequestDto request);
+  Task<string?> GetPremiumPaymentQrAsync();
 }
 
 public interface ICommissionService

@@ -1,18 +1,11 @@
 import { Check, Eye, FileText, Image, Music, RefreshCcw, Video, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AdminBadge } from '../components/AdminBadge';
 import { AdminModal } from '../components/AdminModal';
 import { AdminPageHeader } from '../components/AdminPageHeader';
 import { useContentMutation, useContentQueue } from '../api/adminQueries';
 import { formatDateTime } from '../utils/formatters';
-
-const statusTabs = [
-  { label: 'Chờ duyệt', value: 'PENDING' },
-  { label: 'Đã duyệt', value: 'APPROVED' },
-  { label: 'Từ chối', value: 'REJECTED' },
-  { label: 'Đã ẩn', value: 'HIDDEN' },
-  { label: 'Tất cả', value: 'ALL' }
-];
 
 const mediaIcons = {
   IMAGE: Image,
@@ -22,6 +15,7 @@ const mediaIcons = {
 };
 
 export function AdminContent() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState('PENDING');
   const [selectedIds, setSelectedIds] = useState([]);
   const [modal, setModal] = useState(null);
@@ -33,6 +27,14 @@ export function AdminContent() {
   const rejectMutation = useContentMutation('reject');
   const hideMutation = useContentMutation('hide');
   const bulkMutation = useContentMutation('bulk');
+
+  const statusTabs = [
+    { label: t('status.pending'), value: 'PENDING' },
+    { label: t('status.approved'), value: 'APPROVED' },
+    { label: t('status.rejected'), value: 'REJECTED' },
+    { label: t('status.hidden'), value: 'HIDDEN' },
+    { label: t('vendors.all'), value: 'ALL' }
+  ];
 
   function toggleSelected(id) {
     setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -50,7 +52,7 @@ export function AdminContent() {
         setSelectedIds([]);
       } else {
         if (!reason.trim()) {
-          setError('Lý do là bắt buộc cho hành động từ chối/ẩn.');
+          setError(t('content.modals.reason_required'));
           return;
         }
         const mutation = modal.type === 'reject' ? rejectMutation : hideMutation;
@@ -59,16 +61,16 @@ export function AdminContent() {
       setReason('');
       setModal(null);
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Không thể cập nhật trạng thái media.');
+      setError(err.response?.data?.error ?? t('content.error_update', 'Không thể cập nhật trạng thái media.'));
     }
   }
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 pb-24">
       <AdminPageHeader
-        eyebrow="Content moderation"
-        title="Kiểm duyệt media"
-        description="Duyệt ảnh, video, audio và tài liệu do vendor upload. Mọi mutation được backend ghi AuditLog."
+        eyebrow={t('content.management_subtitle', 'Content Moderation')}
+        title={t('sidebar.moderation')}
+        description={t('content.description')}
         action={
           <button
             type="button"
@@ -76,14 +78,14 @@ export function AdminContent() {
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50"
           >
             <RefreshCcw size={17} />
-            Làm mới
+            {t('content.refresh')}
           </button>
         }
       />
 
       {(error || listError) && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
-          {error || listError?.response?.data?.error || 'Không tải được queue kiểm duyệt.'}
+          {error || listError?.response?.data?.error || t('content.error_load')}
         </div>
       )}
 
@@ -136,14 +138,14 @@ export function AdminContent() {
                     <h2 className="line-clamp-2 text-sm font-black leading-5 text-slate-950">
                       {item.poi?.name ?? item.stall?.name ?? item.storagePath}
                     </h2>
-                    <p className="mt-1 truncate text-xs font-semibold text-slate-500">{item.vendor?.businessName ?? 'Không có vendor'}</p>
+                    <p className="mt-1 truncate text-xs font-semibold text-slate-500">{item.vendor?.businessName ?? t('content.card.no_vendor')}</p>
                   </div>
                   <AdminBadge status={item.moderationStatus} />
                 </div>
                 <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs font-semibold text-slate-600">
                   <p>Mime: {item.mimeType ?? '-'}</p>
                   <p className="mt-1">Upload: {formatDateTime(item.createdAt)}</p>
-                  {item.rejectionReason && <p className="mt-1 text-red-600">Lý do: {item.rejectionReason}</p>}
+                  {item.rejectionReason && <p className="mt-1 text-red-600">{t('content.card.reason', { reason: item.rejectionReason })}</p>}
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   <button
@@ -152,7 +154,7 @@ export function AdminContent() {
                     className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-green-200 text-xs font-black text-green-700 transition hover:bg-green-50"
                   >
                     <Check size={15} />
-                    Duyệt
+                    {t('content.card.approve')}
                   </button>
                   <button
                     type="button"
@@ -163,7 +165,7 @@ export function AdminContent() {
                     className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-red-200 text-xs font-black text-red-700 transition hover:bg-red-50"
                   >
                     <X size={15} />
-                    Từ chối
+                    {t('content.card.reject')}
                   </button>
                   <button
                     type="button"
@@ -173,7 +175,7 @@ export function AdminContent() {
                     }}
                     className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 text-xs font-black text-slate-700 transition hover:bg-slate-50"
                   >
-                    Ẩn
+                    {t('content.card.hide')}
                   </button>
                 </div>
               </div>
@@ -184,28 +186,28 @@ export function AdminContent() {
 
       {!isLoading && items.length === 0 && (
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm font-semibold text-slate-500">
-          Queue hiện không có media phù hợp.
+          {t('content.empty_queue')}
         </div>
       )}
 
       {selectedIds.length > 0 && (
         <div className="fixed bottom-4 left-4 right-4 z-[1500] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl md:left-24 lg:left-72">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-black text-slate-950">Đã chọn {selectedIds.length} media</p>
+            <p className="text-sm font-black text-slate-950">{t('content.selected_media', { count: selectedIds.length })}</p>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setSelectedIds([])}
                 className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50"
               >
-                Bỏ chọn
+                {t('content.deselect')}
               </button>
               <button
                 type="button"
                 onClick={() => setModal({ type: 'bulk' })}
                 className="h-10 rounded-xl bg-blue-600 px-4 text-sm font-black text-white transition hover:bg-blue-700"
               >
-                Bulk approve
+                {t('content.bulk_approve')}
               </button>
             </div>
           </div>
@@ -214,9 +216,9 @@ export function AdminContent() {
 
       <AdminModal
         open={Boolean(modal)}
-        title={modal?.type === 'bulk' ? 'Duyệt hàng loạt' : modal?.type === 'approve' ? 'Duyệt media' : modal?.type === 'hide' ? 'Ẩn media' : 'Từ chối media'}
-        description={modal?.type === 'bulk' ? `Xác nhận duyệt ${selectedIds.length} media đã chọn.` : 'Backend sẽ cập nhật moderationStatus và ghi AuditLog.'}
-        confirmLabel={modal?.type === 'reject' ? 'Từ chối' : modal?.type === 'hide' ? 'Ẩn media' : 'Duyệt'}
+        title={modal?.type === 'bulk' ? t('content.modals.bulk_title') : modal?.type === 'approve' ? t('content.modals.approve_title') : modal?.type === 'hide' ? t('content.modals.hide_title') : t('content.modals.reject_title')}
+        description={modal?.type === 'bulk' ? t('content.modals.bulk_desc', { count: selectedIds.length }) : t('content.modals.desc_audit')}
+        confirmLabel={modal?.type === 'reject' ? t('content.card.reject') : modal?.type === 'hide' ? t('content.card.hide') : t('content.card.approve')}
         tone={modal?.type === 'reject' || modal?.type === 'hide' ? 'danger' : 'success'}
         onClose={() => setModal(null)}
         onConfirm={handleConfirm}
@@ -226,7 +228,7 @@ export function AdminContent() {
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             className="h-28 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            placeholder="Nhập lý do..."
+            placeholder={t('vendors.modals.reason_placeholder')}
           />
         )}
       </AdminModal>

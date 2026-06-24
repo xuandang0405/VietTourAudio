@@ -47,7 +47,8 @@ public sealed record StallResponseDto(
   decimal Longitude,
   string Status,
   bool IsPremium,
-  int PremiumPriority
+  int PremiumPriority,
+  string? ZoneCode
 );
 
 public sealed record PoiRequestDto(

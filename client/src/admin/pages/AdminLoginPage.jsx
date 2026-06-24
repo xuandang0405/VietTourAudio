@@ -1,12 +1,14 @@
 import { LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import logo from '../../assets/logo/logo.png';
 import logoText from '../../assets/logo/logo-text.png';
 import { adminLogin } from '../api/adminApi';
 import { useAdminAuthStore } from '../store/adminAuthStore';
 
 export function AdminLoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const setSession = useAdminAuthStore((state) => state.setSession);
@@ -25,7 +27,7 @@ export function AdminLoginPage() {
       setSession(session);
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Không thể đăng nhập. Kiểm tra API backend và thông tin tài khoản.');
+      setError(err.response?.data?.error ?? t('auth.login_error_default'));
     } finally {
       setLoading(false);
     }
@@ -38,10 +40,10 @@ export function AdminLoginPage() {
           <img className="h-14 w-14 rounded-2xl" src={logo} alt="VietTourAudio logo" loading="lazy" decoding="async" />
           <img className="mt-8 h-12 w-64 object-contain" src={logoText} alt="VietTourAudio" loading="lazy" decoding="async" />
           <h1 className="mt-10 max-w-xl text-4xl font-black leading-tight">
-            Cổng quản trị nội bộ cho vận hành vendor, ví và nội dung.
+            {t('auth.portal_desc')}
           </h1>
           <p className="mt-4 max-w-lg text-sm leading-7 text-slate-300">
-            RBAC, audit log, kiểm duyệt media, nạp tiền ví vendor và báo cáo doanh thu trong một giao diện enterprise.
+            {t('auth.portal_features')}
           </p>
           <div className="mt-8 grid grid-cols-3 gap-3">
             {['RBAC', 'Audit Log', 'Wallet'].map((item) => (
@@ -59,9 +61,9 @@ export function AdminLoginPage() {
             <img className="h-8 w-44 object-contain" src={logoText} alt="VietTourAudio" loading="lazy" decoding="async" />
           </div>
           <div className="mt-8 lg:mt-0">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-600">Admin Portal</p>
-            <h2 className="mt-2 text-2xl font-black text-slate-950">Đăng nhập hệ thống</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Dùng tài khoản seed hoặc tài khoản admin có trong cơ sở dữ liệu.</p>
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-600">{t('sidebar.admin_portal')}</p>
+            <h2 className="mt-2 text-2xl font-black text-slate-950">{t('auth.login_title')}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{t('auth.login_subtitle')}</p>
           </div>
 
           {error && (
@@ -72,7 +74,7 @@ export function AdminLoginPage() {
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <label className="block">
-              <span className="text-sm font-bold text-slate-700">Email</span>
+              <span className="text-sm font-bold text-slate-700">{t('auth.email')}</span>
               <input
                 type="email"
                 value={form.email}
@@ -84,7 +86,7 @@ export function AdminLoginPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-bold text-slate-700">Mật khẩu</span>
+              <span className="text-sm font-bold text-slate-700">{t('auth.password')}</span>
               <input
                 type="password"
                 value={form.password}
@@ -100,7 +102,7 @@ export function AdminLoginPage() {
               className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition duration-200 ease-out hover:bg-blue-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-blue-300"
             >
               <LockKeyhole size={18} />
-              {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+              {loading ? t('auth.login_loading') : t('auth.login_button')}
             </button>
           </form>
         </section>

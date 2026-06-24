@@ -1,12 +1,14 @@
-import { ArrowLeft, Ban, CheckCircle2, FileText, PauseCircle } from 'lucide-react';
+import { ArrowLeft, Ban, CheckCircle2, FileText, PauseCircle, Copy } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useVendor, useVendorAction } from '../api/adminQueries';
+import { useVendor, useVendorAction, useResetStallQr } from '../api/adminQueries';
 import { AdminBadge } from '../components/AdminBadge';
 import { AdminModal } from '../components/AdminModal';
 import { AdminPageHeader } from '../components/AdminPageHeader';
 import { useAdminAuthStore } from '../store/adminAuthStore';
 import { formatCurrency, formatDate, formatDateTime } from '../utils/formatters';
+import { QRCodeCanvas } from 'qrcode.react';
+import { appConfig } from '../../config/appConfig';
 
 export function AdminVendorDetail() {
   const { id } = useParams();
@@ -19,6 +21,41 @@ export function AdminVendorDetail() {
   const rejectMutation = useVendorAction('reject');
   const suspendMutation = useVendorAction('suspend');
   const forceMutation = useVendorAction('force-cancel');
+  const [selectedStall, setSelectedStall] = useState(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [activeTab, setActiveTab] = useState('qr');
+  const resetQrMutation = useResetStallQr();
+  const [copiedStallCode, setCopiedStallCode] = useState(false);
+
+  async function handleResetQr(stallId) {
+    try {
+      const response = await resetQrMutation.mutateAsync(stallId);
+      if (response && response.zoneCode) {
+        setSelectedStall((prev) => prev ? { ...prev, zoneCode: response.zoneCode } : null);
+      }
+      setShowResetConfirm(false);
+    } catch (err) {
+      alert(err.response?.data?.error ?? 'Không thể reset mã QR.');
+    }
+  }
+
+  function downloadQrPng() {
+    const canvas = document.getElementById('admin-stall-qr-canvas');
+    if (!canvas) return;
+    const pngUrl = canvas.toDataURL('image/png');
+    const downloadLink = document.createElement('a');
+    downloadLink.href = pngUrl;
+    downloadLink.download = `stall-qr-${selectedStall?.zoneCode ?? 'code'}.png`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  }
+
+  function handleCopyStallCode(code) {
+    navigator.clipboard.writeText(code);
+    setCopiedStallCode(true);
+    setTimeout(() => setCopiedStallCode(false), 2000);
+  }
 
   async function handleConfirm() {
     if (!modal || !vendor) return;
@@ -107,7 +144,11 @@ export function AdminVendorDetail() {
             <h2 className="text-lg font-black text-slate-950">Stalls</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {(vendor.stalls ?? []).map((stall) => (
-                <div key={stall.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <div
+                  key={stall.id}
+                  onClick={() => setSelectedStall(stall)}
+                  className="rounded-xl border border-slate-100 bg-slate-50 p-3 cursor-pointer hover:bg-slate-100 hover:border-slate-200 transition duration-150"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black text-slate-950">{stall.name}</p>
@@ -215,6 +256,120 @@ export function AdminVendorDetail() {
           />
         )}
       </AdminModal>
+
+      <AdminModal
+        open={Boolean(selectedStall)}
+        title={`Chi tiết Sạp: ${selectedStall?.name}`}
+        confirmLabel="Đóng"
+        onClose={() => { setSelectedStall(null); setActiveTab('qr'); }}
+        onConfirm={() => { setSelectedStall(null); setActiveTab('qr'); }}
+      >
+        {selectedStall && (
+          <div>
+            {/* Tabs */}
+            <div className="flex border-b border-slate-200 mb-4">
+              <button
+                type="button"
+                className={`py-2 px-4 text-sm font-bold border-b-2 transition ${activeTab === 'info' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                onClick={() => setActiveTab('info')}
+              >
+                Thông tin chung
+              </button>
+              <button
+                type="button"
+                className={`py-2 px-4 text-sm font-bold border-b-2 transition ${activeTab === 'qr' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                onClick={() => setActiveTab('qr')}
+              >
+                Mã QR Trực tiếp
+              </button>
+            </div>
+
+            {/* Tab content */}
+            {activeTab === 'info' && (
+              <div className="space-y-3">
+                <Info label="Tên sạp" value={selectedStall.name} />
+                <Info label="Tọa độ" value={`${selectedStall.latitude ?? '-'}, ${selectedStall.longitude ?? '-'}`} />
+                <Info label="Bán kính kích hoạt" value={`${selectedStall.activationRadius ?? 0}m`} />
+                <Info label="Trạng thái" value={selectedStall.status} />
+              </div>
+            )}
+
+            {activeTab === 'qr' && (
+              <div className="flex flex-col items-center justify-center py-4 space-y-4">
+                {selectedStall.zoneCode ? (
+                  <>
+                    <div className="text-center">
+                      <p className="text-xs font-black uppercase tracking-wider text-slate-400">Mã định danh khu vực</p>
+                      <h3 className="text-2xl font-black text-slate-900 mt-1 select-all">
+                        Mã Khu Vực: {selectedStall.zoneCode}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyStallCode(selectedStall.zoneCode)}
+                        className="text-xs text-blue-600 hover:underline mt-1 font-bold"
+                      >
+                        {copiedStallCode ? 'Đã sao chép!' : 'Sao chép mã'}
+                      </button>
+                    </div>
+
+                    <div className="p-3 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                      <QRCodeCanvas
+                        id="admin-stall-qr-canvas"
+                        value={`${import.meta.env.VITE_GUEST_APP_URL || appConfig.publicAppUrl || window.location.origin}/zone/${selectedStall.zoneCode}`}
+                        size={200}
+                        level="M"
+                        includeMargin
+                      />
+                    </div>
+
+                    <div className="flex gap-2 w-full">
+                      <button
+                        type="button"
+                        onClick={downloadQrPng}
+                        className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 text-white text-sm font-black transition hover:bg-blue-700 active:scale-[0.98]"
+                      >
+                        Tải xuống QR
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowResetConfirm(true)}
+                        className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 text-red-600 text-sm font-black transition hover:bg-red-50 active:scale-[0.98]"
+                      >
+                        Reset/Tạo mới QR
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-sm font-semibold text-slate-500 mb-4">Sạp này chưa cấu hình mã QR.</p>
+                    <button
+                      type="button"
+                      onClick={() => handleResetQr(selectedStall.id)}
+                      className="inline-flex h-11 items-center justify-center px-6 rounded-xl bg-blue-600 text-white text-sm font-black transition hover:bg-blue-700 active:scale-[0.98]"
+                    >
+                      Tạo mới QR
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </AdminModal>
+
+      <AdminModal
+        open={showResetConfirm}
+        title="Xác nhận Reset Mã QR"
+        description="Mã QR cũ sẽ bị vô hiệu hóa. Khách hàng quét mã cũ sẽ không truy cập được vào sạp này nữa. Bạn có chắc chắn muốn tạo mã QR mới?"
+        confirmLabel="Xác nhận Reset"
+        tone="danger"
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={() => {
+          if (selectedStall) {
+            handleResetQr(selectedStall.id);
+          }
+        }}
+      />
     </div>
   );
 }

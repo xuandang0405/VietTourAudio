@@ -18,6 +18,7 @@ interface UserRow extends RowDataPacket {
   password_hash?: string;
   display_name?: string | null;
   full_name?: string | null;
+  assigned_zone_id?: number | string | bigint | null;
 }
 
 function getPasswordHash(user: UserRow) {
@@ -28,9 +29,19 @@ function getDisplayName(user: UserRow) {
   return user.display_name ?? user.full_name ?? user.email;
 }
 
-function signUserToken(user: Pick<UserRow, 'id' | 'email' | 'role'>) {
+function signUserToken(user: Pick<UserRow, 'id' | 'email' | 'role' | 'assigned_zone_id'>) {
   const id = String(user.id);
-  return jwt.sign({ id, userId: id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(
+    {
+      id,
+      userId: id,
+      email: user.email,
+      role: user.role,
+      assignedZoneId: user.assigned_zone_id == null ? null : String(user.assigned_zone_id)
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
 }
 
 export const login = async (req: Request, res: Response) => {
@@ -89,7 +100,8 @@ export const login = async (req: Request, res: Response) => {
           id,
           email: user.email,
           role: user.role,
-          displayName: getDisplayName(user)
+          displayName: getDisplayName(user),
+          assignedZoneId: user.assigned_zone_id == null ? null : String(user.assigned_zone_id)
         }
       }
     });
@@ -122,7 +134,8 @@ export const refresh = async (req: Request, res: Response) => {
       id: String(user.id),
       email: user.email,
       role: user.role,
-      displayName: getDisplayName(user)
+      displayName: getDisplayName(user),
+      assignedZoneId: user.assigned_zone_id == null ? null : String(user.assigned_zone_id)
     } } });
   } catch {
     res.status(401).json({ success: false, error: 'Invalid or expired refresh token', code: 'AUTH_REFRESH_INVALID' });
@@ -155,6 +168,7 @@ export const me = async (req: Request, res: Response) => {
       email: user.email,
       role: user.role,
       displayName: getDisplayName(user),
+      assignedZoneId: user.assigned_zone_id == null ? null : String(user.assigned_zone_id),
       status: user.status
     }
   });

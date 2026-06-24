@@ -23,19 +23,32 @@ netstat -ano | findstr /R /C:":3306 .*LISTENING" >nul 2>&1
 if %ERRORLEVEL% equ 0 (
   echo   [OK]  Local MySQL is listening on localhost:3306
 ) else (
-  where docker >nul 2>&1
-  if %ERRORLEVEL% equ 0 (
-    echo   No local MySQL detected. Starting docker compose fallback...
-    cd /d "%ROOT%"
-    docker compose up -d
-    if %ERRORLEVEL% neq 0 (
-      echo   [WARN] Docker fallback failed. Start MySQL manually, then rerun run.bat.
+  echo   MySQL not detected on port 3306. Attempting to start...
+  if exist "C:\xampp\mysql\bin\mysqld.exe" (
+    echo   Starting XAMPP MySQL...
+    start /B "C:\xampp\mysql\bin\mysqld.exe" --defaults-file=C:\xampp\mysql\bin\my.ini
+    timeout /t 5 /nobreak >nul
+    netstat -ano | findstr /R /C:":3306 .*LISTENING" >nul 2>&1
+    if %ERRORLEVEL% equ 0 (
+      echo   [OK]  XAMPP MySQL started successfully
     ) else (
-      echo   [OK]  Docker MySQL/phpMyAdmin requested.
+      echo   [WARN] XAMPP MySQL may still be starting. Continuing...
     )
   ) else (
-    echo   [WARN] No MySQL on localhost:3306 and docker is not available in PATH.
-    echo   [WARN] Start XAMPP MySQL or another local MySQL service before using the app.
+    where docker >nul 2>&1
+    if %ERRORLEVEL% equ 0 (
+      echo   No local MySQL detected. Starting docker compose fallback...
+      cd /d "%ROOT%"
+      docker compose up -d
+      if %ERRORLEVEL% neq 0 (
+        echo   [WARN] Docker fallback failed. Start MySQL manually, then rerun run.bat.
+      ) else (
+        echo   [OK]  Docker MySQL/phpMyAdmin requested.
+      )
+    ) else (
+      echo   [WARN] No MySQL on localhost:3306 and docker is not available in PATH.
+      echo   [WARN] Start XAMPP MySQL or another local MySQL service before using the app.
+    )
   )
 )
 
@@ -68,7 +81,7 @@ if not exist "%ROOT%client\node_modules" (
   cd /d "%ROOT%client"
   call npm install
 )
-start "VietTourAudio - Frontend" cmd /k "pushd "%ROOT%client" && set VITE_DEV_PORT=%CLIENT_PORT% && set VITE_API_BASE_URL=%API_BASE_URL% && set VITE_ADMIN_API_BASE_URL=%ADMIN_API_BASE_URL% && set VITE_VENDOR_API_BASE_URL=%VENDOR_API_BASE_URL% && set VITE_VENDOR_AUTH_API_BASE_URL=%VENDOR_AUTH_API_BASE_URL% && npm run dev"
+start "VietTourAudio - Frontend" cmd /k "pushd "%ROOT%client" && set "VITE_DEV_PORT=%CLIENT_PORT%" && set "VITE_API_BASE_URL=%API_BASE_URL%" && set "VITE_ADMIN_API_BASE_URL=%ADMIN_API_BASE_URL%" && set "VITE_VENDOR_API_BASE_URL=%VENDOR_API_BASE_URL%" && set "VITE_VENDOR_AUTH_API_BASE_URL=%VENDOR_AUTH_API_BASE_URL%" && npm run dev"
 echo   [OK]  Frontend    : http://localhost:%CLIENT_PORT%
 
 echo.

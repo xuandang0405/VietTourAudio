@@ -5,14 +5,7 @@ import logoText from '../../assets/logo/logo-text.png';
 import { languages, useLanguageStore } from '../../stores/languageStore';
 import { PremiumStatusButton } from './PremiumStatusButton';
 import { SidebarPoiCard } from './SidebarPoiCard';
-
-const gpsLabels = {
-  granted: 'Đã bật',
-  requesting: 'Đang lấy...',
-  denied: 'Đang dùng demo',
-  unavailable: 'Không hỗ trợ',
-  idle: 'Chưa bật'
-};
+import { useTranslation } from 'react-i18next';
 
 export function SidebarContent({
   onClose,
@@ -24,8 +17,17 @@ export function SidebarContent({
   selectedPoi,
   handleSelectPoi
 }) {
+  const { t } = useTranslation('translation', { keyPrefix: 'landing' });
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
   const setLanguage = useLanguageStore((state) => state.setLanguage);
+
+  const gpsLabels = {
+    granted: t('gps_granted'),
+    requesting: t('gps_requesting'),
+    denied: t('gps_denied'),
+    unavailable: t('gps_unavailable'),
+    idle: t('gps_idle')
+  };
 
   return (
     <div className="flex h-full w-[300px] flex-col border-r border-glassBorder bg-bgSurface/82 shadow-2xl shadow-black/35 backdrop-blur-xl xl:shadow-none">
@@ -39,7 +41,7 @@ export function SidebarContent({
             type="button"
             onClick={onClose}
             className="-mr-2 rounded-full border border-glassBorder bg-white/5 p-2 text-textSeafoam transition duration-150 ease-out hover:border-electricBlue/40 hover:bg-white/10 hover:text-textCrisp active:scale-[0.98]"
-            aria-label="Đóng bảng điều hướng"
+            aria-label={t('close_nav')}
           >
             <X size={20} />
           </button>
@@ -48,14 +50,14 @@ export function SidebarContent({
 
       <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-6 hide-scrollbar">
         <section>
-          <p className="mb-2 text-[10px] font-bold uppercase text-textGhost">Trạng thái tài khoản</p>
+          <p className="mb-2 text-[10px] font-bold uppercase text-textGhost">{t('account_status')}</p>
           <PremiumStatusButton onUpgrade={onUpgrade} />
         </section>
 
         <section>
           <div className="mb-2 flex items-center gap-2">
             <Globe2 size={14} className="text-oceanCyan" />
-            <p className="text-[10px] font-bold uppercase text-textGhost">Ngôn ngữ thuyết minh</p>
+            <p className="text-[10px] font-bold uppercase text-textGhost">{t('audio_language')}</p>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {languages.map((lang) => (
@@ -79,18 +81,18 @@ export function SidebarContent({
         <section>
           <div className="mb-2 flex items-center gap-2">
             <MapPin size={14} className="text-oceanCyan" />
-            <p className="text-[10px] font-bold uppercase text-textGhost">Định vị GPS</p>
+            <p className="text-[10px] font-bold uppercase text-textGhost">{t('gps_location')}</p>
           </div>
           <div className="flex items-center justify-between rounded-xl border border-glassBorder bg-white/5 p-3">
             <span className="text-xs font-semibold text-textSeafoam">
-              {isFakeMode ? 'Đang dùng demo' : (gpsLabels[permissionStatus] ?? 'Chưa bật')}
+              {isFakeMode ? t('demo_mode_active') : (gpsLabels[permissionStatus] ?? t('gps_idle'))}
             </span>
             <button
               type="button"
               onClick={handleLocate}
               className="flex h-8 w-8 items-center justify-center rounded-full border border-glassBorder bg-white/5 text-textCrisp shadow-glass-inner transition duration-150 ease-out hover:border-electricBlue/40 hover:bg-white/10 hover:text-oceanCyan active:scale-[0.98]"
-              title="Định vị lại"
-              aria-label="Định vị lại"
+              title={t('relocate')}
+              aria-label={t('relocate')}
             >
               <Crosshair size={16} />
             </button>
@@ -99,9 +101,9 @@ export function SidebarContent({
 
         <section className="flex flex-1 flex-col">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase text-textGhost">Gần bạn</p>
+            <p className="text-[10px] font-bold uppercase text-textGhost">{t('near_you')}</p>
             <Link to="/list" className="text-xs font-bold text-oceanCyan transition duration-150 ease-out hover:text-electricBlue">
-              Xem tất cả
+              {t('view_all')}
             </Link>
           </div>
 
@@ -112,7 +114,7 @@ export function SidebarContent({
               ))
             ) : (
               <div className="glass-card p-4 text-center text-sm font-semibold text-textSeafoam">
-                Chưa có điểm tham quan trong khu vực.
+                {t('no_poi_nearby')}
               </div>
             )}
           </div>

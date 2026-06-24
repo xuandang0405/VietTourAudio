@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { localizePoi, visitorPois } from '../../data/visitorPois';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
-import { useTranslation } from '../../i18n/translations';
+import { useTranslation } from 'react-i18next';
 import { poiService } from '../../services/poiService';
 import { visitorTrackingService } from '../../services/visitorTrackingService';
 import { useAudioStore } from '../../stores/audioStore';
@@ -15,7 +15,7 @@ import { PCLayout } from '../layouts/PCLayout';
 import { TabletLayout } from '../layouts/TabletLayout';
 
 export function MapPage({ onUpgrade, onToast }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation('translation', { keyPrefix: 'landing' });
   const breakpoint = useBreakpoint();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedPoiId, setSelectedPoiId] = useState(searchParams.get('poi'));
@@ -151,7 +151,7 @@ export function MapPage({ onUpgrade, onToast }) {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('poi', activeAutoPoi.id);
     setSearchParams(nextParams, { replace: true });
-    onToast?.(`📍 Đã vào ${activeAutoPoi.title}. Tự động phát audio`);
+    onToast?.(t('auto_play_started', { name: activeAutoPoi.title }));
   }, [activeAutoPoi, canAutoPlay, currentLanguage, enqueuePoi, getLanguageMeta, isPremium, onToast, searchParams, setSearchParams]);
 
   function handleSelectPoi(poi) {

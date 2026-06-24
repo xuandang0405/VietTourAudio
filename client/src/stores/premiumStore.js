@@ -91,6 +91,18 @@ export const usePremiumStore = create(
         writeLegacyPremium(false, 0);
       },
 
+      setPremium: (isPremium) => {
+        set({ isPremium });
+        const { expiresAt } = get();
+        writeLegacyPremium(isPremium, expiresAt);
+      },
+
+      setExpiry: (expiresAt) => {
+        set({ expiresAt });
+        const { isPremium } = get();
+        writeLegacyPremium(isPremium, expiresAt);
+      },
+
       checkExpiry: () => {
         const { isPremium, expiresAt } = get();
         if (!isPremium) return false;

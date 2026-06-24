@@ -21,20 +21,21 @@ export function getDistanceMeters(pointA, pointB) {
   return EARTH_RADIUS_METERS * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+import i18n from '../i18n';
+
 export function formatDistance(meters, languageCode = 'vi') {
   if (!Number.isFinite(meters)) {
-    return { vi: 'Chưa có GPS', en: 'GPS unavailable', zh: '暂无GPS', ja: 'GPS未取得', ko: 'GPS 없음' }[languageCode] ?? 'Chưa có GPS';
+    return i18n.t('common.error', 'Chưa có GPS'); // fallback if needed
   }
 
-  const prefix = { vi: 'Cách bạn', en: 'Away', zh: '距离', ja: '距離', ko: '거리' }[languageCode] ?? 'Cách bạn';
   if (meters < 1000) {
     const value = `${Math.max(1, Math.round(meters))}m`;
-    return languageCode === 'en' ? `${value} away` : `${prefix} ${value}`;
+    return i18n.t('landing.distance_away', { distance: value });
   }
 
   const locale = { vi: 'vi-VN', en: 'en-US', zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR' }[languageCode] ?? 'vi-VN';
   const value = `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(meters / 1000)} km`;
-  return languageCode === 'en' ? `${value} away` : `${prefix} ${value}`;
+  return i18n.t('landing.distance_away', { distance: value });
 }
 
 export function enrichPoisWithDistance(pois, position, languageCode = 'vi') {

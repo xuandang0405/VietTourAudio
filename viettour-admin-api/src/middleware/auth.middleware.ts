@@ -8,6 +8,7 @@ export interface AuthPayload {
   role: UserRole;
   email: string;
   vendorId?: bigint;
+  assignedZoneId?: bigint;
 }
 
 // Verify JWT và gán req.user
@@ -24,7 +25,8 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
       userId: BigInt(payload.userId ?? payload.id),
       role: payload.role,
       email: payload.email,
-      vendorId: payload.vendorId == null ? undefined : BigInt(payload.vendorId)
+      vendorId: payload.vendorId == null ? undefined : BigInt(payload.vendorId),
+      assignedZoneId: payload.assignedZoneId == null ? undefined : BigInt(payload.assignedZoneId)
     };
     next();
   } catch {

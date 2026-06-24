@@ -303,4 +303,234 @@ router.get(
   })
 );
 
+// ──────────────────────────────────────────────
+// GET /stall/qr — Return vendor's stall zone_code
+// ──────────────────────────────────────────────
+router.get(
+  '/stall/qr',
+  asyncHandler(async (req, res) => {
+    const vendorId = getVendorId(req.user?.vendorId);
+    const rows = await query<any[]>(
+      `SELECT zone_code FROM stalls WHERE vendor_id = ? ORDER BY id ASC LIMIT 1`,
+      [vendorId]
+    );
+    const stall = rows[0];
+    res.json(ok({ zoneCode: stall ? stall.zone_code : null }));
+  })
+);
+
+// ──────────────────────────────────────────────
+// GET /stall — Return vendor's stall info
+// ──────────────────────────────────────────────
+router.get(
+  '/stall',
+  asyncHandler(async (req, res) => {
+    const vendorId = getVendorId(req.user?.vendorId);
+    const rows = await query<any[]>(
+      `SELECT
+         s.id,
+         s.name,
+         s.slug,
+         s.description,
+         s.latitude,
+         s.longitude,
+         s.activation_radius,
+         s.status,
+         s.is_featured,
+         s.is_premium,
+         s.priority_score,
+         s.opening_hours,
+         s.zone_code
+       FROM stalls s
+       WHERE s.vendor_id = ?
+       ORDER BY s.id ASC
+       LIMIT 1`,
+      [vendorId]
+    );
+
+    const stall = rows[0];
+    if (!stall) {
+      return res.json(ok({ stall: null }));
+    }
+
+    res.json(
+      ok({
+        stall: {
+          id: String(stall.id),
+          name: stall.name,
+          slug: stall.slug,
+          description: stall.description,
+          latitude: Number(stall.latitude),
+          longitude: Number(stall.longitude),
+          activationRadius: Number(stall.activation_radius),
+          status: stall.status,
+          isFeatured: Boolean(stall.is_featured),
+          isPremium: Boolean(stall.is_premium),
+          priorityScore: Number(stall.priority_score),
+          openingHours: stall.opening_hours,
+          zoneCode: stall.zone_code
+        }
+      })
+    );
+  })
+);
+
+// ──────────────────────────────────────────────
+// PUT /location — Update stall lat/lng
+// ──────────────────────────────────────────────
+router.put(
+  '/location',
+  asyncHandler(async (req, res) => {
+    const vendorId = getVendorId(req.user?.vendorId);
+    const { latitude, longitude } = req.body;
+
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      return res.status(400).json({ error: 'latitude and longitude must be numbers' });
+    }
+
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      return res.status(400).json({ error: 'Invalid coordinates' });
+    }
+
+    // Optional: validate against assigned_tour_id bounding box
+    // For now, update the first stall belonging to this vendor
+    const result = await query<any>(
+      `UPDATE stalls
+       SET latitude = ?, longitude = ?, updated_at = NOW()
+       WHERE vendor_id = ?
+       ORDER BY id ASC
+       LIMIT 1`,
+      [latitude, longitude, vendorId]
+    );
+
+    res.json(ok({ updated: true }));
+  })
+);
+
+// ──────────────────────────────────────────────
+// GET /content — Return POI contents with approval_status
+// ──────────────────────────────────────────────
+router.get(
+  '/content',
+  asyncHandler(async (req, res) => {
+    const vendorId = getVendorId(req.user?.vendorId);
+    const rows = await query<any[]>(
+      `SELECT
+         pc.id,
+         pc.poi_id,
+         pc.lang,
+         pc.title,
+         pc.short_text,
+         pc.tts_script,
+         pc.audio_url,
+         pc.voice_profile,
+         pc.approval_status,
+         pc.created_at,
+         pc.updated_at,
+         p.name AS poi_name
+       FROM poi_contents pc
+       JOIN pois p ON p.id = pc.poi_id
+       JOIN stalls s ON s.id = p.stall_id
+       WHERE s.vendor_id = ?
+       ORDER BY pc.updated_at DESC`,
+      [vendorId]
+    );
+
+    res.json(
+      ok({
+        contents: rows.map((row) => ({
+          id: String(row.id),
+          poiId: String(row.poi_id),
+          poiName: row.poi_name,
+          language: row.lang,
+          title: row.title,
+          shortText: row.short_text,
+          ttsScript: row.tts_script,
+          audioUrl: row.audio_url,
+          voiceProfile: row.voice_profile,
+          approvalStatus: row.approval_status,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at
+        }))
+      })
+    );
+  })
+);
+
+// ──────────────────────────────────────────────
+// POST /content — Submit TTS text for approval
+// ──────────────────────────────────────────────
+router.post(
+  '/content',
+  asyncHandler(async (req, res) => {
+    const vendorId = getVendorId(req.user?.vendorId);
+    const { ttsScript, language = 'vi' } = req.body;
+
+    if (!ttsScript || typeof ttsScript !== 'string') {
+      return res.status(400).json({ error: 'ttsScript is required' });
+    }
+
+    if (ttsScript.trim().length < 50) {
+      return res.status(400).json({ error: 'Nội dung TTS phải có ít nhất 50 ký tự' });
+    }
+
+    // Find the vendor's first POI
+    const poiRows = await query<any[]>(
+      `SELECT p.id
+       FROM pois p
+       JOIN stalls s ON s.id = p.stall_id
+       WHERE s.vendor_id = ?
+       ORDER BY p.id ASC
+       LIMIT 1`,
+      [vendorId]
+    );
+
+    if (poiRows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy POI nào thuộc vendor này' });
+    }
+
+    const poiId = poiRows[0].id;
+
+    // Upsert content with pending status
+    await query<any>(
+      `INSERT INTO poi_contents (poi_id, lang, title, tts_script, approval_status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'pending', NOW(), NOW())
+       ON DUPLICATE KEY UPDATE
+         tts_script = VALUES(tts_script),
+         approval_status = 'pending',
+         updated_at = NOW()`,
+      [poiId, language, `TTS Content - ${language}`, ttsScript.trim()]
+    );
+
+    res.json(ok({ submitted: true, approvalStatus: 'pending' }));
+  })
+);
+
+// ──────────────────────────────────────────────
+// POST /pay-subscription — Mock payment endpoint
+// ──────────────────────────────────────────────
+router.post(
+  '/pay-subscription',
+  asyncHandler(async (req, res) => {
+    const vendorId = getVendorId(req.user?.vendorId);
+
+    // Simulate payment processing delay
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Extend next_billing_date by 30 days and set payment_status to 'paid'
+    await query<any>(
+      `UPDATE vendor_subscriptions
+       SET payment_status = 'paid',
+           next_billing_date = DATE_ADD(COALESCE(next_billing_date, CURDATE()), INTERVAL 30 DAY),
+           updated_at = NOW()
+       WHERE vendor_id = ?
+       ORDER BY id DESC
+       LIMIT 1`,
+      [vendorId]
+    );
+
+    res.json(ok({ paid: true, message: 'Mock payment successful. Subscription extended by 30 days.' }));
+  })
+);
+
 export default router;

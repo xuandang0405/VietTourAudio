@@ -90,8 +90,8 @@ public class StallService : IStallService
   {
     IReadOnlyList<StallResponseDto> stalls =
     [
-      new(1, 2, "Sạp Cà Phê Bến Thành", "sap-ca-phe-ben-thanh", "Cà phê Việt Nam cho khách quốc tế.", "Chợ Bến Thành, Quận 1", 10.7721120m, 106.6982780m, "APPROVED", true, 10),
-      new(2, 3, "Gốm Thủ Công Hội An", "gom-thu-cong-hoi-an", "Gian hàng gốm thủ công.", "Phố cổ Hội An", 15.8800580m, 108.3380470m, "APPROVED", false, 0)
+      new(1, 2, "Sạp Cà Phê Bến Thành", "sap-ca-phe-ben-thanh", "Cà phê Việt Nam cho khách quốc tế.", "Chợ Bến Thành, Quận 1", 10.7721120m, 106.6982780m, "APPROVED", true, 10, "AB12CD34"),
+      new(2, 3, "Gốm Thủ Công Hội An", "gom-thu-cong-hoi-an", "Gian hàng gốm thủ công.", "Phố cổ Hội An", 15.8800580m, 108.3380470m, "APPROVED", false, 0, null)
     ];
 
     return Task.FromResult(stalls);
@@ -99,17 +99,26 @@ public class StallService : IStallService
 
   public Task<StallResponseDto> GetByIdAsync(ulong id)
   {
-    return Task.FromResult(new StallResponseDto(id, 2, "Sạp Demo", "sap-demo", "Thông tin sạp demo.", "Địa chỉ demo", 10.7721120m, 106.6982780m, "APPROVED", false, 0));
+    return Task.FromResult(new StallResponseDto(id, 2, "Sạp Demo", "sap-demo", "Thông tin sạp demo.", "Địa chỉ demo", 10.7721120m, 106.6982780m, "APPROVED", false, 0, null));
   }
 
   public Task<StallResponseDto> CreateAsync(StallRequestDto request)
   {
-    return Task.FromResult(new StallResponseDto(100, request.OwnerId, request.Name, request.Slug, request.Description, request.Address, request.Latitude, request.Longitude, "PENDING", false, 0));
+    return Task.FromResult(new StallResponseDto(100, request.OwnerId, request.Name, request.Slug, request.Description, request.Address, request.Latitude, request.Longitude, "PENDING", false, 0, null));
   }
 
   public Task<StallResponseDto> UpdateStatusAsync(ulong id, string status)
   {
-    return Task.FromResult(new StallResponseDto(id, 2, "Sạp Demo", "sap-demo", "Thông tin sạp demo.", "Địa chỉ demo", 10.7721120m, 106.6982780m, status, false, 0));
+    return Task.FromResult(new StallResponseDto(id, 2, "Sạp Demo", "sap-demo", "Thông tin sạp demo.", "Địa chỉ demo", 10.7721120m, 106.6982780m, status, false, 0, null));
+  }
+
+  public Task<StallResponseDto?> GetByZoneCodeAsync(string zoneCode)
+  {
+    if (zoneCode == "AB12CD34")
+    {
+      return Task.FromResult<StallResponseDto?>(new StallResponseDto(1, 2, "Sạp Cà Phê Bến Thành", "sap-ca-phe-ben-thanh", "Cà phê Việt Nam cho khách quốc tế.", "Chợ Bến Thành, Quận 1", 10.7721120m, 106.6982780m, "APPROVED", true, 10, "AB12CD34"));
+    }
+    return Task.FromResult<StallResponseDto?>(null);
   }
 }
 
@@ -360,6 +369,11 @@ public class PaymentService : IPaymentService
       "PAID",
       $"CASH-{DateTime.UtcNow:yyyyMMddHHmmss}"
     ));
+  }
+
+  public Task<string?> GetPremiumPaymentQrAsync()
+  {
+    return Task.FromResult<string?>("MOMO-PAY-PREMIUM-12345");
   }
 }
 

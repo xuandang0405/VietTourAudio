@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 const toneClassByStatus = {
   PENDING: 'bg-amber-50 text-amber-700 ring-amber-200',
   APPROVED: 'bg-green-50 text-green-700 ring-green-200',
@@ -31,42 +33,10 @@ const toneClassByStatus = {
   MANUAL: 'bg-slate-100 text-slate-700 ring-slate-200'
 };
 
-const labelByStatus = {
-  PENDING: 'Chờ duyệt',
-  APPROVED: 'Đã duyệt',
-  ACTIVE: 'Đang hoạt động',
-  REJECTED: 'Từ chối',
-  SUSPENDED: 'Tạm dừng',
-  CANCELLED: 'Đã hủy',
-  OVERDUE: 'Quá hạn',
-  TRIAL: 'Dùng thử',
-  DRAFT: 'Bản nháp',
-  HIDDEN: 'Đã ẩn',
-  FORCE_CANCELLED: 'Force cancel',
-  PENDING_REVIEW: 'Chờ review',
-  PAID: 'Đã thanh toán',
-  FAILED: 'Thất bại',
-  REFUNDED: 'Hoàn tiền',
-  IMAGE: 'Hình ảnh',
-  VIDEO: 'Video',
-  AUDIO: 'Audio',
-  DOCUMENT: 'Tài liệu',
-  TOP_UP: 'Nạp ví',
-  SUBSCRIPTION_FEE: 'Phí subscription',
-  REFUND: 'Hoàn tiền',
-  MANUAL_DEBIT: 'Trừ thủ công',
-  MANUAL_CREDIT: 'Cộng thủ công',
-  MOMO: 'MoMo',
-  VNPAY: 'VNPay',
-  STRIPE: 'Stripe',
-  BANK_QR: 'Bank QR',
-  CASH: 'Tiền mặt',
-  MANUAL: 'Thủ công'
-};
-
 export function AdminBadge({ status }) {
+  const { t } = useTranslation();
   const tone = toneClassByStatus[status] ?? 'bg-slate-100 text-slate-700 ring-slate-200';
-  const label = labelByStatus[status] ?? status ?? '-';
+  const label = t(`status.${status.toLowerCase()}`, { defaultValue: status });
 
   return (
     <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset ${tone}`}>

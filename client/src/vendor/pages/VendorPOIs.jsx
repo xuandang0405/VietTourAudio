@@ -1,8 +1,10 @@
 import { Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useVendorPois } from '../api/vendorQueries';
 
 export function VendorPOIs() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const { data, isLoading, error } = useVendorPois();
   const pois = data?.pois ?? [];
@@ -23,18 +25,18 @@ export function VendorPOIs() {
     <div className="max-w-6xl mx-auto">
       <header className="mb-8 flex justify-between items-end">
         <div>
-          <h2 className="text-2xl font-black text-slate-900">Quản lý POI & Audio</h2>
-          <p className="text-slate-500 mt-1">Danh sách các điểm thuyết minh đang hoạt động trong vendor portal.</p>
+          <h2 className="text-2xl font-black text-slate-900">{t('poi.vendor_title')}</h2>
+          <p className="text-slate-500 mt-1">{t('poi.vendor_desc')}</p>
         </div>
         <button type="button" disabled className="cursor-not-allowed rounded-xl bg-slate-200 px-4 py-2 font-bold text-slate-500 flex items-center gap-2">
           <Plus size={18} />
-          Sắp mở tạo POI
+          {t('poi.vendor_add_disabled')}
         </button>
       </header>
 
       {error && (
         <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
-          {error.response?.data?.error ?? 'Không tải được danh sách POI vendor.'}
+          {error.response?.data?.error ?? t('poi.error_load_vendor')}
         </div>
       )}
 
@@ -44,7 +46,7 @@ export function VendorPOIs() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
-              placeholder="Tìm kiếm POI..." 
+              placeholder={t('poi.search_placeholder')} 
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-premium-500"
@@ -55,17 +57,17 @@ export function VendorPOIs() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 text-sm">
-              <th className="p-4 font-bold w-16">ID</th>
-              <th className="p-4 font-bold">POI</th>
-              <th className="p-4 font-bold">Sạp</th>
-              <th className="p-4 font-bold text-center">Ngôn ngữ</th>
-              <th className="p-4 font-bold text-center">Lượt nghe</th>
-              <th className="p-4 font-bold text-center">Trạng thái</th>
+              <th className="p-4 font-bold w-16">{t('poi.id')}</th>
+              <th className="p-4 font-bold">{t('poi.poi_name')}</th>
+              <th className="p-4 font-bold">{t('poi.stall')}</th>
+              <th className="p-4 font-bold text-center">{t('poi.languages')}</th>
+              <th className="p-4 font-bold text-center">{t('poi.listeners')}</th>
+              <th className="p-4 font-bold text-center">{t('common.status')}</th>
             </tr>
           </thead>
           <tbody>
             {filteredPois.map((poi) => (
-              <tr key={poi.id} className="border-b border-slate-50 hover:bg-slate-50 transition">
+              <tr key={poi.id} className="border-b border-slate-55 hover:bg-slate-50 transition">
                 <td className="p-4 text-slate-400 text-sm font-mono">#{poi.id}</td>
                 <td className="p-4">
                   <div className="flex items-center gap-3">
@@ -87,11 +89,11 @@ export function VendorPOIs() {
                 <td className="p-4 text-center text-sm font-bold text-slate-700">{poi.audioPlays}</td>
                 <td className="p-4 text-center">
                   <span className={poi.status === 'ACTIVE' ? 'inline-flex px-2 py-1 rounded-md bg-green-50 text-green-600 text-xs font-bold' : 'inline-flex px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-xs font-bold'}>
-                    {poi.status}
+                    {poi.status === 'ACTIVE' ? t('common.active') : t('common.inactive')}
                   </span>
                   {poi.isPremiumContent && (
                     <span className="ml-2 inline-flex rounded-md bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700">
-                      Premium
+                      {t('poi.premium_badge')}
                     </span>
                   )}
                 </td>
@@ -99,15 +101,15 @@ export function VendorPOIs() {
             ))}
             {!isLoading && filteredPois.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-sm font-semibold text-slate-500">
-                  Không tìm thấy POI phù hợp.
+                <td colSpan={6} className="p-6 text-center text-sm font-semibold text-slate-500">
+                  {t('poi.no_matching')}
                 </td>
               </tr>
             )}
             {isLoading && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-sm font-semibold text-slate-500">
-                  Đang tải danh sách POI...
+                <td colSpan={6} className="p-6 text-center text-sm font-semibold text-slate-500">
+                  {t('poi.loading_list')}
                 </td>
               </tr>
             )}

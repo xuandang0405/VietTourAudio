@@ -18,6 +18,9 @@ import auditRoutes from './routes/audit.routes';
 import userRoutes from './routes/user.routes';
 import walletRoutes from './routes/wallet.routes';
 import topUpRoutes from './routes/topup.routes';
+import stallRoutes from './routes/stall.routes';
+import guestRoutes from './routes/guest.routes';
+import paymentRoutes from './routes/payment.routes';
 import { errorMiddleware } from './middleware/error.middleware';
 import { auditMiddleware } from './middleware/audit.middleware';
 
@@ -74,8 +77,11 @@ app.get('/health', (_req, res) => {
 app.use(`${api}/auth`, authRoutes);
 app.use('/api/vendor/auth', vendorAuthRoutes);
 app.use('/api/vendor', vendorPortalRoutes);
+app.use('/api/guest', guestRoutes);
+app.use('/api/payment', paymentRoutes);
 app.use(api, auditMiddleware);
 app.use(`${api}/vendors`, vendorRoutes);
+app.use(`${api}/stalls`, stallRoutes);
 app.use(`${api}/wallets`, walletRoutes);
 app.use(`${api}/topup`, topUpRoutes);
 app.use(`${api}/content`, contentRoutes);

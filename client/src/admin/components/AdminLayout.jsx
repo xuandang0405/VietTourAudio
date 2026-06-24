@@ -19,11 +19,13 @@ import {
   X
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import logo from '../../assets/logo/logo.png';
 import logoText from '../../assets/logo/logo-text.png';
 import { adminLogout } from '../api/adminApi';
 import { useAdminAuthStore } from '../store/adminAuthStore';
+import { LanguageSwitcher } from '../../components/LanguageSwitcher';
 
 const roles = {
   vendor: ['SUPER_ADMIN', 'ADMIN'],
@@ -35,28 +37,28 @@ const roles = {
 
 const navGroups = [
   {
-    label: 'Quản lý',
+    labelKey: 'sidebar.group_management',
     items: [
-      { label: 'Dashboard', to: '/admin', icon: LayoutDashboard },
-      { label: 'Nhà cung cấp', to: '/admin/vendors', icon: Store, roles: roles.vendor },
-      { label: 'Kiểm duyệt', to: '/admin/content', icon: FileVideo, roles: roles.moderate },
-      { label: 'Điểm tham quan', to: '/admin/pois', icon: MapPinned, roles: roles.vendor }
+      { labelKey: 'sidebar.dashboard', to: '/admin', icon: LayoutDashboard },
+      { labelKey: 'sidebar.vendors', to: '/admin/vendors', icon: Store, roles: roles.vendor },
+      { labelKey: 'sidebar.moderation', to: '/admin/content', icon: FileVideo, roles: roles.moderate },
+      { labelKey: 'sidebar.poi_management', to: '/admin/pois', icon: MapPinned, roles: roles.vendor }
     ]
   },
   {
-    label: 'Tài chính',
+    labelKey: 'sidebar.group_finance',
     items: [
-      { label: 'Ví vendor', to: '/admin/vendor-accounts', icon: WalletCards, roles: roles.finance },
-      { label: 'Top-Ups', to: '/admin/topup', icon: UploadCloud, roles: roles.finance },
-      { label: 'Doanh thu', to: '/admin/revenue/dashboard', icon: ChartNoAxesCombined, roles: roles.finance }
+      { labelKey: 'sidebar.vendor_wallet', to: '/admin/vendor-accounts', icon: WalletCards, roles: roles.finance },
+      { labelKey: 'sidebar.topups', to: '/admin/topup', icon: UploadCloud, roles: roles.finance },
+      { labelKey: 'sidebar.revenue', to: '/admin/revenue/dashboard', icon: ChartNoAxesCombined, roles: roles.finance }
     ]
   },
   {
-    label: 'Hệ thống',
+    labelKey: 'sidebar.group_system',
     items: [
-      { label: 'Geofences', to: '/admin/geofences', icon: ShieldCheck, roles: roles.geofence },
-      { label: 'Nhật ký', to: '/admin/audit-logs', icon: FileClock, roles: roles.system },
-      { label: 'Admin users', to: '/admin/settings/users', icon: Settings, roles: roles.system }
+      { labelKey: 'sidebar.geofences', to: '/admin/geofences', icon: ShieldCheck, roles: roles.geofence },
+      { labelKey: 'sidebar.audit_logs', to: '/admin/audit-logs', icon: FileClock, roles: roles.system },
+      { labelKey: 'sidebar.admin_users', to: '/admin/settings/users', icon: Settings, roles: roles.system }
     ]
   }
 ];
@@ -75,7 +77,54 @@ const breadcrumbByPath = {
   '/admin/settings/users': ['Admin', 'Admin users']
 };
 
+const crumbTranslationKeys = {
+  'Admin': 'sidebar.admin_portal',
+  'Dashboard': 'sidebar.dashboard',
+  'Nhà cung cấp': 'sidebar.vendors',
+  'Kiểm duyệt': 'sidebar.moderation',
+  'Điểm tham quan': 'sidebar.poi_management',
+  'Ví vendor': 'sidebar.vendor_wallet',
+  'Top-Ups': 'sidebar.topups',
+  'Doanh thu': 'sidebar.revenue',
+  'Geofences': 'sidebar.geofences',
+  'Nhật ký': 'sidebar.audit_logs',
+  'Admin users': 'sidebar.admin_users',
+  'Chi tiết': 'common.detail'
+};
+
+const getBreadcrumbUrl = (crumb, currentPathname) => {
+  switch (crumb) {
+    case 'Admin':
+    case 'Dashboard':
+      return '/admin';
+    case 'Nhà cung cấp':
+      return '/admin/vendors';
+    case 'Kiểm duyệt':
+      return '/admin/content';
+    case 'Điểm tham quan':
+      return '/admin/pois';
+    case 'Ví vendor':
+      return '/admin/vendor-accounts';
+    case 'Top-Ups':
+      return '/admin/topup';
+    case 'Doanh thu':
+      return '/admin/revenue/dashboard';
+    case 'Geofences':
+      return '/admin/geofences';
+    case 'Nhật ký':
+      return '/admin/audit-logs';
+    case 'Admin users':
+      return '/admin/settings/users';
+    case 'Chi tiết':
+      return currentPathname;
+    default:
+      return '/admin';
+  }
+};
+
+
 export function AdminLayout() {
+  const { t } = useTranslation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -109,7 +158,7 @@ export function AdminLayout() {
           <div className="fixed inset-0 z-[1800] md:hidden">
             <motion.button
               type="button"
-              aria-label="Đóng menu"
+              aria-label={t('close')}
               className="absolute inset-0 bg-slate-950/45"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -127,7 +176,7 @@ export function AdminLayout() {
                 type="button"
                 onClick={() => setDrawerOpen(false)}
                 className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white"
-                aria-label="Đóng menu"
+                aria-label={t('close')}
               >
                 <X size={18} />
               </button>
@@ -151,19 +200,23 @@ export function AdminLayout() {
             <div className="hidden items-center gap-2 text-sm font-bold text-slate-500 sm:flex">
               {breadcrumbs.map((crumb, index) => (
                 <span key={`${crumb}-${index}`} className="flex items-center gap-2">
-                  <span className={index === breadcrumbs.length - 1 ? 'max-w-[180px] truncate text-slate-950' : 'hidden text-slate-500 md:inline'}>
-                    {crumb}
-                  </span>
+                  <Link
+                    to={getBreadcrumbUrl(crumb, location.pathname)}
+                    className={index === breadcrumbs.length - 1 ? 'max-w-[180px] truncate text-slate-950 hover:underline' : 'hidden text-slate-500 hover:underline md:inline'}
+                  >
+                    {t(crumbTranslationKeys[crumb] ?? crumb)}
+                  </Link>
                   {index < breadcrumbs.length - 1 && <ChevronRight className="hidden text-slate-300 md:block" size={16} />}
                 </span>
               ))}
             </div>
             <div className="sm:hidden">
-              <p className="text-sm font-black text-slate-950">{breadcrumbs[breadcrumbs.length - 1]}</p>
+              <p className="text-sm font-black text-slate-950">{t(crumbTranslationKeys[breadcrumbs[breadcrumbs.length - 1]] ?? breadcrumbs[breadcrumbs.length - 1])}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            <LanguageSwitcher />
             <button
               type="button"
               className="relative grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition duration-200 ease-out hover:bg-slate-50"
@@ -193,6 +246,7 @@ export function AdminLayout() {
 }
 
 function SidebarContent({ userRole, onNavigate, onLogout, forceLabels = false }) {
+  const { t } = useTranslation();
   const visibleGroups = navGroups
     .map((group) => ({
       ...group,
@@ -209,9 +263,9 @@ function SidebarContent({ userRole, onNavigate, onLogout, forceLabels = false })
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-4 hide-scrollbar">
         {visibleGroups.map((group) => (
-          <div key={group.label}>
+          <div key={group.labelKey}>
             <p className={forceLabels ? 'mb-2 px-3 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500' : 'mb-2 hidden px-3 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 lg:block'}>
-              {group.label}
+              {t(group.labelKey)}
             </p>
             <div className="space-y-1">
               {group.items.map((item) => (
@@ -228,7 +282,7 @@ function SidebarContent({ userRole, onNavigate, onLogout, forceLabels = false })
                   }
                 >
                   <item.icon className="shrink-0" size={19} />
-                  <span className={forceLabels ? 'truncate' : 'hidden truncate lg:inline'}>{item.label}</span>
+                  <span className={forceLabels ? 'truncate' : 'hidden truncate lg:inline'}>{t(item.labelKey)}</span>
                 </NavLink>
               ))}
             </div>
@@ -243,9 +297,10 @@ function SidebarContent({ userRole, onNavigate, onLogout, forceLabels = false })
           className="flex min-h-11 w-full items-center justify-center gap-3 rounded-xl bg-white/10 px-3 text-sm font-bold text-slate-200 transition duration-200 ease-out hover:bg-white/15"
         >
           <LogOut size={18} />
-          <span className={forceLabels ? '' : 'hidden lg:inline'}>Đăng xuất</span>
+          <span className={forceLabels ? '' : 'hidden lg:inline'}>{t('sidebar.logout')}</span>
         </button>
       </div>
     </div>
   );
 }
+

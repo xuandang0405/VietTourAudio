@@ -83,8 +83,15 @@ vendorApiClient.interceptors.response.use(
   }
 );
 
+// --- Auth ---
+
 export async function vendorLogin(credentials) {
-  return unwrap(await axios.post(getAuthUrl('/login'), credentials));
+  // Support both vendor_code and email login
+  const payload = credentials.vendorCode
+    ? { vendorCode: credentials.vendorCode, password: credentials.password }
+    : { email: credentials.email, password: credentials.password };
+
+  return unwrap(await axios.post(getAuthUrl('/login'), payload));
 }
 
 export async function vendorLogout() {
@@ -109,14 +116,56 @@ export async function fetchVendorMe() {
   );
 }
 
+// --- Dashboard ---
+
 export async function fetchVendorDashboard() {
   return unwrap(await vendorApiClient.get('/dashboard'));
 }
+
+// --- POIs ---
 
 export async function fetchVendorPois() {
   return unwrap(await vendorApiClient.get('/pois'));
 }
 
+// --- Revenue ---
+
 export async function fetchVendorRevenue() {
   return unwrap(await vendorApiClient.get('/revenue'));
+}
+
+// --- Stall Management ---
+
+export async function fetchVendorStall() {
+  return unwrap(await vendorApiClient.get('/stall'));
+}
+
+export async function updateStallLocation(latitude, longitude) {
+  return unwrap(await vendorApiClient.put('/location', { latitude, longitude }));
+}
+
+export async function updateStallInfo(data) {
+  return unwrap(await vendorApiClient.put('/stall', data));
+}
+
+// --- Content & TTS ---
+
+export async function fetchVendorContent() {
+  return unwrap(await vendorApiClient.get('/content'));
+}
+
+export async function submitVendorContent(ttsScript, language = 'vi') {
+  return unwrap(await vendorApiClient.post('/content', { ttsScript, language }));
+}
+
+// --- Subscription ---
+
+export async function mockPaySubscription() {
+  return unwrap(await vendorApiClient.post('/pay-subscription'));
+}
+
+// --- Stall QR ---
+
+export async function fetchVendorStallQr() {
+  return unwrap(await vendorApiClient.get('/stall/qr'));
 }

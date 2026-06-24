@@ -1,24 +1,27 @@
 import { CheckCircle2, ImageOff, RefreshCcw, XCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AdminBadge } from '../components/AdminBadge';
 import { AdminModal } from '../components/AdminModal';
 import { AdminPageHeader } from '../components/AdminPageHeader';
 import { useApproveTopUp, useRejectTopUp, useTopUpRequests } from '../api/adminQueries';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
 
-const tabs = [
-  { label: 'Chờ duyệt', value: 'PENDING' },
-  { label: 'Đã duyệt', value: 'APPROVED' },
-  { label: 'Từ chối', value: 'REJECTED' },
-  { label: 'Tất cả', value: 'ALL' }
-];
-
 export function AdminTopUps() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState('PENDING');
   const [selectedId, setSelectedId] = useState('');
   const [rejectModal, setRejectModal] = useState(null);
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
+  
+  const tabs = useMemo(() => [
+    { label: t('admin_topup.tab_pending'), value: 'PENDING' },
+    { label: t('admin_topup.tab_approved'), value: 'APPROVED' },
+    { label: t('admin_topup.tab_rejected'), value: 'REJECTED' },
+    { label: t('admin_topup.tab_all'), value: 'ALL' }
+  ], [t]);
+
   const params = useMemo(() => ({ status }), [status]);
   const { data: requests = [], isLoading, error: listError, refetch } = useTopUpRequests(params);
   const approveMutation = useApproveTopUp();
@@ -30,14 +33,14 @@ export function AdminTopUps() {
     try {
       await approveMutation.mutateAsync(request.id);
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Không thể duyệt yêu cầu nạp tiền.');
+      setError(err.response?.data?.error ?? t('admin_topup.error_approve'));
     }
   }
 
   async function handleReject() {
     if (!rejectModal) return;
     if (!reason.trim()) {
-      setError('Lý do từ chối là bắt buộc.');
+      setError(t('admin_topup.error_reason_required'));
       return;
     }
 
@@ -46,16 +49,16 @@ export function AdminTopUps() {
       setRejectModal(null);
       setReason('');
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Không thể từ chối yêu cầu nạp tiền.');
+      setError(err.response?.data?.error ?? t('admin_topup.error_reject'));
     }
   }
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-5">
       <AdminPageHeader
-        eyebrow="Top-Up management"
-        title="Duyệt yêu cầu nạp tiền"
-        description="Kiểm tra proof image, duyệt top-up theo transaction atomic và tự động cộng ví vendor."
+        eyebrow={t('admin_topup.management_subtitle')}
+        title={t('admin_topup.title')}
+        description={t('admin_topup.subtitle')}
         action={
           <button
             type="button"
@@ -63,14 +66,14 @@ export function AdminTopUps() {
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50"
           >
             <RefreshCcw size={17} />
-            Làm mới
+            {t('admin_topup.refresh')}
           </button>
         }
       />
 
       {(error || listError) && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
-          {error || listError?.response?.data?.error || 'Không tải được yêu cầu top-up.'}
+          {error || listError?.response?.data?.error || t('admin_topup.error_load')}
         </div>
       )}
 
@@ -92,7 +95,7 @@ export function AdminTopUps() {
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
         <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-4 py-3">
-            <p className="text-sm font-black text-slate-950">{isLoading ? 'Đang tải...' : `${requests.length} yêu cầu`}</p>
+            <p className="text-sm font-black text-slate-950">{isLoading ? t('admin_topup.loading') : t('admin_topup.request_count', { count: requests.length })}</p>
           </div>
           <div className="divide-y divide-slate-100">
             {requests.map((request) => (
@@ -117,7 +120,7 @@ export function AdminTopUps() {
               </button>
             ))}
             {!isLoading && requests.length === 0 && (
-              <p className="p-10 text-center text-sm font-semibold text-slate-500">Không có yêu cầu phù hợp.</p>
+              <p className="p-10 text-center text-sm font-semibold text-slate-500">{t('admin_topup.no_requests')}</p>
             )}
           </div>
         </article>
@@ -127,7 +130,7 @@ export function AdminTopUps() {
             <>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-600">Proof review</p>
+                  <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-600">{t('admin_topup.proof_review')}</p>
                   <h2 className="mt-1 truncate text-lg font-black text-slate-950">{selected.vendor?.businessName}</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-500">{formatCurrency(selected.amount)}</p>
                 </div>
@@ -147,17 +150,17 @@ export function AdminTopUps() {
                   <div className="grid aspect-[4/3] place-items-center text-slate-400">
                     <div className="text-center">
                       <ImageOff className="mx-auto" size={34} />
-                      <p className="mt-2 text-sm font-bold">Không có proof image</p>
+                      <p className="mt-2 text-sm font-bold">{t('admin_topup.no_proof')}</p>
                     </div>
                   </div>
                 )}
               </div>
 
               <div className="mt-4 grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm">
-                <Info label="Provider" value={<AdminBadge status={selected.provider} />} />
-                <Info label="Số dư hiện tại" value={formatCurrency(selected.vendor?.wallet?.balance)} />
-                <Info label="Subscription" value={selected.vendor?.subscription?.plan?.name ?? 'Chưa có'} />
-                {selected.rejectReason && <Info label="Lý do từ chối" value={selected.rejectReason} />}
+                <Info label={t('admin_topup.label_provider')} value={<AdminBadge status={selected.provider} />} />
+                <Info label={t('admin_topup.label_balance')} value={formatCurrency(selected.vendor?.wallet?.balance)} />
+                <Info label={t('admin_topup.label_sub')} value={selected.vendor?.subscription?.plan?.name ?? t('admin_topup.no_sub')} />
+                {selected.rejectReason && <Info label={t('admin_topup.label_reject_reason')} value={selected.rejectReason} />}
               </div>
 
               {selected.status === 'PENDING' && (
@@ -168,7 +171,7 @@ export function AdminTopUps() {
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-green-600 px-3 text-sm font-black text-white transition hover:bg-green-700"
                   >
                     <CheckCircle2 size={17} />
-                    Approve
+                    {t('admin_topup.btn_approve')}
                   </button>
                   <button
                     type="button"
@@ -180,22 +183,22 @@ export function AdminTopUps() {
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 px-3 text-sm font-black text-red-700 transition hover:bg-red-50"
                   >
                     <XCircle size={17} />
-                    Reject
+                    {t('admin_topup.btn_reject')}
                   </button>
                 </div>
               )}
             </>
           ) : (
-            <p className="text-sm font-semibold text-slate-500">Chọn một yêu cầu để xem proof image.</p>
+            <p className="text-sm font-semibold text-slate-500">{t('admin_topup.select_hint')}</p>
           )}
         </aside>
       </section>
 
       <AdminModal
         open={Boolean(rejectModal)}
-        title="Từ chối top-up"
-        description="Lý do là bắt buộc và sẽ được lưu vào TopUpRequest cùng AuditLog."
-        confirmLabel="Từ chối"
+        title={t('admin_topup.modal_title')}
+        description={t('admin_topup.modal_desc')}
+        confirmLabel={t('admin_topup.modal_btn_reject')}
         tone="danger"
         onClose={() => setRejectModal(null)}
         onConfirm={handleReject}
@@ -204,7 +207,7 @@ export function AdminTopUps() {
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           className="h-28 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-          placeholder="Nhập lý do từ chối..."
+          placeholder={t('admin_topup.placeholder_reason')}
         />
       </AdminModal>
     </div>

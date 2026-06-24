@@ -25,7 +25,7 @@
     min-width: 320px;
     min-height: 100%;
     overflow-x: hidden;
-    background: #030712;
+    background: #f8fafc;
   }
 
   body {
@@ -33,8 +33,8 @@
     min-height: 100vh;
     margin: 0;
     overflow-x: hidden;
-    color: var(--vta-text);
-    background: #030712;
+    color: #0f172a;
+    background: #f8fafc;
     font-family: Inter, Roboto, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-weight: 450;
   }

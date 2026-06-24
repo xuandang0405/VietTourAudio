@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import heroTravel from '../../assets/img/hero-travel.png';
 import { destinationPreviews, localizeDestination, localizePoi, visitorPois } from '../../data/visitorPois';
-import { useTranslation } from '../../i18n/translations';
+import { useTranslation } from 'react-i18next';
 import { poiService } from '../../services/poiService';
 import { stallService } from '../../services/stallService';
 import { useLanguageStore } from '../../stores/languageStore';
@@ -14,7 +14,7 @@ import { BottomNav } from '../components/BottomNav';
 import { TopBar } from '../components/TopBar';
 
 export function ListPage({ onUpgrade }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation('translation', { keyPrefix: 'landing' });
   const [databasePois, setDatabasePois] = useState(null);
   const [databaseDestinations, setDatabaseDestinations] = useState(null);
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
@@ -62,8 +62,8 @@ export function ListPage({ onUpgrade }) {
       setDatabaseDestinations(approvedStalls.map((stall) => ({
         id: `stall-${stall.id}`,
         name: stall.name,
-        city: stall.address ?? 'Hội An, Quảng Nam',
-        label: stall.isPremium ? 'Premium' : 'Đang mở',
+        city: stall.address ?? t('fallback_city'),
+        label: stall.isPremium ? t('premium') : t('open_now'),
         image: heroTravel
       })));
     }).catch(() => {

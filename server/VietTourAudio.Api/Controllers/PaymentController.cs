@@ -36,4 +36,15 @@ public class PaymentController : ControllerBase
     var result = await _paymentService.RecordManualCashAsync(request);
     return Ok(ApiResponseFactory.Ok(result, "Đã ghi nhận doanh thu tiền mặt."));
   }
+
+  [HttpGet("/api/payment/premium-qr")]
+  public async Task<IActionResult> GetPremiumPaymentQr()
+  {
+    var code = await _paymentService.GetPremiumPaymentQrAsync();
+    if (string.IsNullOrEmpty(code))
+    {
+      return NotFound(ApiResponseFactory.Fail("Chưa cấu hình QR thanh toán Premium."));
+    }
+    return Ok(ApiResponseFactory.Ok(code, "Lấy QR thanh toán Premium thành công."));
+  }
 }

@@ -27,6 +27,17 @@ export function requireReason(reason: unknown, label = 'reason'): string {
   return reason.trim();
 }
 
+export function optionalReason(reason: unknown, label = 'reason'): string {
+  if (reason === undefined || reason === null) {
+    return '';
+  }
+  if (typeof reason !== 'string') {
+    throw Object.assign(new Error(`${label} must be a string`), { statusCode: 400 });
+  }
+  return reason.trim();
+}
+
+
 export function requireString(value: unknown, label: string): string {
   if (typeof value !== 'string' || !value.trim()) {
     throw Object.assign(new Error(`${label} is required`), { statusCode: 400 });

@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Camera, CameraOff, Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Quét QR bằng camera của trình duyệt (không cần thư viện ngoài).
@@ -10,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
  *   onClose() - callback khi người dùng đóng
  */
 export function QrCameraScanner({ onResult, onClose }) {
+  const { t } = useTranslation();
   const videoRef = useRef(null);
   const intervalRef = useRef(null);
   const streamRef = useRef(null);
@@ -89,30 +91,30 @@ export function QrCameraScanner({ onResult, onClose }) {
         {status === 'starting' && (
           <div className="flex h-56 w-full max-w-[280px] flex-col items-center justify-center gap-3 text-textSeafoam">
             <Loader2 size={30} className="animate-spin text-oceanCyan" />
-            <p className="text-sm font-bold">Đang khởi động camera…</p>
+            <p className="text-sm font-bold">{t('landing.scanner.starting')}</p>
           </div>
         )}
 
         {status === 'error' && (
           <div className="flex h-56 w-full max-w-[280px] flex-col items-center justify-center gap-3 px-6 text-center text-textSeafoam">
             <CameraOff size={32} className="text-red-400" />
-            <p className="text-sm font-bold text-red-300">Không thể truy cập camera</p>
-            <p className="text-xs text-textGhost">Cấp quyền camera rồi thử lại</p>
+            <p className="text-sm font-bold text-red-300">{t('landing.scanner.error')}</p>
+            <p className="text-xs text-textGhost">{t('landing.scanner.error_hint')}</p>
           </div>
         )}
 
         {status === 'unsupported' && (
           <div className="flex h-56 w-full max-w-[280px] flex-col items-center justify-center gap-3 px-6 text-center text-textSeafoam">
             <Camera size={32} className="text-textGhost" />
-            <p className="text-sm font-bold">Trình duyệt chưa hỗ trợ quét QR</p>
-            <p className="text-xs text-textGhost">Dùng Chrome hoặc nhập mã thủ công bên dưới</p>
+            <p className="text-sm font-bold">{t('landing.scanner.unsupported')}</p>
+            <p className="text-xs text-textGhost">{t('landing.scanner.unsupported_hint')}</p>
           </div>
         )}
 
         {/* Hint */}
         {status === 'scanning' && (
           <p className="py-2 text-center text-xs font-bold text-textSeafoam">
-            Hướng camera vào mã QR tại khu vực
+            {t('landing.scanner.hint')}
           </p>
         )}
 
@@ -122,7 +124,7 @@ export function QrCameraScanner({ onResult, onClose }) {
             onClick={onClose}
             className="rounded-full border border-glassBorder bg-white/5 px-5 py-2 text-xs font-bold text-textSeafoam transition hover:bg-white/10 active:scale-[0.98]"
           >
-            Đóng camera
+            {t('landing.scanner.close')}
           </button>
         </div>
       </motion.div>

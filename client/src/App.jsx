@@ -17,7 +17,7 @@ import { AdminVendorAccounts } from './admin/pages/AdminVendorAccounts';
 import { AdminVendorDetail } from './admin/pages/AdminVendorDetail';
 import { AdminVendors } from './admin/pages/AdminVendors';
 import { PREMIUM_ACTIVATION_CODE } from './data/visitorPois';
-import { useTranslation } from './i18n/translations';
+import { useTranslation } from 'react-i18next';
 import { usePremiumStore } from './stores/premiumStore';
 import { VendorGuard } from './vendor/components/VendorGuard';
 import { VendorLayout } from './vendor/components/VendorLayout';
@@ -25,6 +25,8 @@ import { VendorDashboard } from './vendor/pages/VendorDashboard';
 import { VendorLoginPage } from './vendor/pages/VendorLoginPage';
 import { VendorPOIs } from './vendor/pages/VendorPOIs';
 import { VendorRevenue } from './vendor/pages/VendorRevenue';
+import { VendorStall } from './vendor/pages/VendorStall';
+import { VendorContent } from './vendor/pages/VendorContent';
 import { AppErrorBoundary } from './visitor/components/AppErrorBoundary';
 import { CheckoutModal } from './visitor/components/CheckoutModal';
 import { Confetti } from './visitor/components/Confetti';
@@ -39,8 +41,9 @@ import { SettingsPage } from './visitor/pages/SettingsPage';
 import { ZonePage } from './visitor/pages/ZonePage';
 
 function AppRoutes() {
-  const { t } = useTranslation();
+  const { t } = useTranslation('translation', { keyPrefix: 'landing' });
   const location = useLocation();
+  const isAdminOrVendor = location.pathname.startsWith('/admin') || location.pathname.startsWith('/vendor');
   const navigate = useNavigate();
   const activatePremium = usePremiumStore((state) => state.activatePremium);
   const checkExpiry = usePremiumStore((state) => state.checkExpiry);
@@ -111,6 +114,8 @@ function AppRoutes() {
           <Route element={<VendorGuard />}>
             <Route path="/vendor" element={<VendorLayout />}>
               <Route index element={<VendorDashboard />} />
+              <Route path="stall" element={<VendorStall />} />
+              <Route path="content" element={<VendorContent />} />
               <Route path="pois" element={<VendorPOIs />} />
               <Route path="revenue" element={<VendorRevenue />} />
             </Route>
@@ -141,7 +146,7 @@ function AppRoutes() {
       </AppErrorBoundary>
 
       <OfflineBanner />
-      <FloatingPremiumBadge onUpgrade={() => setCheckoutOpen(true)} />
+      {!isAdminOrVendor && <FloatingPremiumBadge onUpgrade={() => setCheckoutOpen(true)} />}
       <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} onSuccess={handlePaymentSuccess} />
       <Toast message={toast} />
       <Confetti show={showConfetti} />

@@ -20,6 +20,9 @@ DROP TABLE IF EXISTS visitor_sessions;
 DROP TABLE IF EXISTS qr_codes;
 DROP TABLE IF EXISTS media_files;
 DROP TABLE IF EXISTS poi_contents;
+DROP TABLE IF EXISTS favorites;
+DROP TABLE IF EXISTS tour_pois;
+DROP TABLE IF EXISTS tours;
 DROP TABLE IF EXISTS pois;
 DROP TABLE IF EXISTS stalls;
 DROP TABLE IF EXISTS vendor_subscriptions;
@@ -29,8 +32,8 @@ DROP TABLE IF EXISTS subscription_plans;
 DROP TABLE IF EXISTS audit_logs;
 DROP TABLE IF EXISTS refresh_tokens;
 DROP TABLE IF EXISTS users;
-
-SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLE IF EXISTS zones;
+DROP TABLE IF EXISTS app_settings;
 
 CREATE TABLE users (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -38,12 +41,14 @@ CREATE TABLE users (
   pass_hash VARCHAR(255) NOT NULL,
   full_name VARCHAR(160) NOT NULL,
   role ENUM('SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'FINANCE') NOT NULL,
+  assigned_zone_id BIGINT UNSIGNED NULL,
   status ENUM('ACTIVE', 'LOCKED', 'PENDING', 'DISABLED') NOT NULL DEFAULT 'ACTIVE',
   last_login_at TIMESTAMP NULL DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_email (email),
+  KEY idx_users_assigned_zone_id (assigned_zone_id),
   KEY idx_users_role (role),
   KEY idx_users_status (status),
   KEY idx_users_created_at (created_at)
@@ -113,6 +118,8 @@ CREATE TABLE vendors (
   legal_name VARCHAR(255) NOT NULL,
   trade_name VARCHAR(255) NOT NULL,
   slug VARCHAR(255) NOT NULL,
+  vendor_code VARCHAR(50) NOT NULL,
+  assigned_tour_id BIGINT UNSIGNED NULL,
   contact_name VARCHAR(160) NOT NULL,
   contact_email VARCHAR(255) NOT NULL,
   phone VARCHAR(40) NULL,
@@ -125,6 +132,8 @@ CREATE TABLE vendors (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_vendors_slug (slug),
+  UNIQUE KEY uq_vendors_vendor_code (vendor_code),
+  KEY idx_vendors_assigned_tour_id (assigned_tour_id),
   KEY idx_vendors_status (status),
   KEY idx_vendors_contact_email (contact_email),
   KEY idx_vendors_approved_by_user_id (approved_by_user_id),
@@ -161,6 +170,8 @@ CREATE TABLE vendor_subscriptions (
   period_start DATE NOT NULL,
   period_end DATE NOT NULL,
   trial_end DATE NULL,
+  next_billing_date DATE NULL,
+  payment_status ENUM('paid', 'unpaid', 'mock_testing') NOT NULL DEFAULT 'unpaid',
   price_snapshot DECIMAL(14,2) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -169,6 +180,7 @@ CREATE TABLE vendor_subscriptions (
   KEY idx_vendor_subscriptions_plan_id (plan_id),
   KEY idx_vendor_subscriptions_status (status),
   KEY idx_vendor_subscriptions_period_end (period_end),
+  KEY idx_vendor_subscriptions_payment_status (payment_status),
   KEY idx_vendor_subscriptions_created_at (created_at),
   CONSTRAINT fk_vendor_subscriptions_vendor
     FOREIGN KEY (vendor_id) REFERENCES vendors(id)
@@ -187,17 +199,23 @@ CREATE TABLE stalls (
   address VARCHAR(500) NULL,
   latitude DECIMAL(10,7) NOT NULL,
   longitude DECIMAL(10,7) NOT NULL,
-  activation_radius INT UNSIGNED NOT NULL DEFAULT 30,
+  activation_radius INT UNSIGNED NOT NULL DEFAULT 3,
   status ENUM('DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED') NOT NULL DEFAULT 'PENDING',
   opening_hours JSON NULL,
   is_featured TINYINT(1) NOT NULL DEFAULT 0,
+  is_premium TINYINT(1) NOT NULL DEFAULT 0,
+  priority_score INT NOT NULL DEFAULT 0,
+  zone_code VARCHAR(50) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_stalls_vendor_slug (vendor_id, slug),
+  UNIQUE KEY uq_stalls_zone_code (zone_code),
   KEY idx_stalls_vendor_id (vendor_id),
   KEY idx_stalls_status (status),
   KEY idx_stalls_lat_lng (latitude, longitude),
+  KEY idx_stalls_is_premium (is_premium),
+  KEY idx_stalls_priority_score (priority_score),
   KEY idx_stalls_created_at (created_at),
   CONSTRAINT fk_stalls_vendor
     FOREIGN KEY (vendor_id) REFERENCES vendors(id)
@@ -207,6 +225,8 @@ CREATE TABLE stalls (
 CREATE TABLE pois (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   stall_id BIGINT UNSIGNED NOT NULL,
+  zone_code VARCHAR(100) NULL COMMENT 'FK đến zones.zone_code',
+  free_listens_allowed TINYINT UNSIGNED NOT NULL DEFAULT 2 COMMENT 'Số lần nghe miễn phí trước khi yêu cầu Premium',
   name VARCHAR(255) NOT NULL,
   slug VARCHAR(255) NOT NULL,
   description TEXT NULL,
@@ -221,11 +241,67 @@ CREATE TABLE pois (
   PRIMARY KEY (id),
   UNIQUE KEY uq_pois_stall_slug (stall_id, slug),
   KEY idx_pois_stall_id (stall_id),
+  KEY idx_pois_zone_code (zone_code),
   KEY idx_pois_status (status),
   KEY idx_pois_lat_lng (latitude, longitude),
   KEY idx_pois_created_at (created_at),
   CONSTRAINT fk_pois_stall
     FOREIGN KEY (stall_id) REFERENCES stalls(id)
+    ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE tours (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  vendor_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) NOT NULL,
+  description TEXT NULL,
+  cover_image_url VARCHAR(500) NULL,
+  status ENUM('DRAFT', 'PUBLISHED', 'ARCHIVED') NOT NULL DEFAULT 'DRAFT',
+  sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+  is_premium TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_tours_vendor_slug (vendor_id, slug),
+  KEY idx_tours_vendor_id (vendor_id),
+  KEY idx_tours_status (status),
+  KEY idx_tours_created_at (created_at),
+  CONSTRAINT fk_tours_vendor
+    FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+    ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE tour_pois (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  tour_id BIGINT UNSIGNED NOT NULL,
+  poi_id BIGINT UNSIGNED NOT NULL,
+  sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_tour_pois_tour_poi (tour_id, poi_id),
+  KEY idx_tour_pois_tour_id (tour_id),
+  KEY idx_tour_pois_poi_id (poi_id),
+  CONSTRAINT fk_tour_pois_tour
+    FOREIGN KEY (tour_id) REFERENCES tours(id)
+    ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT fk_tour_pois_poi
+    FOREIGN KEY (poi_id) REFERENCES pois(id)
+    ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE favorites (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  guest_id VARCHAR(255) NOT NULL,
+  poi_id BIGINT UNSIGNED NOT NULL,
+  added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_favorites_guest_poi (guest_id, poi_id),
+  KEY idx_favorites_guest_id (guest_id),
+  KEY idx_favorites_poi_id (poi_id),
+  KEY idx_favorites_added_at (added_at),
+  CONSTRAINT fk_favorites_poi
+    FOREIGN KEY (poi_id) REFERENCES pois(id)
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -238,12 +314,14 @@ CREATE TABLE poi_contents (
   tts_script TEXT NOT NULL,
   audio_url VARCHAR(500) NULL,
   voice_profile VARCHAR(120) NULL,
+  approval_status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_poi_contents_poi_lang (poi_id, lang),
   KEY idx_poi_contents_poi_id (poi_id),
   KEY idx_poi_contents_lang (lang),
+  KEY idx_poi_contents_approval_status (approval_status),
   CONSTRAINT fk_poi_contents_poi
     FOREIGN KEY (poi_id) REFERENCES pois(id)
     ON UPDATE CASCADE ON DELETE CASCADE
@@ -644,3 +722,28 @@ CREATE TABLE revenue_daily (
   KEY idx_revenue_daily_source_provider (source, provider),
   KEY idx_revenue_daily_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE zones (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  zone_code       VARCHAR(100) NOT NULL COMMENT 'Mã vùng dùng trong URL, VD: PHODIBONGUYENHUE',
+  name            VARCHAR(255) NOT NULL,
+  description     TEXT NULL,
+  cover_image_url VARCHAR(500) NULL,
+  latitude        DECIMAL(10, 7) NULL,
+  longitude       DECIMAL(10, 7) NULL,
+  is_active       TINYINT(1) NOT NULL DEFAULT 1,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_zones_code (zone_code),
+  KEY idx_zones_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE app_settings (
+  `key` VARCHAR(100) NOT NULL,
+  `value` VARCHAR(500) NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET FOREIGN_KEY_CHECKS = 1;

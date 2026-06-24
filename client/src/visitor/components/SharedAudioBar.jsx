@@ -1,11 +1,13 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Headphones, Lock, Pause, Play, Volume2 } from 'lucide-react';
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { visitorPois } from '../../data/visitorPois';
 import { useAudioStore } from '../../stores/audioStore';
 import { usePremiumStore } from '../../stores/premiumStore';
 
 function SharedAudioBarComponent({ onUpgrade }) {
+  const { t } = useTranslation();
   const isPremium = usePremiumStore((state) => state.isPremium);
   const freeListensRemaining = usePremiumStore((state) => state.freeListensRemaining);
   const isPlaying = useAudioStore((state) => state.isPlaying);
@@ -32,8 +34,8 @@ function SharedAudioBarComponent({ onUpgrade }) {
               <Lock size={13} className="absolute bottom-1 right-1 text-premiumNeon" />
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-textCrisp">🔒 Audio bị khóa</p>
-              <p className="truncate text-xs font-medium italic text-textGhost">Đã hết {usePremiumStore.getState().freeListensRemaining === 0 ? '2' : ''} lượt nghe miễn phí</p>
+              <p className="truncate text-sm font-bold text-textCrisp">{t('audio.locked')}</p>
+              <p className="truncate text-xs font-medium italic text-textGhost">{t('audio.out_of_free')}</p>
             </div>
           </div>
           <button
@@ -41,7 +43,7 @@ function SharedAudioBarComponent({ onUpgrade }) {
             onClick={onUpgrade}
             className="flex-shrink-0 rounded-full bg-gradient-to-r from-premiumNeon/80 to-electricBlue px-5 py-2.5 text-sm font-bold text-white shadow-neon-premium transition duration-150 ease-out hover:brightness-110 active:scale-[0.98]"
           >
-            Mở khóa toàn bộ Audio
+            {t('audio.unlock_all')}
           </button>
         </motion.div>
       ) : !isPremium && freeListensRemaining > 0 ? (
@@ -52,9 +54,9 @@ function SharedAudioBarComponent({ onUpgrade }) {
               <Headphones size={24} />
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-textCrisp">Chế độ miễn phí</p>
+              <p className="truncate text-sm font-bold text-textCrisp">{t('audio.free_mode')}</p>
               <p className="flex items-center gap-2 truncate text-xs font-medium italic text-textSeafoam">
-                🎧 Còn {freeListensRemaining} lượt nghe • Mở khóa để nghe không giới hạn
+                {t('audio.free_remaining', { count: freeListensRemaining })}
               </p>
             </div>
           </div>
@@ -63,7 +65,7 @@ function SharedAudioBarComponent({ onUpgrade }) {
             onClick={onUpgrade}
             className="hidden flex-shrink-0 rounded-full border border-premiumNeon/35 bg-premiumNeon/10 px-5 py-2.5 text-sm font-bold text-premiumNeon transition duration-150 ease-out hover:bg-premiumNeon/15 active:scale-[0.98] sm:flex"
           >
-            Nâng cấp Premium
+            {t('audio.upgrade')}
           </button>
         </div>
       ) : !currentPoi ? (
@@ -72,8 +74,8 @@ function SharedAudioBarComponent({ onUpgrade }) {
             <Headphones size={24} />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-textCrisp">Đã sẵn sàng</p>
-            <p className="truncate text-xs font-medium italic text-textSeafoam">Tiến đến điểm tham quan để tự động nghe thuyết minh</p>
+            <p className="truncate text-sm font-bold text-textCrisp">{t('audio.ready')}</p>
+            <p className="truncate text-xs font-medium italic text-textSeafoam">{t('audio.ready_hint')}</p>
           </div>
         </div>
       ) : (
@@ -103,7 +105,7 @@ function SharedAudioBarComponent({ onUpgrade }) {
                 }
               }}
               className="flex h-12 w-12 items-center justify-center rounded-full bg-oceanCyan text-bgAbyss shadow-[0_0_20px_rgba(34,211,238,0.6)] transition duration-150 ease-out hover:bg-white active:scale-[0.98]"
-              aria-label={isPlaying ? 'Tạm dừng audio' : 'Tiếp tục audio'}
+              aria-label={isPlaying ? t('audio.pause') : t('audio.resume')}
             >
               {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-1" />}
             </button>

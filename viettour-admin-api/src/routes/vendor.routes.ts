@@ -1,16 +1,29 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { UserRole } from '../types/domain';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { ok } from '../types/api.types';
 import { query } from '../lib/db';
 import { asyncHandler } from '../utils/asyncHandler';
-import { requireReason, toBigIntId } from '../utils/serialization';
+import { requireReason, optionalReason, toBigIntId } from '../utils/serialization';
 
 export const router = Router();
 
 const vendorManagers = [UserRole.SUPER_ADMIN, UserRole.ADMIN];
 
 router.use(authenticate);
+
+function slugify(text: string): string {
+  return text
+    .toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .replace(/[^a-z0-9 -]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
 
 function mapVendor(row: any): any {
   return {
@@ -108,6 +121,84 @@ router.get(
 );
 
 router.get(
+  '/tours-list',
+  authorize(...vendorManagers),
+  asyncHandler(async (req, res) => {
+    const rows = await query<any[]>('SELECT id, name FROM tours ORDER BY name ASC');
+    res.json(
+      ok(
+        rows.map((row) => ({
+          id: String(row.id),
+          name: row.name
+        }))
+      )
+    );
+  })
+);
+
+router.post(
+  '/',
+  authorize(...vendorManagers),
+  asyncHandler(async (req, res) => {
+    const { tradeName, contactEmail, password, vendorCode, assignedTourId } = req.body;
+
+    if (!tradeName || !contactEmail || !password || !vendorCode) {
+      res.status(400).json({ success: false, error: 'Tên sạp, email, mật khẩu và mã vendor là bắt buộc.' });
+      return;
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passHash = await bcrypt.hash(password, salt);
+    const slug = slugify(tradeName);
+
+    const vendorResult = await query<any>(
+      `INSERT INTO vendors (legal_name, trade_name, slug, contact_name, contact_email, status, vendor_code, assigned_tour_id)
+       VALUES (?, ?, ?, ?, ?, 'APPROVED', ?, ?)`,
+      [
+        tradeName,
+        tradeName,
+        slug,
+        tradeName,
+        contactEmail,
+        vendorCode,
+        assignedTourId ? assignedTourId.toString() : null
+      ]
+    );
+
+    const vendorId = vendorResult.insertId;
+
+    await query(
+      `INSERT INTO vendor_portal_users (vendor_id, email, pass_hash, full_name, status)
+       VALUES (?, ?, ?, ?, 'ACTIVE')`,
+      [
+        vendorId.toString(),
+        contactEmail,
+        passHash,
+        tradeName
+      ]
+    );
+
+    await query(
+      `INSERT INTO vendor_wallets (vendor_id, balance, total_top_up, total_spent, total_commission)
+       VALUES (?, 0, 0, 0, 0)`,
+      [vendorId.toString()]
+    );
+
+    const row = await getVendorRow(BigInt(vendorId));
+
+    req.auditMeta = {
+      action: 'CREATE_VENDOR_ACCOUNT',
+      targetType: 'vendors',
+      targetId: BigInt(vendorId),
+      beforeData: null,
+      afterData: row
+    };
+
+    res.json(ok(mapVendor(row)));
+  })
+);
+
+router.get(
   '/:id',
   authorize(...vendorManagers),
   asyncHandler(async (req, res) => {
@@ -141,7 +232,8 @@ router.get(
       longitude: stall.longitude,
       activationRadius: stall.activation_radius,
       status: stall.status,
-      createdAt: stall.created_at
+      createdAt: stall.created_at,
+      zoneCode: stall.zone_code
     }));
     if (vendor.wallet) {
       vendor.wallet.transactions = transactions.map(mapTransaction);
@@ -187,7 +279,7 @@ router.post(
   '/:id/reject',
   authorize(...vendorManagers),
   asyncHandler(async (req, res) => {
-    const reason = requireReason(req.body.reason);
+    const reason = optionalReason(req.body.reason);
     const id = toBigIntId(req.params.id, 'vendor id');
     const before = await getVendorRow(id);
     if (!before) {

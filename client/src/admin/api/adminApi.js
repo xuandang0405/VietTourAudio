@@ -192,3 +192,66 @@ export async function fetchGeofences() {
 export async function checkGeofenceOverlap(payload) {
   return unwrap(await adminApiClient.post('/admin/geofences/check-overlap', payload));
 }
+
+export async function fetchAdminPois() {
+  return unwrap(await adminApiClient.get('/admin/pois'));
+}
+
+export async function fetchPoiDistance(poi1Id, poi2Id) {
+  return unwrap(
+    await adminApiClient.get('/admin/pois/distance', {
+      params: {
+        poi1_id: poi1Id,
+        poi2_id: poi2Id
+      }
+    })
+  );
+}
+
+export async function fetchStallsList() {
+  return unwrap(await adminApiClient.get('/admin/pois/stalls'));
+}
+
+export async function fetchZonesList() {
+  return unwrap(await adminApiClient.get('/admin/pois/zones'));
+}
+
+export async function createAdminPoi(poiData) {
+  return unwrap(await adminApiClient.post('/admin/pois', poiData));
+}
+
+export async function updateAdminPoi(id, poiData) {
+  return unwrap(await adminApiClient.put(`/admin/pois/${id}`, poiData));
+}
+
+export async function deleteAdminPoi(id) {
+  return unwrap(await adminApiClient.delete(`/admin/pois/${id}`));
+}
+
+export async function fetchGeofenceAllData() {
+  return unwrap(await adminApiClient.get('/admin/geofences/all-data'));
+}
+
+export async function fetchAuditLogs() {
+  return unwrap(await adminApiClient.get('/admin/audit-logs'));
+}
+
+export async function fetchToursList() {
+  return unwrap(await adminApiClient.get('/admin/vendors/tours-list'));
+}
+
+export async function createVendorAccount(vendorData) {
+  return unwrap(await adminApiClient.post('/admin/vendors', vendorData));
+}
+
+export async function createZoneAdminAccount(adminData) {
+  return unwrap(await adminApiClient.post('/admin/users/zone-admins', adminData));
+}
+
+export async function resetStallQr(id) {
+  return unwrap(await adminApiClient.put(`/admin/stalls/${id}/qr/reset`));
+}
+
+export async function fetchHourlyActiveUsers() {
+  return unwrap(await adminApiClient.get('/admin/analytics/hourly-active-users'));
+}

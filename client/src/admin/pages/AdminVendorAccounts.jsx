@@ -1,5 +1,6 @@
 import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, RefreshCcw, WalletCards } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AdminBadge } from '../components/AdminBadge';
 import { AdminModal } from '../components/AdminModal';
 import { AdminPageHeader } from '../components/AdminPageHeader';
@@ -9,6 +10,7 @@ import { formatCurrency, formatDateTime, toNumber } from '../utils/formatters';
 const emptyForm = { amount: '', description: '', reason: '' };
 
 export function AdminVendorAccounts() {
+  const { t } = useTranslation();
   const { data: vendors = [], isLoading, error, refetch } = useVendorWallets();
   const [selectedVendorId, setSelectedVendorId] = useState('');
   const [modal, setModal] = useState(null);
@@ -24,7 +26,7 @@ export function AdminVendorAccounts() {
     }
   }, [selectedVendorId, vendors]);
 
-  const rows = useMemo(() => vendors.map((vendor) => ({ ...vendor, health: getBalanceHealth(vendor) })), [vendors]);
+  const rows = useMemo(() => vendors.map((vendor) => ({ ...vendor, health: getBalanceHealth(vendor, t) })), [vendors, t]);
   const selectedVendor = selectedWallet.data ?? vendors.find((vendor) => vendor.id === selectedVendorId);
   const transactions = selectedVendor?.wallet?.transactions ?? [];
 
@@ -37,7 +39,7 @@ export function AdminVendorAccounts() {
   async function handleWalletMutation() {
     if (!modal?.vendor) return;
     if (!form.amount || !form.description.trim() || !form.reason.trim()) {
-      setFormError('Số tiền, mô tả và lý do là bắt buộc.');
+      setFormError(t('vendor_wallet.error_required'));
       return;
     }
 
@@ -56,16 +58,16 @@ export function AdminVendorAccounts() {
       setModal(null);
       setForm(emptyForm);
     } catch (err) {
-      setFormError(err.response?.data?.error ?? 'Không thể cập nhật ví vendor.');
+      setFormError(err.response?.data?.error ?? t('vendor_wallet.error_update'));
     }
   }
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-5">
       <AdminPageHeader
-        eyebrow="Vendor accounts"
-        title="Ví vendor"
-        description="Theo dõi số dư, trạng thái subscription và thực hiện cộng/trừ ví thủ công với audit reason bắt buộc."
+        eyebrow={t('vendor_wallet.management_subtitle', 'Vendor Accounts')}
+        title={t('vendor_wallet.title')}
+        description={t('vendor_wallet.subtitle')}
         action={
           <button
             type="button"
@@ -73,27 +75,27 @@ export function AdminVendorAccounts() {
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50"
           >
             <RefreshCcw size={17} />
-            Làm mới
+            {t('vendor_wallet.refresh')}
           </button>
         }
       />
 
-      {error && <ErrorPanel message={error.response?.data?.error ?? 'Không tải được danh sách ví vendor.'} />}
+      {error && <ErrorPanel message={error.response?.data?.error ?? t('vendor_wallet.error_load')} />}
 
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.45fr)_430px]">
         <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-4 py-3">
-            <p className="text-sm font-black text-slate-950">{isLoading ? 'Đang tải dữ liệu...' : `${rows.length} vendor accounts`}</p>
+            <p className="text-sm font-black text-slate-950">{isLoading ? t('vendor_wallet.loading_data') : t('vendor_wallet.vendor_count', { count: rows.length })}</p>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-[980px] w-full text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs font-black uppercase tracking-[0.08em] text-slate-500">
                 <tr>
-                  <th className="px-4 py-3">Vendor</th>
-                  <th className="px-4 py-3">Số dư</th>
-                  <th className="px-4 py-3">Subscription</th>
-                  <th className="px-4 py-3">Cảnh báo</th>
-                  <th className="px-4 py-3 text-right">Thao tác</th>
+                  <th className="px-4 py-3">{t('vendor_wallet.col_vendor')}</th>
+                  <th className="px-4 py-3">{t('vendor_wallet.col_balance')}</th>
+                  <th className="px-4 py-3">{t('vendor_wallet.col_subscription')}</th>
+                  <th className="px-4 py-3">{t('vendor_wallet.col_warning')}</th>
+                  <th className="px-4 py-3 text-right">{t('vendor_wallet.col_action')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -109,11 +111,11 @@ export function AdminVendorAccounts() {
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-black text-slate-950">{formatCurrency(vendor.wallet?.balance)}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">Top-up {formatCurrency(vendor.wallet?.totalTopUp)}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{t('vendor_wallet.topup_label')} {formatCurrency(vendor.wallet?.totalTopUp)}</p>
                     </td>
                     <td className="px-4 py-3">
                       <div className="space-y-1">
-                        <p className="font-bold text-slate-800">{vendor.subscription?.plan?.name ?? 'Chưa có gói'}</p>
+                        <p className="font-bold text-slate-800">{vendor.subscription?.plan?.name ?? t('vendor_wallet.no_plan')}</p>
                         <AdminBadge status={vendor.subscription?.status ?? 'DRAFT'} />
                       </div>
                     </td>
@@ -131,7 +133,7 @@ export function AdminVendorAccounts() {
                           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-green-200 px-3 text-xs font-black text-green-700 transition hover:bg-green-50"
                         >
                           <ArrowUpCircle size={15} />
-                          Credit
+                          {t('vendor_wallet.btn_credit')}
                         </button>
                         <button
                           type="button"
@@ -142,7 +144,7 @@ export function AdminVendorAccounts() {
                           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 px-3 text-xs font-black text-red-700 transition hover:bg-red-50"
                         >
                           <ArrowDownCircle size={15} />
-                          Debit
+                          {t('vendor_wallet.btn_debit')}
                         </button>
                       </div>
                     </td>
@@ -151,7 +153,7 @@ export function AdminVendorAccounts() {
                 {!isLoading && rows.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
-                      Chưa có ví vendor.
+                      {t('vendor_wallet.no_vendors')}
                     </td>
                   </tr>
                 )}
@@ -163,8 +165,8 @@ export function AdminVendorAccounts() {
         <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-600">Wallet detail</p>
-              <h2 className="mt-1 text-lg font-black text-slate-950">{selectedVendor?.businessName ?? 'Chọn vendor'}</h2>
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-600">{t('vendor_wallet.wallet_detail')}</p>
+              <h2 className="mt-1 text-lg font-black text-slate-950">{selectedVendor?.businessName ?? t('vendor_wallet.select_vendor')}</h2>
             </div>
             <WalletCards className="text-blue-600" size={24} />
           </div>
@@ -172,17 +174,17 @@ export function AdminVendorAccounts() {
           {selectedVendor ? (
             <>
               <div className="mt-4 rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm font-bold text-slate-500">Số dư hiện tại</p>
+                <p className="text-sm font-bold text-slate-500">{t('vendor_wallet.current_balance')}</p>
                 <p className="mt-2 text-3xl font-black text-slate-950">{formatCurrency(selectedVendor.wallet?.balance)}</p>
                 <p className="mt-1 text-xs font-semibold text-slate-500">
-                  Tổng đã nạp {formatCurrency(selectedVendor.wallet?.totalTopUp)}
+                  {t('vendor_wallet.total_topup')} {formatCurrency(selectedVendor.wallet?.totalTopUp)}
                 </p>
               </div>
 
               <div className="mt-5">
-                <h3 className="text-sm font-black text-slate-950">Lịch sử giao dịch</h3>
+                <h3 className="text-sm font-black text-slate-950">{t('vendor_wallet.transaction_history')}</h3>
                 <div className="mt-3 max-h-[480px] space-y-3 overflow-y-auto pr-1">
-                  {selectedWallet.isLoading && <p className="text-sm font-semibold text-slate-500">Đang tải giao dịch...</p>}
+                  {selectedWallet.isLoading && <p className="text-sm font-semibold text-slate-500">{t('vendor_wallet.loading_tx')}</p>}
                   {transactions.map((tx) => (
                     <div key={tx.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                       <div className="flex items-start justify-between gap-3">
@@ -195,28 +197,28 @@ export function AdminVendorAccounts() {
                           <p className={toNumber(tx.amount) < 0 ? 'font-black text-red-600' : 'font-black text-green-700'}>
                             {formatCurrency(tx.amount)}
                           </p>
-                          <p className="mt-1 text-xs font-semibold text-slate-500">Sau GD: {formatCurrency(tx.balanceAfter)}</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-500">{t('vendor_wallet.after_tx')} {formatCurrency(tx.balanceAfter)}</p>
                         </div>
                       </div>
                     </div>
                   ))}
                   {!selectedWallet.isLoading && transactions.length === 0 && (
-                    <p className="rounded-xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">Chưa có giao dịch.</p>
+                    <p className="rounded-xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">{t('vendor_wallet.no_transactions')}</p>
                   )}
                 </div>
               </div>
             </>
           ) : (
-            <p className="mt-4 text-sm font-semibold text-slate-500">Chọn một vendor để xem lịch sử giao dịch.</p>
+            <p className="mt-4 text-sm font-semibold text-slate-500">{t('vendor_wallet.select_vendor_hint')}</p>
           )}
         </aside>
       </section>
 
       <AdminModal
         open={Boolean(modal)}
-        title={modal?.type === 'credit' ? 'Cộng tiền ví vendor' : 'Trừ tiền ví vendor'}
-        description="Số tiền, mô tả và lý do là bắt buộc. Backend sẽ ghi WalletTransaction và AuditLog."
-        confirmLabel={modal?.type === 'credit' ? 'Credit ví' : 'Debit ví'}
+        title={modal?.type === 'credit' ? t('vendor_wallet.modal_title_credit') : t('vendor_wallet.modal_title_debit')}
+        description={t('vendor_wallet.modal_desc')}
+        confirmLabel={modal?.type === 'credit' ? t('vendor_wallet.btn_credit') : t('vendor_wallet.btn_debit')}
         tone={modal?.type === 'credit' ? 'success' : 'danger'}
         onClose={() => setModal(null)}
         onConfirm={handleWalletMutation}
@@ -224,7 +226,7 @@ export function AdminVendorAccounts() {
         <div className="space-y-3">
           {formError && <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{formError}</div>}
           <label className="block">
-            <span className="text-sm font-bold text-slate-700">Số tiền</span>
+            <span className="text-sm font-bold text-slate-700">{t('vendor_wallet.label_amount')}</span>
             <input
               type="number"
               min="1"
@@ -235,21 +237,21 @@ export function AdminVendorAccounts() {
             />
           </label>
           <label className="block">
-            <span className="text-sm font-bold text-slate-700">Mô tả giao dịch</span>
+            <span className="text-sm font-bold text-slate-700">{t('vendor_wallet.label_description')}</span>
             <input
               value={form.description}
               onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
               className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-              placeholder="Manual wallet adjustment"
+              placeholder={t('vendor_wallet.placeholder_desc')}
             />
           </label>
           <label className="block">
-            <span className="text-sm font-bold text-slate-700">Lý do audit</span>
+            <span className="text-sm font-bold text-slate-700">{t('vendor_wallet.label_reason')}</span>
             <textarea
               value={form.reason}
               onChange={(event) => setForm((current) => ({ ...current, reason: event.target.value }))}
               className="mt-1 h-24 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-              placeholder="Nhập lý do điều chỉnh ví..."
+              placeholder={t('vendor_wallet.placeholder_reason')}
             />
           </label>
         </div>
@@ -258,14 +260,14 @@ export function AdminVendorAccounts() {
   );
 }
 
-function getBalanceHealth(vendor) {
+function getBalanceHealth(vendor, t) {
   const balance = toNumber(vendor.wallet?.balance);
   const monthlyPrice = toNumber(vendor.subscription?.plan?.monthlyPrice);
 
-  if (!monthlyPrice) return { tone: 'neutral', label: 'Chưa có subscription' };
-  if (balance < monthlyPrice) return { tone: 'danger', label: 'Không đủ kỳ tới' };
-  if (balance < monthlyPrice * 2) return { tone: 'warning', label: 'Sắp thấp' };
-  return { tone: 'good', label: 'An toàn' };
+  if (!monthlyPrice) return { tone: 'neutral', label: t('vendor_wallet.health_no_sub') };
+  if (balance < monthlyPrice) return { tone: 'danger', label: t('vendor_wallet.health_insufficient') };
+  if (balance < monthlyPrice * 2) return { tone: 'warning', label: t('vendor_wallet.health_low') };
+  return { tone: 'good', label: t('vendor_wallet.health_safe') };
 }
 
 function BalanceHealth({ health }) {

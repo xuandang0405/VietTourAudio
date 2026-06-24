@@ -60,6 +60,22 @@ async function findVendorUserByEmail(email: string) {
   return rows[0];
 }
 
+async function findVendorUserByCode(vendorCode: string) {
+  const rows = await query<VendorPortalUserRow[]>(
+    `SELECT
+       vpu.*,
+       v.trade_name AS vendor_name,
+       v.status AS vendor_status
+     FROM vendor_portal_users vpu
+     JOIN vendors v ON v.id = vpu.vendor_id
+     WHERE v.vendor_code = ?
+     LIMIT 1`,
+    [vendorCode]
+  );
+
+  return rows[0];
+}
+
 async function findVendorUserById(id: string) {
   const rows = await query<VendorPortalUserRow[]>(
     `SELECT
@@ -97,15 +113,19 @@ function ensureVendorAccessible(user: VendorPortalUserRow | undefined, res: Resp
 
 export const vendorLogin = async (req: Request, res: Response) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const vendorCode = typeof req.body?.vendorCode === 'string' ? req.body.vendorCode.trim() : '';
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
 
-  if (!email || !password) {
-    res.status(400).json({ success: false, error: 'Email and password are required', code: 'VENDOR_AUTH_REQUIRED' });
+  if ((!email && !vendorCode) || !password) {
+    res.status(400).json({ success: false, error: 'Credentials and password are required', code: 'VENDOR_AUTH_REQUIRED' });
     return;
   }
 
   try {
-    const user = await findVendorUserByEmail(email);
+    // Support both vendor_code and email login
+    const user = vendorCode
+      ? await findVendorUserByCode(vendorCode)
+      : await findVendorUserByEmail(email);
 
     if (!ensureVendorAccessible(user, res)) {
       return;

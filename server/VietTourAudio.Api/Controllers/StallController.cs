@@ -10,10 +10,12 @@ namespace VietTourAudio.Api.Controllers;
 public class StallController : ControllerBase
 {
   private readonly IStallService _stallService;
+  private readonly IPoiService _poiService;
 
-  public StallController(IStallService stallService)
+  public StallController(IStallService stallService, IPoiService poiService)
   {
     _stallService = stallService;
+    _poiService = poiService;
   }
 
   [HttpGet]
@@ -49,5 +51,17 @@ public class StallController : ControllerBase
   {
     var result = await _stallService.UpdateStatusAsync(id, "SUSPENDED");
     return Ok(ApiResponseFactory.Ok(result, "Đã tạm khóa sạp."));
+  }
+
+  [HttpGet("/api/guest/resolve-code/{code}")]
+  public async Task<IActionResult> ResolveCode(string code)
+  {
+    var stall = await _stallService.GetByZoneCodeAsync(code);
+    if (stall == null)
+    {
+      return NotFound(ApiResponseFactory.Fail("Mã khu vực không hợp lệ hoặc không tồn tại."));
+    }
+    var pois = await _poiService.GetPoisAsync(stall.Id);
+    return Ok(ApiResponseFactory.Ok(new { Stall = stall, Pois = pois }, "Tìm thấy thông tin sạp và điểm tham quan."));
   }
 }

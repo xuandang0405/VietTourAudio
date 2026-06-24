@@ -18,6 +18,9 @@ TRUNCATE TABLE visitor_sessions;
 TRUNCATE TABLE qr_codes;
 TRUNCATE TABLE media_files;
 TRUNCATE TABLE poi_contents;
+TRUNCATE TABLE favorites;
+TRUNCATE TABLE tour_pois;
+TRUNCATE TABLE tours;
 TRUNCATE TABLE pois;
 TRUNCATE TABLE stalls;
 TRUNCATE TABLE vendor_subscriptions;
@@ -27,102 +30,106 @@ TRUNCATE TABLE subscription_plans;
 TRUNCATE TABLE audit_logs;
 TRUNCATE TABLE refresh_tokens;
 TRUNCATE TABLE users;
+TRUNCATE TABLE zones;
+TRUNCATE TABLE app_settings;
 
+-- Password for all admin users: Admin123
 INSERT INTO users (id, email, pass_hash, full_name, role, status) VALUES
-(1, 'superadmin@viettouraudio.vn', '$2b$10$dRj/.Q0JiPHXl0dRB14kMu19RF7.QFBR7DovPQDkJB5wWEJqqiRVy', 'Super Admin Demo', 'SUPER_ADMIN', 'ACTIVE'),
-(2, 'admin@viettouraudio.vn', '$2b$10$dRj/.Q0JiPHXl0dRB14kMu19RF7.QFBR7DovPQDkJB5wWEJqqiRVy', 'Admin Demo', 'ADMIN', 'ACTIVE'),
-(3, 'moderator@viettouraudio.vn', '$2b$10$dRj/.Q0JiPHXl0dRB14kMu19RF7.QFBR7DovPQDkJB5wWEJqqiRVy', 'Moderator Demo', 'MODERATOR', 'ACTIVE'),
-(4, 'finance@viettouraudio.vn', '$2b$10$dRj/.Q0JiPHXl0dRB14kMu19RF7.QFBR7DovPQDkJB5wWEJqqiRVy', 'Finance Demo', 'FINANCE', 'ACTIVE');
+(1, 'superadmin@viettouraudio.vn', '$2b$10$aAWkIkwtjeGwFmzbMI6bNuwS6cuTh1J8.JVP0TY.du7PuXvf7JP.y', 'Super Admin Demo', 'SUPER_ADMIN', 'ACTIVE'),
+(2, 'admin@viettouraudio.vn', '$2b$10$aAWkIkwtjeGwFmzbMI6bNuwS6cuTh1J8.JVP0TY.du7PuXvf7JP.y', 'Admin Demo', 'ADMIN', 'ACTIVE'),
+(3, 'moderator@viettouraudio.vn', '$2b$10$aAWkIkwtjeGwFmzbMI6bNuwS6cuTh1J8.JVP0TY.du7PuXvf7JP.y', 'Moderator Demo', 'MODERATOR', 'ACTIVE'),
+(4, 'finance@viettouraudio.vn', '$2b$10$aAWkIkwtjeGwFmzbMI6bNuwS6cuTh1J8.JVP0TY.du7PuXvf7JP.y', 'Finance Demo', 'FINANCE', 'ACTIVE');
 
 INSERT INTO subscription_plans (id, code, name, price, max_stalls, max_pois_per_stall, max_media_files, allow_premium_content, priority_support) VALUES
 (1, 'BASIC_MONTHLY', 'Basic Monthly', 299000.00, 2, 20, 100, 0, 0),
 (2, 'PREMIUM_MONTHLY', 'Premium Monthly', 599000.00, 10, 80, 500, 1, 1);
 
-INSERT INTO vendors (id, legal_name, trade_name, slug, contact_name, contact_email, phone, address, status, rejection_reason, approved_by_user_id, approved_at) VALUES
-(1, 'Hoi An Heritage Foods Co., Ltd', 'Hội An Heritage Foods', 'hoi-an-heritage-foods', 'Nguyễn Minh An', 'an@heritagefoods.vn', '0901000001', '115 Trần Phú, Hội An', 'APPROVED', NULL, 2, '2026-06-01 09:00:00'),
-(2, 'Lantern Craft Studio', 'Lantern Craft Studio', 'lantern-craft-studio', 'Trần Thị Lan', 'lan@lantern.vn', '0901000002', '72 Nguyễn Thái Học, Hội An', 'APPROVED', NULL, 2, '2026-06-01 09:10:00'),
-(3, 'Old Town Coffee Group', 'Old Town Coffee', 'old-town-coffee', 'Lê Quốc Bình', 'binh@oldtowncoffee.vn', '0901000003', '21 Bạch Đằng, Hội An', 'APPROVED', NULL, 2, '2026-06-01 09:20:00'),
-(4, 'Thu Bon Boat Service', 'Thu Bồn Boat Service', 'thu-bon-boat-service', 'Phạm Hoài Nam', 'nam@thubonboats.vn', '0901000004', 'Bến Bạch Đằng, Hội An', 'PENDING', NULL, NULL, NULL),
-(5, 'Ancient Tea House', 'Ancient Tea House', 'ancient-tea-house', 'Võ Thanh Trà', 'tra@ancienttea.vn', '0901000005', '88 Trần Phú, Hội An', 'REJECTED', 'Thiếu giấy phép kinh doanh hợp lệ.', 3, NULL),
-(6, 'Central Market Snacks', 'Central Market Snacks', 'central-market-snacks', 'Đặng Mỹ Hạnh', 'hanh@market.vn', '0901000006', 'Chợ Hội An, Trần Phú', 'APPROVED', NULL, 2, '2026-06-01 10:00:00'),
-(7, 'Hoi An Memory Photo', 'Memory Photo', 'hoi-an-memory-photo', 'Hoàng Nhật Minh', 'minh@memoryphoto.vn', '0901000007', '36 Nguyễn Thái Học, Hội An', 'SUSPENDED', 'Tạm dừng do quá hạn phí dịch vụ.', 4, NULL),
-(8, 'Cao Lau Family Kitchen', 'Cao Lầu Family Kitchen', 'cao-lau-family-kitchen', 'Bùi Ngọc Mai', 'mai@caolau.vn', '0901000008', '48 Thái Phiên, Hội An', 'APPROVED', NULL, 2, '2026-06-01 10:30:00');
+INSERT INTO vendors (id, legal_name, trade_name, slug, vendor_code, contact_name, contact_email, phone, address, status, rejection_reason, approved_by_user_id, approved_at) VALUES
+(1, 'Hoi An Heritage Foods Co., Ltd', 'Hội An Heritage Foods', 'hoi-an-heritage-foods', 'VND-0001', 'Nguyễn Minh An', 'an@heritagefoods.vn', '0901000001', '115 Trần Phú, Hội An', 'APPROVED', NULL, 2, '2026-06-01 09:00:00'),
+(2, 'Lantern Craft Studio', 'Lantern Craft Studio', 'lantern-craft-studio', 'VND-0002', 'Trần Thị Lan', 'lan@lantern.vn', '0901000002', '72 Nguyễn Thái Học, Hội An', 'APPROVED', NULL, 2, '2026-06-01 09:10:00'),
+(3, 'Old Town Coffee Group', 'Old Town Coffee', 'old-town-coffee', 'VND-0003', 'Lê Quốc Bình', 'binh@oldtowncoffee.vn', '0901000003', '21 Bạch Đằng, Hội An', 'APPROVED', NULL, 2, '2026-06-01 09:20:00'),
+(4, 'Thu Bon Boat Service', 'Thu Bồn Boat Service', 'thu-bon-boat-service', 'VND-0004', 'Phạm Hoài Nam', 'nam@thubonboats.vn', '0901000004', 'Bến Bạch Đằng, Hội An', 'PENDING', NULL, NULL, NULL),
+(5, 'Ancient Tea House', 'Ancient Tea House', 'ancient-tea-house', 'VND-0005', 'Võ Thanh Trà', 'tra@ancienttea.vn', '0901000005', '88 Trần Phú, Hội An', 'REJECTED', 'Thiếu giấy phép kinh doanh hợp lệ.', 3, NULL),
+(6, 'Central Market Snacks', 'Central Market Snacks', 'central-market-snacks', 'VND-0006', 'Đặng Mỹ Hạnh', 'hanh@market.vn', '0901000006', 'Chợ Hội An, Trần Phú', 'APPROVED', NULL, 2, '2026-06-01 10:00:00'),
+(7, 'Hoi An Memory Photo', 'Memory Photo', 'hoi-an-memory-photo', 'VND-0007', 'Hoàng Nhật Minh', 'minh@memoryphoto.vn', '0901000007', '36 Nguyễn Thái Học, Hội An', 'SUSPENDED', 'Tạm dừng do quá hạn phí dịch vụ.', 4, NULL),
+(8, 'Cao Lau Family Kitchen', 'Cao Lầu Family Kitchen', 'cao-lau-family-kitchen', 'VND-0008', 'Bùi Ngọc Mai', 'mai@caolau.vn', '0901000008', '48 Thái Phiên, Hội An', 'APPROVED', NULL, 2, '2026-06-01 10:30:00');
 
+-- Password for all vendor portal users: Vendor123
 INSERT INTO vendor_portal_users (id, vendor_id, email, pass_hash, full_name, status) VALUES
-(1, 1, 'an@heritagefoods.vn', '$2b$10$4m7M4uBkB8XRSWlzYB64x.S3hNrCW3R5BtHeArtiz65f2aTNikJjG', 'Nguyễn Minh An', 'ACTIVE'),
-(2, 2, 'lan@lantern.vn', '$2b$10$4m7M4uBkB8XRSWlzYB64x.S3hNrCW3R5BtHeArtiz65f2aTNikJjG', 'Trần Thị Lan', 'ACTIVE'),
-(3, 3, 'binh@oldtowncoffee.vn', '$2b$10$4m7M4uBkB8XRSWlzYB64x.S3hNrCW3R5BtHeArtiz65f2aTNikJjG', 'Lê Quốc Bình', 'ACTIVE'),
-(4, 6, 'hanh@market.vn', '$2b$10$4m7M4uBkB8XRSWlzYB64x.S3hNrCW3R5BtHeArtiz65f2aTNikJjG', 'Đặng Mỹ Hạnh', 'ACTIVE'),
-(5, 8, 'mai@caolau.vn', '$2b$10$4m7M4uBkB8XRSWlzYB64x.S3hNrCW3R5BtHeArtiz65f2aTNikJjG', 'Bùi Ngọc Mai', 'ACTIVE');
+(1, 1, 'an@heritagefoods.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Nguyễn Minh An', 'ACTIVE'),
+(2, 2, 'lan@lantern.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Trần Thị Lan', 'ACTIVE'),
+(3, 3, 'binh@oldtowncoffee.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Lê Quốc Bình', 'ACTIVE'),
+(4, 6, 'hanh@market.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Đặng Mỹ Hạnh', 'ACTIVE'),
+(5, 8, 'mai@caolau.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Bùi Ngọc Mai', 'ACTIVE');
 
-INSERT INTO vendor_subscriptions (id, vendor_id, plan_id, status, period_start, period_end, trial_end, price_snapshot) VALUES
-(1, 1, 2, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, 599000.00),
-(2, 2, 2, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, 599000.00),
-(3, 3, 1, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, 299000.00),
-(4, 4, 1, 'TRIAL', '2026-06-10', '2026-06-24', '2026-06-24', 0.00),
-(5, 5, 1, 'CANCELLED', '2026-05-01', '2026-05-31', NULL, 299000.00),
-(6, 6, 1, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, 299000.00),
-(7, 7, 2, 'SUSPENDED', '2026-05-01', '2026-05-31', NULL, 599000.00),
-(8, 8, 2, 'OVERDUE', '2026-05-15', '2026-06-14', NULL, 599000.00);
+INSERT INTO vendor_subscriptions (id, vendor_id, plan_id, status, period_start, period_end, trial_end, next_billing_date, payment_status, price_snapshot) VALUES
+(1, 1, 2, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, '2026-06-30', 'unpaid', 599000.00),
+(2, 2, 2, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, '2026-06-30', 'unpaid', 599000.00),
+(3, 3, 1, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, '2026-06-30', 'unpaid', 299000.00),
+(4, 4, 1, 'TRIAL', '2026-06-10', '2026-06-24', '2026-06-24', '2026-06-24', 'unpaid', 0.00),
+(5, 5, 1, 'CANCELLED', '2026-05-01', '2026-05-31', NULL, '2026-05-31', 'unpaid', 299000.00),
+(6, 6, 1, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, '2026-06-30', 'unpaid', 299000.00),
+(7, 7, 2, 'SUSPENDED', '2026-05-01', '2026-05-31', NULL, '2026-05-31', 'unpaid', 599000.00),
+(8, 8, 2, 'OVERDUE', '2026-05-15', '2026-06-14', NULL, '2026-06-14', 'unpaid', 599000.00);
 
-INSERT INTO stalls (id, vendor_id, name, slug, description, address, latitude, longitude, activation_radius, status, opening_hours, is_featured) VALUES
-(1, 1, 'Sạp Bánh Mì Phố Cổ', 'sap-banh-mi-pho-co', 'Bánh mì Hội An và câu chuyện ẩm thực phố cổ.', '115 Trần Phú, Hội An', 15.8772000, 108.3262000, 35, 'APPROVED', '{"mon_fri":"07:00-21:00","sat_sun":"07:00-22:00"}', 1),
-(2, 2, 'Xưởng Đèn Lồng Cô Lan', 'xuong-den-long-co-lan', 'Không gian thủ công đèn lồng truyền thống.', '72 Nguyễn Thái Học, Hội An', 15.8776500, 108.3270500, 40, 'APPROVED', '{"daily":"08:00-21:00"}', 1),
-(3, 3, 'Cà Phê Bạch Đằng', 'ca-phe-bach-dang', 'Góc cà phê nhìn ra sông Hoài.', '21 Bạch Đằng, Hội An', 15.8768500, 108.3291200, 30, 'APPROVED', '{"daily":"06:30-22:00"}', 0),
-(4, 4, 'Bến Thuyền Thu Bồn', 'ben-thuyen-thu-bon', 'Điểm khởi hành tour thuyền ngắn trên sông.', 'Bến Bạch Đằng, Hội An', 15.8762100, 108.3298500, 45, 'PENDING', '{"daily":"16:00-22:00"}', 0),
-(5, 5, 'Nhà Trà Cổ', 'nha-tra-co', 'Trải nghiệm trà và nếp nhà xưa.', '88 Trần Phú, Hội An', 15.8780200, 108.3266800, 30, 'REJECTED', '{"daily":"09:00-20:00"}', 0),
-(6, 6, 'Quầy Ăn Chợ Hội An', 'quay-an-cho-hoi-an', 'Món ăn nhanh trong chợ Hội An.', 'Chợ Hội An, Trần Phú', 15.8784200, 108.3283100, 35, 'APPROVED', '{"daily":"06:00-18:00"}', 1),
-(7, 7, 'Studio Ảnh Ký Ức', 'studio-anh-ky-uc', 'Dịch vụ ảnh áo dài và phố cổ.', '36 Nguyễn Thái Học, Hội An', 15.8779000, 108.3275600, 30, 'SUSPENDED', '{"daily":"08:00-20:00"}', 0),
-(8, 8, 'Bếp Cao Lầu Gia Đình', 'bep-cao-lau-gia-dinh', 'Cao lầu gia truyền và câu chuyện sợi mì Hội An.', '48 Thái Phiên, Hội An', 15.8790500, 108.3269400, 35, 'APPROVED', '{"daily":"10:00-21:00"}', 1);
+INSERT INTO stalls (id, vendor_id, name, slug, description, address, latitude, longitude, activation_radius, status, opening_hours, is_featured, is_premium, priority_score, zone_code) VALUES
+(1, 1, 'Sạp Bánh Mì Phố Cổ', 'sap-banh-mi-pho-co', 'Bánh mì Hội An và câu chuyện ẩm thực phố cổ.', '115 Trần Phú, Hội An', 15.8772000, 108.3262000, 35, 'APPROVED', '{"mon_fri":"07:00-21:00","sat_sun":"07:00-22:00"}', 1, 0, 0, 'HOIAN-01'),
+(2, 2, 'Xưởng Đèn Lồng Cô Lan', 'xuong-den-long-co-lan', 'Không gian thủ công đèn lồng truyền thống.', '72 Nguyễn Thái Học, Hội An', 15.8776500, 108.3270500, 40, 'APPROVED', '{"daily":"08:00-21:00"}', 1, 0, 0, 'HOIAN-02'),
+(3, 3, 'Cà Phê Bạch Đằng', 'ca-phe-bach-dang', 'Góc cà phê nhìn ra sông Hoài.', '21 Bạch Đằng, Hội An', 15.8768500, 108.3291200, 30, 'APPROVED', '{"daily":"06:30-22:00"}', 0, 0, 0, 'HOIAN-03'),
+(4, 4, 'Bến Thuyền Thu Bồn', 'ben-thuyen-thu-bon', 'Điểm khởi hành tour thuyền ngắn trên sông.', 'Bến Bạch Đằng, Hội An', 15.8762100, 108.3298500, 45, 'PENDING', '{"daily":"16:00-22:00"}', 0, 0, 0, NULL),
+(5, 5, 'Nhà Trà Cổ', 'nha-tra-co', 'Trải nghiệm trà và nếp nhà xưa.', '88 Trần Phú, Hội An', 15.8780200, 108.3266800, 30, 'REJECTED', '{"daily":"09:00-20:00"}', 0, 0, 0, NULL),
+(6, 6, 'Quầy Ăn Chợ Hội An', 'quay-an-cho-hoi-an', 'Món ăn nhanh trong chợ Hội An.', 'Chợ Hội An, Trần Phú', 15.8784200, 108.3283100, 35, 'APPROVED', '{"daily":"06:00-18:00"}', 1, 0, 0, 'HOIAN-06'),
+(7, 7, 'Studio Ảnh Ký Ức', 'studio-anh-ky-uc', 'Dịch vụ ảnh áo dài và phố cổ.', '36 Nguyễn Thái Học, Hội An', 15.8779000, 108.3275600, 30, 'SUSPENDED', '{"daily":"08:00-20:00"}', 0, 0, 0, NULL),
+(8, 8, 'Bếp Cao Lầu Gia Đình', 'bep-cao-lau-gia-dinh', 'Cao lầu gia truyền và câu chuyện sợi mì Hội An.', '48 Thái Phiên, Hội An', 15.8790500, 108.3269400, 35, 'APPROVED', '{"daily":"10:00-21:00"}', 1, 0, 0, 'HOIAN-08');
 
-INSERT INTO pois (id, stall_id, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order) VALUES
-(1, 1, 'Lò nướng bánh mì', 'lo-nuong-banh-mi', 'Giới thiệu cách nướng bánh mì giòn kiểu Hội An.', 15.8772100, 108.3262200, 20, 1, 'ACTIVE', 1),
-(2, 1, 'Khu gia vị địa phương', 'khu-gia-vi-dia-phuong', 'Các loại rau thơm, nước sốt và pate địa phương.', 15.8771800, 108.3262500, 20, 0, 'ACTIVE', 2),
-(3, 2, 'Bàn tre đèn lồng', 'ban-tre-den-long', 'Câu chuyện khung tre trong nghề làm đèn lồng.', 15.8776600, 108.3270700, 22, 1, 'ACTIVE', 1),
-(4, 2, 'Góc nhuộm vải', 'goc-nhuom-vai', 'Quy trình chọn màu và căng vải.', 15.8777000, 108.3270900, 22, 0, 'ACTIVE', 2),
-(5, 3, 'Ban công sông Hoài', 'ban-cong-song-hoai', 'Góc nhìn ra sông Hoài từ quán cà phê.', 15.8768300, 108.3291000, 25, 0, 'ACTIVE', 1),
-(6, 3, 'Quầy pha phin', 'quay-pha-phin', 'Thói quen cà phê phin của người phố cổ.', 15.8768800, 108.3291500, 20, 1, 'ACTIVE', 2),
-(7, 4, 'Cầu thuyền gỗ', 'cau-thuyen-go', 'Điểm đón khách lên thuyền Thu Bồn.', 15.8762200, 108.3298600, 30, 0, 'ACTIVE', 1),
-(8, 4, 'Lịch sử sông Thu Bồn', 'lich-su-song-thu-bon', 'Vai trò giao thương của dòng sông với Hội An.', 15.8762600, 108.3299100, 30, 1, 'ACTIVE', 2),
-(9, 5, 'Bộ ấm trà cổ', 'bo-am-tra-co', 'Bộ ấm gốm và nghi thức uống trà.', 15.8780300, 108.3267000, 20, 0, 'INACTIVE', 1),
-(10, 6, 'Gánh mì Quảng', 'ganh-mi-quang', 'Mì Quảng trong không gian chợ Hội An.', 15.8784300, 108.3283300, 25, 0, 'ACTIVE', 1),
-(11, 6, 'Quầy bánh hoa hồng trắng', 'quay-banh-hoa-hong-trang', 'Món bánh đặc trưng của phố Hội.', 15.8783900, 108.3283600, 25, 1, 'ACTIVE', 2),
-(12, 7, 'Góc áo dài', 'goc-ao-dai', 'Bối cảnh chụp ảnh áo dài trong phố cổ.', 15.8779200, 108.3275800, 20, 0, 'INACTIVE', 1),
-(13, 8, 'Nồi nước cao lầu', 'noi-nuoc-cao-lau', 'Nước dùng và nguyên liệu trong món cao lầu.', 15.8790600, 108.3269600, 25, 1, 'ACTIVE', 1),
-(14, 8, 'Khu sợi mì', 'khu-soi-mi', 'Câu chuyện sợi mì cao lầu dai và vàng.', 15.8790800, 108.3269900, 25, 1, 'ACTIVE', 2),
-(15, 8, 'Bàn gia đình', 'ban-gia-dinh', 'Không gian phục vụ kiểu gia đình.', 15.8790200, 108.3269100, 20, 0, 'ACTIVE', 3);
+INSERT INTO pois (id, stall_id, zone_code, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order) VALUES
+(1, 1, 'PHODIBONGUYENHUE', 2, 'Lò nướng bánh mì', 'lo-nuong-banh-mi', 'Giới thiệu cách nướng bánh mì giòn kiểu Hội An.', 15.8772100, 108.3262200, 20, 1, 'ACTIVE', 1),
+(2, 1, 'PHODIBONGUYENHUE', 2, 'Khu gia vị địa phương', 'khu-gia-vi-dia-phuong', 'Các loại rau thơm, nước sốt và pate địa phương.', 15.8771800, 108.3262500, 20, 0, 'ACTIVE', 2),
+(3, 2, 'PHODIBONGUYENHUE', 2, 'Bàn tre đèn lồng', 'ban-tre-den-long', 'Câu chuyện khung tre trong nghề làm đèn lồng.', 15.8776600, 108.3270700, 22, 1, 'ACTIVE', 1),
+(4, 2, 'PHODIBONGUYENHUE', 2, 'Góc nhuộm vải', 'goc-nhuom-vai', 'Quy trình chọn màu và căng vải.', 15.8777000, 108.3270900, 22, 0, 'ACTIVE', 2),
+(5, 3, 'PHODIBONGUYENHUE', 2, 'Ban công sông Hoài', 'ban-cong-song-hoai', 'Góc nhìn ra sông Hoài từ quán cà phê.', 15.8768300, 108.3291000, 25, 0, 'ACTIVE', 1),
+(6, 3, 'PHODIBONGUYENHUE', 2, 'Quầy pha phin', 'quay-pha-phin', 'Thói quen cà phê phin của người phố cổ.', 15.8768800, 108.3291500, 20, 1, 'ACTIVE', 2),
+(7, 4, 'PHODIBONGUYENHUE', 2, 'Cầu thuyền gỗ', 'cau-thuyen-go', 'Điểm đón khách lên thuyền Thu Bồn.', 15.8762200, 108.3298600, 30, 0, 'ACTIVE', 1),
+(8, 4, 'PHODIBONGUYENHUE', 2, 'Lịch sử sông Thu Bồn', 'lich-su-song-thu-bon', 'Vai trò giao thương của dòng sông với Hội An.', 15.8762600, 108.3299100, 30, 1, 'ACTIVE', 2),
+(9, 5, 'PHODIBONGUYENHUE', 2, 'Bộ ấm trà cổ', 'bo-am-tra-co', 'Bộ ấm gốm và nghi thức uống trà.', 15.8780300, 108.3267000, 20, 0, 'INACTIVE', 1),
+(10, 6, 'PHODIBONGUYENHUE', 2, 'Gánh mì Quảng', 'ganh-mi-quang', 'Mì Quảng trong không gian chợ Hội An.', 15.8784300, 108.3283300, 25, 0, 'ACTIVE', 1),
+(11, 6, 'PHODIBONGUYENHUE', 2, 'Quầy bánh hoa hồng trắng', 'quay-banh-hoa-hong-trang', 'Món bánh đặc trưng của phố Hội.', 15.8783900, 108.3283600, 25, 1, 'ACTIVE', 2),
+(12, 7, 'PHODIBONGUYENHUE', 2, 'Góc áo dài', 'goc-ao-dai', 'Bối cảnh chụp ảnh áo dài trong phố cổ.', 15.8779200, 108.3275800, 20, 0, 'INACTIVE', 1),
+(13, 8, 'PHODIBONGUYENHUE', 2, 'Nồi nước cao lầu', 'noi-nuoc-cao-lau', 'Nước dùng và nguyên liệu trong món cao lầu.', 15.8790600, 108.3269600, 25, 1, 'ACTIVE', 1),
+(14, 8, 'PHODIBONGUYENHUE', 2, 'Khu sợi mì', 'khu-soi-mi', 'Câu chuyện sợi mì cao lầu dai và vàng.', 15.8790800, 108.3269900, 25, 1, 'ACTIVE', 2),
+(15, 8, 'PHODIBONGUYENHUE', 2, 'Bàn gia đình', 'ban-gia-dinh', 'Không gian phục vụ kiểu gia đình.', 15.8790200, 108.3269100, 20, 0, 'ACTIVE', 3);
 
-INSERT INTO poi_contents (id, poi_id, lang, title, short_text, tts_script, audio_url, voice_profile) VALUES
-(1, 1, 'vi', 'Lò nướng bánh mì', 'Bánh mì giòn trong phố cổ.', 'Bạn đang ở khu lò nướng bánh mì. Mùi bánh nóng và âm thanh phố cổ tạo nên một trải nghiệm rất Hội An.', '/uploads/audio/poi-1-vi.mp3', 'vi-standard'),
-(2, 1, 'en', 'Banh Mi Oven', 'Crispy bread in the old town.', 'You are at the banh mi oven. The warm bread and old town rhythm create a very local Hoi An moment.', '/uploads/audio/poi-1-en.mp3', 'en-standard'),
-(3, 2, 'vi', 'Khu gia vị địa phương', 'Rau thơm và nước sốt.', 'Những loại gia vị ở đây làm nên hương vị cân bằng giữa béo, cay, chua và thơm.', '/uploads/audio/poi-2-vi.mp3', 'vi-standard'),
-(4, 2, 'en', 'Local Spice Corner', 'Herbs and sauces.', 'The herbs and sauces here create the balance of richness, heat, freshness, and aroma.', '/uploads/audio/poi-2-en.mp3', 'en-standard'),
-(5, 3, 'vi', 'Bàn tre đèn lồng', 'Khung tre thủ công.', 'Khung tre là phần xương sống của chiếc đèn lồng, đòi hỏi độ đều và sự kiên nhẫn của người thợ.', '/uploads/audio/poi-3-vi.mp3', 'vi-premium'),
-(6, 3, 'en', 'Lantern Bamboo Frame', 'Handmade bamboo frame.', 'The bamboo frame is the backbone of the lantern and requires patience, balance, and careful hands.', '/uploads/audio/poi-3-en.mp3', 'en-premium'),
-(7, 4, 'vi', 'Góc nhuộm vải', 'Màu sắc đèn lồng.', 'Mỗi tấm vải được chọn màu theo mùa, theo lễ hội và theo cảm xúc của người đặt đèn.', '/uploads/audio/poi-4-vi.mp3', 'vi-standard'),
-(8, 5, 'vi', 'Ban công sông Hoài', 'Góc nhìn ra sông.', 'Từ ban công này, bạn có thể cảm nhận nhịp chảy chậm của sông Hoài và ánh đèn phố cổ.', '/uploads/audio/poi-5-vi.mp3', 'vi-standard'),
-(9, 5, 'en', 'Hoai River Balcony', 'A quiet river view.', 'From this balcony, you can feel the slow rhythm of the Hoai River and the lantern-lit old town.', '/uploads/audio/poi-5-en.mp3', 'en-standard'),
-(10, 6, 'vi', 'Quầy pha phin', 'Cà phê phin phố cổ.', 'Ly cà phê phin nhỏ giọt chậm như nhịp sống buổi sáng trong lòng Hội An.', '/uploads/audio/poi-6-vi.mp3', 'vi-premium'),
-(11, 6, 'en', 'Vietnamese Drip Coffee', 'Slow coffee ritual.', 'Vietnamese drip coffee moves slowly, much like a quiet morning in Hoi An old town.', '/uploads/audio/poi-6-en.mp3', 'en-premium'),
-(12, 7, 'vi', 'Cầu thuyền gỗ', 'Điểm lên thuyền.', 'Cầu thuyền là nơi du khách bắt đầu nhìn Hội An từ mặt nước.', '/uploads/audio/poi-7-vi.mp3', 'vi-standard'),
-(13, 8, 'vi', 'Lịch sử sông Thu Bồn', 'Dòng sông thương cảng.', 'Sông Thu Bồn từng góp phần đưa Hội An trở thành thương cảng nhộn nhịp trong nhiều thế kỷ.', '/uploads/audio/poi-8-vi.mp3', 'vi-premium'),
-(14, 8, 'en', 'Thu Bon River History', 'The trading river.', 'The Thu Bon River helped Hoi An become a vibrant trading port for centuries.', '/uploads/audio/poi-8-en.mp3', 'en-premium'),
-(15, 9, 'vi', 'Bộ ấm trà cổ', 'Nghi thức thưởng trà.', 'Bộ ấm trà gợi nhắc một nhịp sống chậm, nơi cuộc trò chuyện bắt đầu bằng hương trà.', '/uploads/audio/poi-9-vi.mp3', 'vi-standard'),
-(16, 10, 'vi', 'Gánh mì Quảng', 'Món ăn miền Trung.', 'Mì Quảng ở chợ Hội An đậm vị, nhiều rau, và thường được dùng như một bữa ăn nhanh no lòng.', '/uploads/audio/poi-10-vi.mp3', 'vi-standard'),
-(17, 10, 'en', 'Mi Quang Stall', 'A Central Vietnam dish.', 'Mi Quang is rich, fresh, and filling, a signature dish of Central Vietnam.', '/uploads/audio/poi-10-en.mp3', 'en-standard'),
-(18, 11, 'vi', 'Bánh hoa hồng trắng', 'Món bánh đặc trưng.', 'Bánh hoa hồng trắng có lớp vỏ mỏng, hình dáng thanh nhã và nhân tôm thơm nhẹ.', '/uploads/audio/poi-11-vi.mp3', 'vi-premium'),
-(19, 11, 'en', 'White Rose Dumpling', 'A Hoi An specialty.', 'White Rose Dumplings are delicate, elegant, and filled with lightly seasoned shrimp.', '/uploads/audio/poi-11-en.mp3', 'en-premium'),
-(20, 12, 'vi', 'Góc áo dài', 'Ảnh áo dài phố cổ.', 'Góc áo dài lưu giữ hình ảnh duyên dáng của du khách giữa nền tường vàng phố Hội.', '/uploads/audio/poi-12-vi.mp3', 'vi-standard'),
-(21, 13, 'vi', 'Nồi nước cao lầu', 'Nước dùng gia truyền.', 'Nồi nước dùng cao lầu là phần nền tạo nên mùi thơm và vị đậm của món ăn.', '/uploads/audio/poi-13-vi.mp3', 'vi-premium'),
-(22, 13, 'en', 'Cao Lau Broth', 'Family broth recipe.', 'The cao lau broth carries the aroma and depth that make this noodle dish memorable.', '/uploads/audio/poi-13-en.mp3', 'en-premium'),
-(23, 14, 'vi', 'Khu sợi mì', 'Sợi mì cao lầu.', 'Sợi mì cao lầu có độ dai và màu vàng đặc trưng, tạo nên khác biệt so với nhiều món mì khác.', '/uploads/audio/poi-14-vi.mp3', 'vi-premium'),
-(24, 14, 'en', 'Cao Lau Noodles', 'Firm yellow noodles.', 'Cao lau noodles are firm and golden, giving the dish its unique texture.', '/uploads/audio/poi-14-en.mp3', 'en-premium'),
-(25, 15, 'vi', 'Bàn gia đình', 'Không gian dùng bữa.', 'Bàn gia đình là nơi du khách ngồi lại, nghe câu chuyện món ăn và cảm nhận sự hiếu khách địa phương.', '/uploads/audio/poi-15-vi.mp3', 'vi-standard');
+INSERT INTO poi_contents (id, poi_id, lang, title, short_text, tts_script, audio_url, voice_profile, approval_status) VALUES
+(1, 1, 'vi', 'Lò nướng bánh mì', 'Bánh mì giòn trong phố cổ.', 'Bạn đang ở khu lò nướng bánh mì. Mùi bánh nóng và âm thanh phố cổ tạo nên một trải nghiệm rất Hội An.', '/uploads/audio/poi-1-vi.mp3', 'vi-standard', 'approved'),
+(2, 1, 'en', 'Banh Mi Oven', 'Crispy bread in the old town.', 'You are at the banh mi oven. The warm bread and old town rhythm create a very local Hoi An moment.', '/uploads/audio/poi-1-en.mp3', 'en-standard', 'approved'),
+(3, 2, 'vi', 'Khu gia vị địa phương', 'Rau thơm và nước sốt.', 'Những loại gia vị ở đây làm nên hương vị cân bằng giữa béo, cay, chua và thơm.', '/uploads/audio/poi-2-vi.mp3', 'vi-standard', 'approved'),
+(4, 2, 'en', 'Local Spice Corner', 'Herbs and sauces.', 'The herbs and sauces here create the balance of richness, heat, freshness, and aroma.', '/uploads/audio/poi-2-en.mp3', 'en-standard', 'approved'),
+(5, 3, 'vi', 'Bàn tre đèn lồng', 'Khung tre thủ công.', 'Khung tre là phần xương sống của chiếc đèn lồng, đòi hỏi độ đều và sự kiên nhẫn của người thợ.', '/uploads/audio/poi-3-vi.mp3', 'vi-premium', 'approved'),
+(6, 3, 'en', 'Lantern Bamboo Frame', 'Handmade bamboo frame.', 'The bamboo frame is the backbone of the lantern and requires patience, balance, and careful hands.', '/uploads/audio/poi-3-en.mp3', 'en-premium', 'approved'),
+(7, 4, 'vi', 'Góc nhuộm vải', 'Màu sắc đèn lồng.', 'Mỗi tấm vải được chọn màu theo mùa, theo lễ hội và theo cảm xúc của người đặt đèn.', '/uploads/audio/poi-4-vi.mp3', 'vi-standard', 'approved'),
+(8, 5, 'vi', 'Ban công sông Hoài', 'Góc nhìn ra sông.', 'Từ ban công này, bạn có thể cảm nhận nhịp chảy chậm của sông Hoài và ánh đèn phố cổ.', '/uploads/audio/poi-5-vi.mp3', 'vi-standard', 'approved'),
+(9, 5, 'en', 'Hoai River Balcony', 'A quiet river view.', 'From this balcony, you can feel the slow rhythm of the Hoai River and the lantern-lit old town.', '/uploads/audio/poi-5-en.mp3', 'en-standard', 'approved'),
+(10, 6, 'vi', 'Quầy pha phin', 'Cà phê phin phố cổ.', 'Ly cà phê phin nhỏ giọt chậm như nhịp sống buổi sáng trong lòng Hội An.', '/uploads/audio/poi-6-vi.mp3', 'vi-premium', 'approved'),
+(11, 6, 'en', 'Vietnamese Drip Coffee', 'Slow coffee ritual.', 'Vietnamese drip coffee moves slowly, much like a quiet morning in Hoi An old town.', '/uploads/audio/poi-6-en.mp3', 'en-premium', 'approved'),
+(12, 7, 'vi', 'Cầu thuyền gỗ', 'Điểm lên thuyền.', 'Cầu thuyền là nơi du khách bắt đầu nhìn Hội An từ mặt nước.', '/uploads/audio/poi-7-vi.mp3', 'vi-standard', 'approved'),
+(13, 8, 'vi', 'Lịch sử sông Thu Bồn', 'Dòng sông thương cảng.', 'Sông Thu Bồn từng góp phần đưa Hội An trở thành thương cảng nhộn nhịp trong nhiều thế kỷ.', '/uploads/audio/poi-8-vi.mp3', 'vi-premium', 'approved'),
+(14, 8, 'en', 'Thu Bon River History', 'The trading river.', 'The Thu Bon River helped Hoi An become a vibrant trading port for centuries.', '/uploads/audio/poi-8-en.mp3', 'en-premium', 'approved'),
+(15, 9, 'vi', 'Bộ ấm trà cổ', 'Nghi thức thưởng trà.', 'Bộ ấm trà gợi nhắc một nhịp sống chậm, nơi cuộc trò chuyện bắt đầu bằng hương trà.', '/uploads/audio/poi-9-vi.mp3', 'vi-standard', 'approved'),
+(16, 10, 'vi', 'Gánh mì Quảng', 'Món ăn miền Trung.', 'Mì Quảng ở chợ Hội An đậm vị, nhiều rau, và thường được dùng như một bữa ăn nhanh no lòng.', '/uploads/audio/poi-10-vi.mp3', 'vi-standard', 'approved'),
+(17, 10, 'en', 'Mi Quang Stall', 'A Central Vietnam dish.', 'Mi Quang is rich, fresh, and filling, a signature dish of Central Vietnam.', '/uploads/audio/poi-10-en.mp3', 'en-standard', 'approved'),
+(18, 11, 'vi', 'Bánh hoa hồng trắng', 'Món bánh đặc trưng.', 'Bánh hoa hồng trắng có lớp vỏ mỏng, hình dáng thanh nhã và nhân tôm thơm nhẹ.', '/uploads/audio/poi-11-vi.mp3', 'vi-premium', 'approved'),
+(19, 11, 'en', 'White Rose Dumpling', 'A Hoi An specialty.', 'White Rose Dumplings are delicate, elegant, and filled with lightly seasoned shrimp.', '/uploads/audio/poi-11-en.mp3', 'en-premium', 'approved'),
+(20, 12, 'vi', 'Góc áo dài', 'Ảnh áo dài phố cổ.', 'Góc áo dài lưu giữ hình ảnh duyên dáng của du khách giữa nền tường vàng phố Hội.', '/uploads/audio/poi-12-vi.mp3', 'vi-standard', 'approved'),
+(21, 13, 'vi', 'Nồi nước cao lầu', 'Nước dùng gia truyền.', 'Nồi nước dùng cao lầu là phần nền tạo nên mùi thơm và vị đậm của món ăn.', '/uploads/audio/poi-13-vi.mp3', 'vi-premium', 'approved'),
+(22, 13, 'en', 'Cao Lau Broth', 'Family broth recipe.', 'The cao lau broth carries the aroma and depth that make this noodle dish memorable.', '/uploads/audio/poi-13-en.mp3', 'en-premium', 'approved'),
+(23, 14, 'vi', 'Khu sợi mì', 'Sợi mì cao lầu.', 'Sợi mì cao lầu có độ dai và màu vàng đặc trưng, tạo nên khác biệt so với nhiều món mì khác.', '/uploads/audio/poi-14-vi.mp3', 'vi-premium', 'approved'),
+(24, 14, 'en', 'Cao Lau Noodles', 'Firm yellow noodles.', 'Cao lau noodles are firm and golden, giving the dish its unique texture.', '/uploads/audio/poi-14-en.mp3', 'en-premium', 'approved'),
+(25, 15, 'vi', 'Bàn gia đình', 'Không gian dùng bữa.', 'Bàn gia đình là nơi du khách ngồi lại, nghe câu chuyện món ăn và cảm nhận sự hiếu khách địa phương.', '/uploads/audio/poi-15-vi.mp3', 'vi-standard', 'approved');
 
-INSERT INTO media_files (id, vendor_id, stall_id, poi_id, uploaded_by_user_id, file_type, file_name, file_path, public_url, mime_type, file_size) VALUES
-(1, 1, 1, NULL, 2, 'IMAGE', 'banh-mi.jpg', '/uploads/vendors/1/stalls/1/banh-mi.jpg', '/media/banh-mi.jpg', 'image/jpeg', 245000),
-(2, 2, 2, NULL, 2, 'IMAGE', 'lantern.jpg', '/uploads/vendors/2/stalls/2/lantern.jpg', '/media/lantern.jpg', 'image/jpeg', 310000),
-(3, 8, 8, 13, 2, 'AUDIO', 'cao-lau-vi.mp3', '/uploads/audio/poi-13-vi.mp3', '/media/audio/poi-13-vi.mp3', 'audio/mpeg', 1200000);
+INSERT INTO media_files (id, vendor_id, stall_id, poi_id, uploaded_by_user_id, file_type, storage_provider, file_name, file_path, public_url, mime_type, file_size, moderation_status) VALUES
+(1, 1, 1, NULL, 2, 'IMAGE', 'LOCAL', 'banh-mi.jpg', '/uploads/vendors/1/stalls/1/banh-mi.jpg', '/media/banh-mi.jpg', 'image/jpeg', 245000, 'APPROVED'),
+(2, 2, 2, NULL, 2, 'IMAGE', 'LOCAL', 'lantern.jpg', '/uploads/vendors/2/stalls/2/lantern.jpg', '/media/lantern.jpg', 'image/jpeg', 310000, 'APPROVED'),
+(3, 8, 8, 13, 2, 'AUDIO', 'LOCAL', 'cao-lau-vi.mp3', '/uploads/audio/poi-13-vi.mp3', '/media/audio/poi-13-vi.mp3', 'audio/mpeg', 1200000, 'APPROVED');
 
 INSERT INTO qr_codes (id, vendor_id, stall_id, poi_id, code, qr_type, target_url, image_url, is_active) VALUES
 (1, 1, 1, NULL, 'VTA-ST-0001', 'STALL', 'https://app.viettouraudio.vn/map?stall=1', '/qr/stall-1.png', 1),
@@ -238,5 +245,11 @@ INSERT INTO revenue_daily (date, source, provider, gross_amount, net_amount, fee
 INSERT INTO audit_logs (id, actor_user_id, action, target_type, target_id, before_data, after_data, ip_address) VALUES
 (1, 2, 'APPROVE_VENDOR', 'vendors', 1, '{"status":"PENDING"}', '{"status":"APPROVED"}', '127.0.0.1'),
 (2, 4, 'APPROVE_TOP_UP', 'top_up_requests', 1, '{"status":"PENDING"}', '{"status":"APPROVED"}', '127.0.0.1');
+
+INSERT INTO zones (zone_code, name, description, latitude, longitude, is_active) VALUES
+('PHODIBONGUYENHUE', 'Phố đi bộ Nguyễn Huệ', 'Tuyến phố đi bộ trung tâm TP.HCM với nhiều điểm tham quan lịch sử, văn hóa và ẩm thực đặc sắc.', 10.7758200, 106.7020800, 1);
+
+INSERT INTO app_settings (`key`, `value`) VALUES
+('PREMIUM_PAYMENT_QR', 'MOMO-PAY-PREMIUM-12345');
 
 SET FOREIGN_KEY_CHECKS = 1;

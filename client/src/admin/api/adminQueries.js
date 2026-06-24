@@ -21,7 +21,21 @@ import {
   rejectContent,
   rejectTopUpRequest,
   rejectVendor,
-  suspendVendor
+  suspendVendor,
+  fetchAdminPois,
+  fetchStallsList,
+  fetchZonesList,
+  fetchPoiDistance,
+  createAdminPoi,
+  updateAdminPoi,
+  deleteAdminPoi,
+  fetchGeofenceAllData,
+  fetchAuditLogs,
+  fetchToursList,
+  createVendorAccount,
+  createZoneAdminAccount,
+  fetchHourlyActiveUsers,
+  resetStallQr
 } from './adminApi';
 
 export const adminQueryKeys = {
@@ -33,7 +47,11 @@ export const adminQueryKeys = {
   revenueOverview: (params = {}) => ['admin', 'revenue', 'overview', params],
   revenueTimeline: (params = {}) => ['admin', 'revenue', 'timeline', params],
   contentQueue: (params = {}) => ['admin', 'content', params],
-  geofences: ['admin', 'geofences']
+  geofences: ['admin', 'geofences'],
+  pois: ['admin', 'pois'],
+  stallsList: ['admin', 'stalls-list'],
+  zonesList: ['admin', 'zones-list'],
+  hourlyActiveUsers: ['admin', 'analytics', 'hourly-active-users']
 };
 
 export function useVendors(params) {
@@ -179,5 +197,123 @@ export function useGeofences() {
 export function useCheckGeofenceOverlap() {
   return useMutation({
     mutationFn: checkGeofenceOverlap
+  });
+}
+
+export function useAdminPois() {
+  return useQuery({
+    queryKey: adminQueryKeys.pois,
+    queryFn: fetchAdminPois
+  });
+}
+
+export function useStallsList() {
+  return useQuery({
+    queryKey: adminQueryKeys.stallsList,
+    queryFn: fetchStallsList
+  });
+}
+
+export function useZonesList() {
+  return useQuery({
+    queryKey: adminQueryKeys.zonesList,
+    queryFn: fetchZonesList
+  });
+}
+
+export function usePoiDistance(poi1Id, poi2Id) {
+  return useQuery({
+    queryKey: ['admin', 'pois', 'distance', poi1Id, poi2Id],
+    queryFn: () => fetchPoiDistance(poi1Id, poi2Id),
+    enabled: Boolean(poi1Id && poi2Id && poi1Id !== poi2Id)
+  });
+}
+
+export function useCreatePoi() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createAdminPoi,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.pois });
+    }
+  });
+}
+
+export function useUpdatePoi() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }) => updateAdminPoi(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.pois });
+    }
+  });
+}
+
+export function useDeletePoi() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteAdminPoi,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.pois });
+    }
+  });
+}
+
+export function useGeofenceAllData() {
+  return useQuery({
+    queryKey: ['admin', 'geofences', 'all-data'],
+    queryFn: fetchGeofenceAllData
+  });
+}
+
+export function useAuditLogs() {
+  return useQuery({
+    queryKey: ['admin', 'audit-logs'],
+    queryFn: fetchAuditLogs
+  });
+}
+
+export function useToursList() {
+  return useQuery({
+    queryKey: ['admin', 'tours-list'],
+    queryFn: fetchToursList
+  });
+}
+
+export function useCreateVendor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createVendorAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
+    }
+  });
+}
+
+export function useCreateZoneAdmin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createZoneAdminAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    }
+  });
+}
+
+export function useResetStallQr() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => resetStallQr(id),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
+    }
+  });
+}
+
+export function useHourlyActiveUsers() {
+  return useQuery({
+    queryKey: adminQueryKeys.hourlyActiveUsers,
+    queryFn: fetchHourlyActiveUsers,
+    refetchInterval: 30000
   });
 }

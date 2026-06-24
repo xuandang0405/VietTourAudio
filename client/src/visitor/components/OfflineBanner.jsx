@@ -1,9 +1,9 @@
 import { WifiOff } from 'lucide-react';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
-import { useTranslation } from '../../i18n/translations';
+import { useTranslation } from 'react-i18next';
 
 export function OfflineBanner() {
-  const { t } = useTranslation();
+  const { t } = useTranslation('translation', { keyPrefix: 'landing' });
   const isOnline = useOnlineStatus();
 
   if (isOnline) {

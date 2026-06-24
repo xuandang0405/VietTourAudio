@@ -4,7 +4,7 @@ import { authenticate, authorize } from '../middleware/auth.middleware';
 import { ok } from '../types/api.types';
 import { query } from '../lib/db';
 import { asyncHandler } from '../utils/asyncHandler';
-import { requireReason, toBigIntId } from '../utils/serialization';
+import { requireReason, optionalReason, toBigIntId } from '../utils/serialization';
 
 export const router = Router();
 
@@ -63,7 +63,7 @@ router.post(
 router.post(
   '/:id/reject',
   asyncHandler(async (req, res) => {
-    const reason = requireReason(req.body.reason);
+    const reason = optionalReason(req.body.reason);
     const id = toBigIntId(req.params.id, 'media id');
     const item = await getMedia(id);
     if (!item) {

@@ -1,18 +1,16 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Camera, Compass, Headphones, Languages, MapPinned, ScanLine } from 'lucide-react';
-import { useState } from 'react';
+import { Camera, Compass, Globe, MapPinned, ScanLine, ChevronRight } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import heroTravel from '../../assets/img/hero-travel.png';
 import logo from '../../assets/logo/logo.png';
-import { useTranslation } from '../../i18n/translations';
+import { useTranslation } from 'react-i18next';
 import { languages, useLanguageStore } from '../../stores/languageStore';
 import { useLocationStore } from '../../stores/locationStore';
 import { usePremiumStore } from '../../stores/premiumStore';
 import { QrCameraScanner } from '../components/QrCameraScanner';
-import { TopBar } from '../components/TopBar';
 
 export function LandingPage({ onToast, onUpgrade }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const permissionStatus = useLocationStore((state) => state.permissionStatus);
   const requestLocation = useLocationStore((state) => state.requestLocation);
@@ -24,6 +22,19 @@ export function LandingPage({ onToast, onUpgrade }) {
   const [showScanner, setShowScanner] = useState(false);
   const [zoneCodeInput, setZoneCodeInput] = useState('');
 
+  const FEATURED_ZONES = useMemo(() => [
+    { id: 1, title: t('landing.featured.zone1_title'), subtitle: t('landing.featured.zone1_subtitle'), img: 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=200&h=200&fit=crop' },
+    { id: 2, title: t('landing.featured.zone2_title'), subtitle: t('landing.featured.zone2_subtitle'), img: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=200&h=200&fit=crop' },
+    { id: 3, title: t('landing.featured.zone3_title'), subtitle: t('landing.featured.zone3_subtitle'), img: 'https://images.unsplash.com/photo-1555921015-5532091f6026?w=200&h=200&fit=crop' },
+  ], [t]);
+
+  // Handle i18next language switch
+  const handleLanguageChange = (e) => {
+    const lang = e.target.value;
+    setLanguage(lang);
+    i18n.changeLanguage(lang);
+  };
+
   function initAudioContext() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       const message = new SpeechSynthesisUtterance('');
@@ -32,19 +43,17 @@ export function LandingPage({ onToast, onUpgrade }) {
     }
   }
 
-  // Xử lý kết quả quét QR – parse URL hoặc mã zone thẳng
   function handleQrResult(rawValue) {
     setShowScanner(false);
     try {
       const url = new URL(rawValue);
-      // Nếu QR là link dạng /zone/:code
       const zoneMatch = url.pathname.match(/\/zone\/([^/?#]+)/);
       if (zoneMatch) {
         navigate(`/zone/${zoneMatch[1]}`);
         return;
       }
     } catch {
-      // rawValue không phải URL -> coi là mã zone
+      // Not a URL, treat as zone code
     }
     const code = rawValue.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (code) navigate(`/zone/${code}`);
@@ -61,80 +70,117 @@ export function LandingPage({ onToast, onUpgrade }) {
     initAudioContext();
     const allowed = await requestLocation();
     if (allowed) {
-      onToast?.(t('gpsReady'));
+      onToast?.(t('landing.gpsReady'));
       navigate('/map');
       return;
     }
-    onToast?.(t('gpsFailed'));
+    onToast?.(t('landing.gpsFailed'));
   }
 
   function handleDemo() {
     initAudioContext();
     useDemoLocation();
-    onToast?.(t('demoEnabled'));
+    onToast?.(t('landing.demoEnabled'));
     navigate('/map');
   }
 
   return (
-    <section className="relative flex h-[100vh] min-h-[100vh] w-full overflow-hidden bg-transparent font-body text-textCrisp">
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(3,7,18,0.94)_0%,rgba(6,11,24,0.78)_52%,rgba(11,21,40,0.42)_100%)] pc:hidden" />
-
-      <div className="relative z-10 flex h-full w-full flex-shrink-0 flex-col px-6 pb-12 pt-32 pc:basis-[45%] pc:border-r pc:border-glassBorder pc:bg-bgAbyss/80 pc:px-10 xl:px-14">
-        <div className="pc:hidden">
-          <TopBar />
+    <div className="relative flex min-h-screen w-full bg-slate-50 font-body text-slate-800">
+      {/* GLOBAL HEADER */}
+      <header className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 md:p-6">
+        <div className="flex items-center gap-3">
+          <img src={logo} alt="VietTourAudio" className="h-10 w-10 rounded-xl shadow-sm" />
+          <span className="text-xl font-extrabold text-slate-900 tracking-tight">VietTourAudio</span>
         </div>
-
-        <div className="mx-auto mt-auto flex w-full max-w-md flex-1 flex-col justify-center pc:mx-0 pc:mt-16 pc:max-w-none">
-          <div className="mb-8 flex flex-col items-center gap-4 pc:mb-12 pc:items-start">
-            <img className="h-20 w-20 rounded-2xl shadow-neon-cyan pc:h-24 pc:w-24" src={logo} alt="VietTourAudio" loading="lazy" decoding="async" />
-            <span className="bg-gradient-to-r from-textCrisp via-electricBlue to-oceanCyan bg-clip-text font-display text-4xl font-bold leading-none text-transparent drop-shadow-sm tablet:text-5xl">
-              VietTourAudio
-            </span>
-          </div>
-
-          <h1 className="mb-4 text-center font-display text-4xl font-bold leading-[1.1] text-textCrisp pc:mb-6 pc:text-left pc:text-5xl xl:text-6xl">
-            {t('heroPrefix')} <span className="bg-gradient-to-r from-electricBlue to-oceanCyan bg-clip-text text-transparent">{t('heroHighlight')}</span>
-          </h1>
-          <p className="mx-auto mb-8 max-w-sm text-center text-base font-medium leading-relaxed text-textSeafoam pc:mx-0 pc:max-w-md pc:text-left pc:text-lg">
-            {t('heroDescription')}
-          </p>
-
-          <div className="glass-card mb-8 grid grid-cols-[auto_1fr] items-center gap-3 p-3">
-            <Languages className="text-oceanCyan" size={20} />
-            <div className="grid grid-cols-2 gap-2">
-              {languages.map((language) => {
-                const active = currentLanguage === language.code;
-                return (
-                  <button
-                    key={language.code}
-                    type="button"
-                    onClick={() => setLanguage(language.code)}
-                    aria-pressed={active}
-                    className={active
-                      ? 'rounded-xl border border-oceanCyan/40 bg-oceanCyan/15 px-3 py-2 text-sm font-bold text-textCrisp shadow-neon-cyan transition duration-150 ease-out active:scale-[0.98]'
-                      : 'rounded-xl border border-glassBorder bg-white/5 px-3 py-2 text-sm font-bold text-textSeafoam transition duration-150 ease-out hover:border-oceanCyan/50 hover:bg-white/10 hover:text-textCrisp active:scale-[0.98]'}
-                  >
-                    {language.name}
-                  </button>
-                );
-              })}
+        <div className="flex items-center gap-3">
+          {/* Premium Badge */}
+          {!isPremium && (
+            <div className="hidden sm:flex items-center gap-2 rounded-full border border-orange-200 bg-orange-100 px-3 py-1.5 text-xs font-bold text-orange-700">
+              {freeListensRemaining > 0
+                ? t('landing.free_listens', { count: freeListensRemaining })
+                : t('landing.out_of_listens')}
+              {freeListensRemaining === 0 && (
+                <button
+                  type="button"
+                  onClick={() => onUpgrade?.()}
+                  className="ml-2 rounded-full bg-orange-600 px-2 py-0.5 text-white hover:bg-orange-700 transition"
+                >
+                  {t('landing.unlock')}
+                </button>
+              )}
             </div>
-          </div>
+          )}
+          {isPremium && (
+             <div className="hidden sm:flex items-center gap-2 rounded-full border border-teal-200 bg-teal-100 px-3 py-1.5 text-xs font-bold text-teal-800">
+               {t('landing.premium_active')}
+             </div>
+          )}
 
-          <div className="mx-auto grid w-full max-w-sm gap-4 pc:mx-0 pc:max-w-none pc:flex pc:flex-col xl:flex-row">
-            {/* ── QR Scanner section ───────────────────────── */}
-            <div className="w-full max-w-sm pc:max-w-none">
-              {/* Toggle Camera Button */}
+          {/* Language Selector */}
+          <div className="relative flex items-center bg-white border border-slate-200 rounded-lg shadow-sm">
+            <Globe size={16} className="absolute left-2.5 text-slate-400 pointer-events-none" />
+            <select
+              value={currentLanguage}
+              onChange={handleLanguageChange}
+              className="appearance-none bg-transparent pl-8 pr-8 py-2 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 rounded-lg cursor-pointer"
+            >
+              {languages.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </header>
+
+      {/* TWO COLUMNS */}
+      <div className="flex flex-1 w-full pt-20 md:pt-0">
+        {/* LEFT COLUMN: ACTION AREA */}
+        <div className="flex w-full md:w-1/2 flex-col items-center justify-center p-6 md:p-12 lg:p-16">
+          <div className="w-full max-w-md">
+            {/* Hero */}
+            <div className="mb-8 text-center md:text-left">
+              <h1 
+                className="mb-4 text-4xl lg:text-5xl font-extrabold leading-tight text-slate-900"
+                dangerouslySetInnerHTML={{ __html: t('landing.hero_title') }}
+              />
+              <p className="text-lg text-slate-500">
+                {t('landing.heroDescription')}
+              </p>
+            </div>
+
+            {/* Premium Badge Mobile Fallback */}
+            {!isPremium && (
+              <div className="flex sm:hidden items-center justify-between gap-2 mb-6 rounded-xl border border-orange-200 bg-orange-100 px-4 py-3 text-sm font-bold text-orange-700">
+                <span>
+                  {freeListensRemaining > 0
+                    ? t('landing.free_listens', { count: freeListensRemaining })
+                    : t('landing.out_of_listens')}
+                </span>
+                {freeListensRemaining === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onUpgrade?.()}
+                    className="rounded-full bg-orange-600 px-3 py-1 text-white hover:bg-orange-700 transition"
+                  >
+                    {t('landing.unlock')}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* QR Card */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8">
               <button
                 type="button"
                 onClick={() => setShowScanner((v) => !v)}
-                className="mb-3 inline-flex w-full min-h-[52px] items-center justify-center gap-2 rounded-full border border-oceanCyan/35 bg-oceanCyan/10 px-5 text-sm font-bold text-oceanCyan shadow-neon-cyan transition duration-150 ease-out hover:bg-oceanCyan/15 active:scale-[0.98]"
+                className="flex w-full min-h-[56px] items-center justify-center gap-2 rounded-xl bg-teal-600 text-white font-bold text-lg hover:bg-teal-700 transition shadow-sm active:scale-[0.98]"
               >
-                {showScanner ? <Camera size={18} /> : <ScanLine size={18} />}
-                {showScanner ? 'Đóng camera' : 'Quét mã QR khu vực'}
+                {showScanner ? <Camera size={24} /> : <ScanLine size={24} />}
+                {showScanner ? t('landing.close_camera') : t('landing.open_camera')}
               </button>
 
-              {/* Camera Scanner */}
               <AnimatePresence>
                 {showScanner && (
                   <motion.div
@@ -143,105 +189,110 @@ export function LandingPage({ onToast, onUpgrade }) {
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.25 }}
-                    className="mb-3 flex justify-center overflow-hidden"
+                    className="mt-4 flex justify-center overflow-hidden rounded-xl"
                   >
                     <QrCameraScanner onResult={handleQrResult} onClose={() => setShowScanner(false)} />
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* Manual code input */}
+              <div className="my-6 flex items-center text-slate-400 text-sm">
+                <div className="flex-1 border-t border-slate-100"></div>
+                <span className="px-3 font-medium">{t('landing.or')}</span>
+                <div className="flex-1 border-t border-slate-100"></div>
+              </div>
+
               <form onSubmit={handleZoneCodeSubmit} className="flex gap-2">
                 <input
                   type="text"
                   value={zoneCodeInput}
                   onChange={(e) => setZoneCodeInput(e.target.value)}
-                  placeholder="Nhập mã khu vực (VD: PHODIBONGUYENHUE)"
+                  placeholder={t('landing.enter_code_placeholder')}
                   maxLength={60}
-                  className="flex-1 min-w-0 rounded-full border border-glassBorder bg-white/5 px-4 py-3 text-sm font-medium text-textCrisp placeholder:text-textGhost backdrop-blur focus:border-electricBlue/50 focus:outline-none focus:ring-1 focus:ring-electricBlue/30"
+                  className="flex-1 min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                 />
                 <button
                   type="submit"
                   disabled={!zoneCodeInput.trim()}
-                  className="flex-shrink-0 rounded-full bg-gradient-to-r from-abyssIndigo to-electricBlue px-5 py-3 text-sm font-bold text-white shadow-neon-cyan transition duration-150 ease-out hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
+                  className="flex-shrink-0 rounded-xl bg-slate-800 px-6 py-3 font-bold text-white hover:bg-slate-900 transition active:scale-[0.98] disabled:opacity-50"
                 >
-                  Vào
+                  {t('landing.enter')}
                 </button>
               </form>
             </div>
 
-            {/* Divider */}
-            <div className="flex items-center gap-3 text-xs text-textGhost pc:hidden">
-              <hr className="flex-1 border-white/10" /><span>hoặc</span><hr className="flex-1 border-white/10" />
+            {/* Demo Actions */}
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={handleStart}
+                disabled={permissionStatus === 'requesting'}
+                className="flex w-full min-h-[56px] items-center justify-center gap-3 rounded-xl bg-slate-900 text-white font-bold text-lg hover:bg-slate-800 transition shadow-sm active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                <MapPinned size={22} />
+                {permissionStatus === 'requesting' ? t('landing.requestingGps') : t('landing.startExperience')}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDemo}
+                className="flex w-full min-h-[56px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 transition active:scale-[0.98]"
+              >
+                <Compass size={20} className="text-slate-500" />
+                {t('landing.demoExperience')}
+              </button>
             </div>
 
-            {/* Freemium status hint */}
-            {!isPremium && (
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-electricBlue/20 bg-electricBlue/8 px-4 py-2.5 text-xs font-bold text-electricBlue">
-                <span>
-                  {freeListensRemaining > 0
-                    ? `🎧 ${freeListensRemaining} lượt nghe miễn phí còn lại`
-                    : '🔒 Đã hết lượt miễn phí'}
-                </span>
-                {freeListensRemaining === 0 && (
-                  <button
-                    type="button"
-                    onClick={() => onUpgrade?.()}
-                    className="rounded-full bg-gradient-to-r from-premiumNeon/80 to-electricBlue/80 px-3 py-1 text-xs font-bold text-white"
-                  >
-                    Mở khóa
-                  </button>
-                )}
+            {permissionStatus === 'denied' && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-center text-sm font-medium text-red-600">
+                {t('landing.gpsDenied')}
               </div>
             )}
-
-            <button
-              type="button"
-              onClick={handleStart}
-              disabled={permissionStatus === 'requesting'}
-              className="group relative inline-flex min-h-[60px] items-center justify-center gap-3 rounded-full bg-gradient-to-r from-abyssIndigo to-electricBlue px-6 text-base font-semibold text-white shadow-neon-cyan transition duration-150 ease-out hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 pc:min-h-[64px] pc:text-lg xl:flex-1"
-            >
-              <MapPinned size={22} className="opacity-90" />
-              {permissionStatus === 'requesting' ? t('requestingGps') : t('startExperience')}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDemo}
-              className="inline-flex min-h-[56px] items-center justify-center gap-2 rounded-full border border-glassBorder bg-white/5 px-6 text-sm font-semibold text-textCrisp backdrop-blur transition duration-150 ease-out hover:border-electricBlue/40 hover:bg-white/10 active:scale-[0.98] pc:min-h-[64px] pc:text-base xl:w-48"
-            >
-              <Compass size={20} />
-              {t('demoExperience')}
-            </button>
           </div>
+        </div>
 
-          {permissionStatus === 'denied' && (
-            <div className="mt-6 rounded-2xl border border-error/25 bg-error/10 p-4">
-              <p className="text-center text-sm font-medium leading-relaxed text-red-100 pc:text-left">{t('gpsDenied')}</p>
+        {/* RIGHT COLUMN: DISCOVERY AREA */}
+        <div className="hidden md:flex w-1/2 flex-col bg-slate-100/50 p-6 md:p-12 lg:p-16 border-l border-slate-200 overflow-y-auto">
+          <div className="w-full max-w-lg mx-auto pt-16">
+            <h2 className="text-2xl font-bold text-slate-800 mb-6">{t('landing.active_locations')}</h2>
+            <div className="flex flex-col gap-4">
+              {FEATURED_ZONES.map((zone) => (
+                <div
+                  key={zone.id}
+                  className="group flex items-center gap-4 rounded-xl bg-white p-3 border border-slate-100 shadow-sm transition hover:shadow-md hover:border-teal-200 cursor-pointer"
+                >
+                  <img
+                    src={zone.img}
+                    alt={zone.title}
+                    className="h-20 w-20 rounded-lg object-cover bg-slate-200"
+                  />
+                  <div className="flex-1">
+                    <h3 className="font-bold text-slate-900 group-hover:text-teal-700 transition">
+                      {zone.title}
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1">{zone.subtitle}</p>
+                  </div>
+                  <div className="pr-2 text-slate-300 group-hover:text-teal-500 transition">
+                    <ChevronRight size={24} />
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
 
-          <div className="relative z-10 mx-auto mt-10 grid w-full max-w-sm grid-cols-2 gap-3 border-t border-white/10 pt-8 pc:mx-0 pc:mt-auto pc:max-w-none">
-            <FeatureBadge icon={MapPinned} label={t('autoGps')} />
-            <FeatureBadge icon={Headphones} label={isPremium ? t('premiumAudio') : t('textAndImages')} isPremium={isPremium} />
+            {/* Optional decoration/footer for the right column */}
+            <div className="mt-10 p-6 rounded-2xl bg-teal-50 border border-teal-100 text-center">
+              <h4 className="font-bold text-teal-800 mb-2">{t('landing.become_partner')}</h4>
+              <p className="text-sm text-teal-600 mb-4">{t('landing.partner_desc')}</p>
+              <button 
+                onClick={() => navigate('/vendor/login')}
+                className="text-sm font-bold bg-white text-teal-700 px-4 py-2 rounded-lg border border-teal-200 hover:bg-teal-50 transition"
+              >
+                {t('landing.register_now')}
+              </button>
+            </div>
           </div>
         </div>
       </div>
-
-      <div className="relative hidden flex-1 bg-bgTrench pc:block">
-        <div className="absolute inset-0 z-10 bg-gradient-to-r from-bgAbyss via-bgAbyss/45 to-transparent" />
-        <div className="absolute inset-0 z-10 bg-gradient-to-b from-bgAbyss/20 via-transparent to-bgAbyss/86" />
-        <img src={heroTravel} alt="VietTourAudio" className="absolute inset-0 h-full w-full object-cover opacity-80" loading="lazy" decoding="async" />
-      </div>
-    </section>
-  );
-}
-
-function FeatureBadge({ icon: Icon, label, isPremium }) {
-  return (
-    <div className={isPremium ? 'glass-card glass-card-active flex flex-col items-center justify-center p-4 pc:items-start' : 'glass-card flex flex-col items-center justify-center p-4 pc:items-start'}>
-      <Icon className={isPremium ? 'text-premiumNeon' : 'text-textSeafoam'} size={24} strokeWidth={1.5} />
-      <span className={isPremium ? 'mt-2 text-xs font-bold uppercase text-premiumNeon' : 'mt-2 text-xs font-bold uppercase text-textSeafoam'}>{label}</span>
     </div>
   );
 }
