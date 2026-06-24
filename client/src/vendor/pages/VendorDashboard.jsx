@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Headphones, Users, MapPin, TrendingUp } from 'lucide-react';
+import { analyticsService } from '../../services/analyticsService';
 
 const mockDailyData = [
   { name: '01/06', listeners: 120, visitors: 300 },
@@ -12,6 +14,42 @@ const mockDailyData = [
 ];
 
 export function VendorDashboard() {
+  const [dashboard, setDashboard] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDashboard = async () => {
+      try {
+        const response = await analyticsService.getStallOwnerDashboard();
+        const data = response.data?.data ?? response.data;
+        if (!cancelled) {
+          setDashboard(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError('Không thể tải dữ liệu dashboard. Vui lòng đăng nhập hoặc thử lại.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadDashboard();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const visits = dashboard?.VisitsToday ?? '...';
+  const audioPlays = dashboard?.AudioPlaysToday ?? '...';
+  const poiCount = dashboard?.ActivePois ?? dashboard?.TotalPois ?? '...';
+  const revenue = dashboard?.RevenueToday != null ? `${dashboard.RevenueToday.toLocaleString('vi-VN')} đ` : '...';
+
   return (
     <div className="max-w-6xl mx-auto">
       <header className="mb-8">
@@ -19,11 +57,17 @@ export function VendorDashboard() {
         <p className="text-slate-500 mt-1">Tổng quan hoạt động của Sạp Đồ Cổ Chú Năm</p>
       </header>
 
+      {error ? (
+        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <KPICard icon={<Users />} label="Lượt ghé thăm" value="2,450" trend="+12%" />
-        <KPICard icon={<Headphones />} label="Lượt nghe Audio" value="1,250" trend="+18%" color="text-premium-600" bg="bg-premium-50" />
-        <KPICard icon={<MapPin />} label="Số lượng POI" value="12" trend="Cố định" />
-        <KPICard icon={<TrendingUp />} label="Doanh thu tạm tính" value="3.5M VNĐ" trend="+5%" color="text-green-600" bg="bg-green-50" />
+        <KPICard icon={<Users />} label="Lượt ghé thăm" value={loading ? '...' : visits} trend="+12%" />
+        <KPICard icon={<Headphones />} label="Lượt nghe Audio" value={loading ? '...' : audioPlays} trend="+18%" color="text-premium-600" bg="bg-premium-50" />
+        <KPICard icon={<MapPin />} label="Số lượng POI" value={loading ? '...' : poiCount} trend="Cố định" />
+        <KPICard icon={<TrendingUp />} label="Doanh thu tạm tính" value={loading ? '...' : revenue} trend="+5%" color="text-green-600" bg="bg-green-50" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
