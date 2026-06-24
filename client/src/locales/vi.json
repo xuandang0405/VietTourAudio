@@ -58,7 +58,8 @@
     "detail": "Xem chi tiết",
     "reason": "Lý do",
     "optional": "Không bắt buộc",
-    "search": "Tìm kiếm..."
+    "search": "Tìm kiếm...",
+    "smartGuide": "Hướng dẫn thông minh"
   },
   "poi": {
     "management_subtitle": "POI MANAGEMENT",
@@ -433,7 +434,13 @@
     "language": "Ngôn ngữ",
     "languageHelp": "Chọn ngôn ngữ hiển thị",
     "audioLockedFree": "Đã khóa Audio (Hết lượt miễn phí)",
-    "deviceStatus": "Trạng thái thiết bị"
+    "deviceStatus": "Trạng thái thiết bị",
+    "listening": "Đang phát",
+    "queue": "Danh sách phát ({{count}})",
+    "close": "Đóng",
+    "playAgain": "Phát lại",
+    "wait": "Vui lòng chờ",
+    "replayAfter": "Phát lại sau"
   },
   "geofence": {
     "title": "Bản đồ vùng kích hoạt",

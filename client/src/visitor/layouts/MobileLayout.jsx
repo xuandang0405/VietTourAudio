@@ -2,9 +2,9 @@ import { Crosshair, QrCode, SatelliteDish, Search } from 'lucide-react';
 import { AudioPlayerSheet } from '../../components/AudioPlayerSheet';
 import { useTranslation } from 'react-i18next';
 import { BottomNav } from '../components/BottomNav';
-import { DevGpsPanel } from '../components/DevGpsPanel';
-import { LeafletMap } from '../components/LeafletMap';
-import { PoiBottomSheet } from '../components/PoiBottomSheet';
+import { DevGpsPanel } from '../../features/geofence-audio/components/DevGpsPanel';
+import { LeafletMap } from '../../features/poi/components/LeafletMap';
+import { PoiBottomSheet } from '../../features/poi/components/PoiBottomSheet';
 import { PremiumStatusButton } from '../components/PremiumStatusButton';
 import { TopBar } from '../components/TopBar';
 

@@ -44,7 +44,8 @@
     "detail": "詳細表示",
     "reason": "理由",
     "optional": "任意",
-    "search": "検索..."
+    "search": "検索...",
+    "smartGuide": "スマートガイド"
   },
   "poi": {
     "management_subtitle": "POI MANAGEMENT",
@@ -405,7 +406,13 @@
     "language": "Language",
     "languageHelp": "Select display language",
     "audioLockedFree": "Audio Locked (No free listens left)",
-    "deviceStatus": "Device status"
+    "deviceStatus": "Device status",
+    "listening": "再生中",
+    "queue": "再生キュー ({{count}})",
+    "close": "閉じる",
+    "playAgain": "もう一度再生",
+    "wait": "お待ちください",
+    "replayAfter": "再再生まであと"
   },
   "map": {
     "no_gps": "GPSがありません"

@@ -4,7 +4,7 @@ import logo from '../../assets/logo/logo.png';
 import logoText from '../../assets/logo/logo-text.png';
 import { languages, useLanguageStore } from '../../stores/languageStore';
 import { PremiumStatusButton } from './PremiumStatusButton';
-import { SidebarPoiCard } from './SidebarPoiCard';
+import { SidebarPoiCard } from '../../features/poi/components/SidebarPoiCard';
 import { useTranslation } from 'react-i18next';
 
 export function SidebarContent({

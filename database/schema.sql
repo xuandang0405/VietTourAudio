@@ -190,6 +190,28 @@ CREATE TABLE vendor_subscriptions (
     ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE tours (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  vendor_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) NOT NULL,
+  description TEXT NULL,
+  cover_image_url VARCHAR(500) NULL,
+  status ENUM('DRAFT', 'PUBLISHED', 'ARCHIVED') NOT NULL DEFAULT 'DRAFT',
+  sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+  is_premium TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_tours_vendor_slug (vendor_id, slug),
+  KEY idx_tours_vendor_id (vendor_id),
+  KEY idx_tours_status (status),
+  KEY idx_tours_created_at (created_at),
+  CONSTRAINT fk_tours_vendor
+    FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+    ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE stalls (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   vendor_id BIGINT UNSIGNED NOT NULL,
@@ -222,10 +244,10 @@ CREATE TABLE stalls (
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE pois (
+CREATE TABLE zones (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  tour_id BIGINT UNSIGNED NOT NULL,
   stall_id BIGINT UNSIGNED NOT NULL,
-  zone_code VARCHAR(100) NULL COMMENT 'FK đến zones.zone_code',
   free_listens_allowed TINYINT UNSIGNED NOT NULL DEFAULT 2 COMMENT 'Số lần nghe miễn phí trước khi yêu cầu Premium',
   name VARCHAR(255) NOT NULL,
   slug VARCHAR(255) NOT NULL,
@@ -239,37 +261,38 @@ CREATE TABLE pois (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_pois_stall_slug (stall_id, slug),
-  KEY idx_pois_stall_id (stall_id),
-  KEY idx_pois_zone_code (zone_code),
-  KEY idx_pois_status (status),
-  KEY idx_pois_lat_lng (latitude, longitude),
-  KEY idx_pois_created_at (created_at),
-  CONSTRAINT fk_pois_stall
+  UNIQUE KEY uq_zones_stall_slug (stall_id, slug),
+  KEY idx_zones_tour_id (tour_id),
+  KEY idx_zones_stall_id (stall_id),
+  KEY idx_zones_status (status),
+  KEY idx_zones_lat_lng (latitude, longitude),
+  KEY idx_zones_created_at (created_at),
+  CONSTRAINT fk_zones_tour
+    FOREIGN KEY (tour_id) REFERENCES tours(id)
+    ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT fk_zones_stall
     FOREIGN KEY (stall_id) REFERENCES stalls(id)
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE tours (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  vendor_id BIGINT UNSIGNED NOT NULL,
+CREATE TABLE pois (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  stall_id BIGINT UNSIGNED NOT NULL,
+  zone_code VARCHAR(100) NULL,
+  free_listens_allowed TINYINT UNSIGNED NOT NULL DEFAULT 2,
   name VARCHAR(255) NOT NULL,
   slug VARCHAR(255) NOT NULL,
   description TEXT NULL,
-  cover_image_url VARCHAR(500) NULL,
-  status ENUM('DRAFT', 'PUBLISHED', 'ARCHIVED') NOT NULL DEFAULT 'DRAFT',
+  latitude DECIMAL(10,7) NOT NULL,
+  longitude DECIMAL(10,7) NOT NULL,
+  activation_radius INT UNSIGNED NOT NULL DEFAULT 25,
+  is_premium_content TINYINT(1) NOT NULL DEFAULT 0,
+  status ENUM('DRAFT', 'ACTIVE', 'INACTIVE', 'ARCHIVED') NOT NULL DEFAULT 'ACTIVE',
   sort_order INT UNSIGNED NOT NULL DEFAULT 0,
-  is_premium TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_tours_vendor_slug (vendor_id, slug),
-  KEY idx_tours_vendor_id (vendor_id),
-  KEY idx_tours_status (status),
-  KEY idx_tours_created_at (created_at),
-  CONSTRAINT fk_tours_vendor
-    FOREIGN KEY (vendor_id) REFERENCES vendors(id)
-    ON UPDATE CASCADE ON DELETE CASCADE
+  UNIQUE KEY uq_pois_stall_slug (stall_id, slug),
+  CONSTRAINT fk_pois_stall FOREIGN KEY (stall_id) REFERENCES stalls(id) ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE tour_pois (
@@ -330,6 +353,7 @@ CREATE TABLE poi_contents (
 CREATE TABLE media_files (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   vendor_id BIGINT UNSIGNED NOT NULL,
+  tour_id BIGINT UNSIGNED NULL,
   stall_id BIGINT UNSIGNED NULL,
   poi_id BIGINT UNSIGNED NULL,
   uploaded_by_user_id BIGINT UNSIGNED NULL,
@@ -375,10 +399,11 @@ CREATE TABLE media_files (
 CREATE TABLE qr_codes (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   vendor_id BIGINT UNSIGNED NOT NULL,
+  tour_id BIGINT UNSIGNED NULL,
   stall_id BIGINT UNSIGNED NULL,
   poi_id BIGINT UNSIGNED NULL,
   code VARCHAR(120) NOT NULL,
-  qr_type ENUM('GLOBAL_APP', 'VENDOR', 'STALL', 'POI', 'PAYMENT', 'PREMIUM') NOT NULL,
+  qr_type ENUM('GLOBAL_APP', 'VENDOR', 'TOUR', 'STALL', 'POI', 'PAYMENT', 'PREMIUM') NOT NULL,
   target_url VARCHAR(600) NOT NULL,
   image_url VARCHAR(600) NULL,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
@@ -387,11 +412,15 @@ CREATE TABLE qr_codes (
   PRIMARY KEY (id),
   UNIQUE KEY uq_qr_codes_code (code),
   KEY idx_qr_codes_vendor_id (vendor_id),
+  KEY idx_qr_codes_tour_id (tour_id),
   KEY idx_qr_codes_stall_id (stall_id),
   KEY idx_qr_codes_poi_id (poi_id),
   KEY idx_qr_codes_created_at (created_at),
   CONSTRAINT fk_qr_codes_vendor
     FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+    ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT fk_qr_codes_tour
+    FOREIGN KEY (tour_id) REFERENCES tours(id)
     ON UPDATE CASCADE ON DELETE CASCADE,
   CONSTRAINT fk_qr_codes_stall
     FOREIGN KEY (stall_id) REFERENCES stalls(id)
@@ -424,6 +453,7 @@ CREATE TABLE qr_scan_events (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   qr_code_id BIGINT UNSIGNED NULL,
   vendor_id BIGINT UNSIGNED NULL,
+  tour_id BIGINT UNSIGNED NULL,
   stall_id BIGINT UNSIGNED NULL,
   poi_id BIGINT UNSIGNED NULL,
   visitor_session_id BIGINT UNSIGNED NULL,
@@ -438,6 +468,7 @@ CREATE TABLE qr_scan_events (
   PRIMARY KEY (id),
   KEY idx_qr_scan_events_qr_code_id (qr_code_id),
   KEY idx_qr_scan_events_vendor_id (vendor_id),
+  KEY idx_qr_scan_events_tour_id (tour_id),
   KEY idx_qr_scan_events_stall_id (stall_id),
   KEY idx_qr_scan_events_poi_id (poi_id),
   KEY idx_qr_scan_events_visitor_session_id (visitor_session_id),
@@ -445,6 +476,9 @@ CREATE TABLE qr_scan_events (
   KEY idx_qr_scan_events_created_at (created_at),
   CONSTRAINT fk_qr_scan_events_qr_code
     FOREIGN KEY (qr_code_id) REFERENCES qr_codes(id)
+    ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT fk_qr_scan_events_tour
+    FOREIGN KEY (tour_id) REFERENCES tours(id)
     ON UPDATE CASCADE ON DELETE SET NULL,
   CONSTRAINT fk_qr_scan_events_vendor
     FOREIGN KEY (vendor_id) REFERENCES vendors(id)
@@ -721,22 +755,6 @@ CREATE TABLE revenue_daily (
   PRIMARY KEY (date, source, provider),
   KEY idx_revenue_daily_source_provider (source, provider),
   KEY idx_revenue_daily_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE zones (
-  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  zone_code       VARCHAR(100) NOT NULL COMMENT 'Mã vùng dùng trong URL, VD: PHODIBONGUYENHUE',
-  name            VARCHAR(255) NOT NULL,
-  description     TEXT NULL,
-  cover_image_url VARCHAR(500) NULL,
-  latitude        DECIMAL(10, 7) NULL,
-  longitude       DECIMAL(10, 7) NULL,
-  is_active       TINYINT(1) NOT NULL DEFAULT 1,
-  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_zones_code (zone_code),
-  KEY idx_zones_active (is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE app_settings (

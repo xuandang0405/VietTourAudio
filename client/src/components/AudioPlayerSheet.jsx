@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw, Pause, ChevronDown, ChevronUp, Play, X, Headphones } from 'lucide-react';
-import { useAudioStore } from '../stores/audioStore';
-import { useAudioQueueStore } from '../stores/audioQueueStore';
+import { useAudioStore } from '../features/geofence-audio/stores/audioStore';
+import { useAudioQueueStore } from '../features/geofence-audio/stores/audioQueueStore';
 import { localizePoi, visitorPois } from '../data/visitorPois';
 import { useLanguageStore } from '../stores/languageStore';
 import { useTranslation } from 'react-i18next';

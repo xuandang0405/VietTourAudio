@@ -52,7 +52,7 @@ Write-Host "  [OK]  Swagger  : http://localhost:5000/swagger" -ForegroundColor G
 # ── 3. Admin API Node.js (TypeScript) ───────────────────────
 Write-Host ""
 Write-Host "[3/4] Khoi dong Admin API (Node.js/TypeScript)..." -ForegroundColor Yellow
-$adminApiPath = Join-Path $Root "viettour-admin-api"
+$adminApiPath = Join-Path $Root "server\viettour-admin-api"
 
 # Kiem tra node_modules
 if (-not (Test-Path (Join-Path $adminApiPath "node_modules"))) {

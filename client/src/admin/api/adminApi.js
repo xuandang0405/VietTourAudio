@@ -255,3 +255,31 @@ export async function resetStallQr(id) {
 export async function fetchHourlyActiveUsers() {
   return unwrap(await adminApiClient.get('/admin/analytics/hourly-active-users'));
 }
+
+export async function fetchDashboardAnalytics() {
+  return unwrap(await adminApiClient.get('/admin/analytics/dashboard'));
+}
+
+export async function fetchTours() {
+  return unwrap(await adminApiClient.get('/admin/pois/tours'));
+}
+
+export async function fetchTourById(id) {
+  return unwrap(await adminApiClient.get(`/admin/pois/tours/${id}`));
+}
+
+export async function createTour(tourData) {
+  return unwrap(await adminApiClient.post('/admin/pois/tours', tourData));
+}
+
+export async function updateTour(id, tourData) {
+  return unwrap(await adminApiClient.put(`/admin/pois/tours/${id}`, tourData));
+}
+
+export async function deleteTour(id) {
+  return unwrap(await adminApiClient.delete(`/admin/pois/tours/${id}`));
+}
+
+export async function resetTourQr(id) {
+  return unwrap(await adminApiClient.post(`/admin/pois/tours/${id}/qr/reset`));
+}

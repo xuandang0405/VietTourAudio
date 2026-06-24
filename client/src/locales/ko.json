@@ -44,7 +44,8 @@
     "detail": "자세히 보기",
     "reason": "사유",
     "optional": "선택 사항",
-    "search": "검색..."
+    "search": "검색...",
+    "smartGuide": "스마트 가이드"
   },
   "poi": {
     "management_subtitle": "POI MANAGEMENT",
@@ -405,7 +406,13 @@
     "language": "Language",
     "languageHelp": "Select display language",
     "audioLockedFree": "Audio Locked (No free listens left)",
-    "deviceStatus": "Device status"
+    "deviceStatus": "Device status",
+    "listening": "재생 중",
+    "queue": "재생 대기열 ({{count}})",
+    "close": "닫기",
+    "playAgain": "다시 재생",
+    "wait": "잠시만 기다려주세요",
+    "replayAfter": "다시 재생 가능 시간:"
   },
   "map": {
     "no_gps": "GPS 없음"

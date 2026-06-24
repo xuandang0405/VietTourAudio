@@ -1,4 +1,4 @@
-import { useUserStore } from '../store/userStore';
+import { useUserStore } from '../features/auth/stores/userStore';
 
 export function useLanguage() {
   const language = useUserStore((state) => state.preferences.language);

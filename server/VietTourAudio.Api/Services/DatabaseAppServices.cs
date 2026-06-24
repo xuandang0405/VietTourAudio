@@ -121,7 +121,8 @@ public sealed class DatabasePoiService : IPoiService
   {
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
     await using var command = connection.CreateCommand();
-    command.CommandText = $"{SelectSql} WHERE p.status = 'ACTIVE' {(stallId.HasValue ? "AND p.stall_id = @stallId" : string.Empty)} ORDER BY p.sort_order, p.created_at";
+    var filter = stallId.HasValue ? "AND p.stall_id = @stallId" : string.Empty;
+    command.CommandText = $"{SelectSql} WHERE p.status = 'ACTIVE' {filter} ORDER BY p.sort_order, p.created_at";
     if (stallId.HasValue) command.AddParameter("@stallId", stallId.Value);
     await using var reader = await command.ExecuteReaderAsync();
     var results = new List<PoiResponseDto>();
@@ -157,14 +158,26 @@ public sealed class DatabasePoiService : IPoiService
   {
     var slug = string.Join('-', request.Name.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
+
+    // Look up tour_id from the stall's vendor
+    ulong? tourId = null;
+    await using (var lookup = connection.CreateCommand())
+    {
+      lookup.CommandText = "SELECT t.id FROM tours t JOIN stalls s ON s.vendor_id = t.vendor_id WHERE s.id = @stallId ORDER BY t.id ASC LIMIT 1";
+      lookup.AddParameter("@stallId", request.StallId);
+      var value = await lookup.ExecuteScalarAsync();
+      if (value is not null) tourId = Convert.ToUInt64(value);
+    }
+
     await using (var command = connection.CreateCommand())
     {
       command.CommandText = """
-        INSERT INTO pois
-          (stall_id, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status)
+        INSERT INTO zones
+          (tour_id, stall_id, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status)
         VALUES
-          (@stallId, @name, @slug, @description, @latitude, @longitude, @radius, @isPremium, 'ACTIVE')
+          (@tourId, @stallId, @name, @slug, @description, @latitude, @longitude, @radius, @isPremium, 'ACTIVE')
         """;
+      command.AddParameter("@tourId", tourId);
       command.AddParameter("@stallId", request.StallId);
       command.AddParameter("@name", request.Name);
       command.AddParameter("@slug", slug);
@@ -180,13 +193,15 @@ public sealed class DatabasePoiService : IPoiService
 
   private const string SelectSql = """
     SELECT p.*, s.name AS zone_name,
+      t.id AS tour_id_fk, t.slug AS tour_slug_fk,
       (SELECT q.id FROM qr_codes q WHERE q.poi_id = p.id AND q.is_active = 1 ORDER BY q.created_at LIMIT 1) AS qr_code_id,
       (SELECT COALESCE(mf.public_url, mf.file_path)
        FROM media_files mf
        WHERE mf.poi_id = p.id AND mf.file_type = 'IMAGE' AND mf.moderation_status = 'APPROVED'
        ORDER BY mf.created_at LIMIT 1) AS image_url
-    FROM pois p
+    FROM zones p
     JOIN stalls s ON s.id = p.stall_id
+    LEFT JOIN tours t ON t.id = p.tour_id
     """;
 
   private static PoiResponseDto Map(DbDataReader reader) => new(
@@ -195,7 +210,9 @@ public sealed class DatabasePoiService : IPoiService
     reader.GetString(reader.GetOrdinal("zone_name")), "Điểm tham quan", reader.NullableString("image_url"),
     reader.Decimal("latitude"), reader.Decimal("longitude"), reader.Int32("activation_radius"),
     reader.Boolean("is_premium_content"), reader.GetString(reader.GetOrdinal("status")), null, false,
-    reader.IsDBNull(reader.GetOrdinal("qr_code_id")) ? null : reader.UInt64("qr_code_id"));
+    reader.IsDBNull(reader.GetOrdinal("qr_code_id")) ? null : reader.UInt64("qr_code_id"),
+    reader.IsDBNull(reader.GetOrdinal("tour_id_fk")) ? null : reader.UInt64("tour_id_fk"),
+    reader.NullableString("tour_slug_fk"));
 }
 
 public sealed class DatabasePoiContentService : IPoiContentService
@@ -270,7 +287,7 @@ public sealed class DatabaseTrackingService : IQrTrackingService, IAnalyticsServ
     {
       if (request.PoiId.HasValue)
       {
-        lookup.CommandText = "SELECT s.vendor_id, p.stall_id FROM pois p JOIN stalls s ON s.id = p.stall_id WHERE p.id = @id LIMIT 1";
+        lookup.CommandText = "SELECT s.vendor_id, p.stall_id FROM zones p JOIN stalls s ON s.id = p.stall_id WHERE p.id = @id LIMIT 1";
         lookup.AddParameter("@id", request.PoiId.Value);
         await using var reader = await lookup.ExecuteReaderAsync();
         if (!await reader.ReadAsync()) throw new KeyNotFoundException($"Không tìm thấy POI {request.PoiId.Value}.");
@@ -314,13 +331,14 @@ public sealed class DatabaseTrackingService : IQrTrackingService, IAnalyticsServ
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
     var sessionId = await EnsureSessionAsync(connection, request.SessionId, ipAddress, userAgent);
     ulong? vendorId = null;
+    ulong? tourId = null;
     ulong? stallId = null;
     ulong? poiId = null;
     ulong? persistedQrId = null;
 
     await using (var lookup = connection.CreateCommand())
     {
-      lookup.CommandText = "SELECT vendor_id, stall_id, poi_id FROM qr_codes WHERE id = @id AND is_active = 1 LIMIT 1";
+      lookup.CommandText = "SELECT vendor_id, tour_id, stall_id, poi_id FROM qr_codes WHERE id = @id AND is_active = 1 LIMIT 1";
       lookup.AddParameter("@id", request.QrCodeId);
       await using var reader = await lookup.ExecuteReaderAsync();
       if (await reader.ReadAsync())
@@ -329,13 +347,15 @@ public sealed class DatabaseTrackingService : IQrTrackingService, IAnalyticsServ
         vendorId = reader.UInt64("vendor_id");
         stallId = reader.IsDBNull(reader.GetOrdinal("stall_id")) ? null : reader.UInt64("stall_id");
         poiId = reader.IsDBNull(reader.GetOrdinal("poi_id")) ? null : reader.UInt64("poi_id");
+        var tourIdOrdinal = reader.GetOrdinal("tour_id");
+        tourId = reader.IsDBNull(tourIdOrdinal) ? (ulong?)null : reader.UInt64("tour_id");
       }
     }
 
     if (!vendorId.HasValue && request.PoiId.HasValue)
     {
       await using var lookup = connection.CreateCommand();
-      lookup.CommandText = "SELECT s.vendor_id, p.stall_id FROM pois p JOIN stalls s ON s.id = p.stall_id WHERE p.id = @id LIMIT 1";
+      lookup.CommandText = "SELECT s.vendor_id, p.stall_id, p.tour_id FROM zones p JOIN stalls s ON s.id = p.stall_id WHERE p.id = @id LIMIT 1";
       lookup.AddParameter("@id", request.PoiId.Value);
       await using var reader = await lookup.ExecuteReaderAsync();
       if (await reader.ReadAsync())
@@ -343,6 +363,8 @@ public sealed class DatabaseTrackingService : IQrTrackingService, IAnalyticsServ
         vendorId = reader.UInt64("vendor_id");
         stallId = reader.UInt64("stall_id");
         poiId = request.PoiId;
+        var tourIdOrdinal = reader.GetOrdinal("tour_id");
+        tourId = reader.IsDBNull(tourIdOrdinal) ? (ulong?)null : reader.UInt64("tour_id");
       }
     }
 
@@ -360,16 +382,26 @@ public sealed class DatabaseTrackingService : IQrTrackingService, IAnalyticsServ
       }
     }
 
+    if (poiId.HasValue && !tourId.HasValue)
+    {
+      await using var lookup = connection.CreateCommand();
+      lookup.CommandText = "SELECT tour_id FROM zones WHERE id = @id LIMIT 1";
+      lookup.AddParameter("@id", poiId.Value);
+      var value = await lookup.ExecuteScalarAsync();
+      if (value is not null) tourId = Convert.ToUInt64(value);
+    }
+
     if (!vendorId.HasValue) return new { request.QrCodeId, request.SessionId, Accepted = false };
 
     await using var command = connection.CreateCommand();
     command.CommandText = """
       INSERT INTO qr_scan_events
-        (qr_code_id, vendor_id, stall_id, poi_id, visitor_session_id, ip_address, user_agent, country_code)
-      VALUES (@qrId, @vendorId, @stallId, @poiId, @sessionId, @ip, @userAgent, @country)
+        (qr_code_id, vendor_id, tour_id, stall_id, poi_id, visitor_session_id, ip_address, user_agent, country_code)
+      VALUES (@qrId, @vendorId, @tourId, @stallId, @poiId, @sessionId, @ip, @userAgent, @country)
       """;
     command.AddParameter("@qrId", persistedQrId);
     command.AddParameter("@vendorId", vendorId.Value);
+    command.AddParameter("@tourId", tourId);
     command.AddParameter("@stallId", stallId);
     command.AddParameter("@poiId", poiId);
     command.AddParameter("@sessionId", sessionId);
@@ -441,7 +473,7 @@ public sealed class DatabaseTrackingService : IQrTrackingService, IAnalyticsServ
   {
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
     var stalls = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM stalls");
-    var pois = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM pois");
+    var pois = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM zones WHERE status = 'ACTIVE'");
     var scans = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM qr_scan_events WHERE scanned_at >= UTC_DATE()");
     var visits = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM visit_events WHERE visited_at >= UTC_DATE()");
     var plays = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM play_history WHERE started_at >= UTC_DATE()");

@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Timer, Zap } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
-import { usePremiumStore } from '../../stores/premiumStore';
+import { usePremiumStore } from '../../features/vendor-wallet/stores/premiumStore';
 import { formatCountdown } from '../../utils/formatTime';
 import { useTranslation } from 'react-i18next';
 

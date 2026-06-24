@@ -60,18 +60,18 @@ echo   [OK]  Swagger     : http://localhost:%API_PORT%/swagger
 
 echo.
 echo [3/4] Starting Admin API on port %ADMIN_API_PORT%...
-if not exist "%ROOT%viettour-admin-api\.env" (
-  if exist "%ROOT%viettour-admin-api\.env.example" (
-    echo   Creating viettour-admin-api\.env from .env.example...
-    copy /y "%ROOT%viettour-admin-api\.env.example" "%ROOT%viettour-admin-api\.env" >nul
+if not exist "%ROOT%server\viettour-admin-api\.env" (
+  if exist "%ROOT%server\viettour-admin-api\.env.example" (
+    echo   Creating server\viettour-admin-api\.env from .env.example...
+    copy /y "%ROOT%server\viettour-admin-api\.env.example" "%ROOT%server\viettour-admin-api\.env" >nul
   )
 )
-if not exist "%ROOT%viettour-admin-api\node_modules" (
+if not exist "%ROOT%server\viettour-admin-api\node_modules" (
   echo   Installing viettour-admin-api dependencies...
-  cd /d "%ROOT%viettour-admin-api"
+  cd /d "%ROOT%server\viettour-admin-api"
   call npm install
 )
-start "VietTourAudio - Admin API" cmd /k "pushd "%ROOT%viettour-admin-api" && npm run dev"
+start "VietTourAudio - Admin API" cmd /k "pushd "%ROOT%server\viettour-admin-api" && npm run dev"
 echo   [OK]  Admin API   : http://localhost:%ADMIN_API_PORT%
 
 echo.

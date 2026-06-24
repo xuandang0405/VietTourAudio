@@ -58,7 +58,8 @@
     "detail": "View Details",
     "reason": "Reason",
     "optional": "Optional",
-    "search": "Search..."
+    "search": "Search...",
+    "smartGuide": "Smart Guide"
   },
   "poi": {
     "management_subtitle": "POI MANAGEMENT",
@@ -433,7 +434,13 @@
     "language": "Language",
     "languageHelp": "Select display language",
     "audioLockedFree": "Audio Locked (No free listens left)",
-    "deviceStatus": "Device status"
+    "deviceStatus": "Device status",
+    "listening": "Listening",
+    "queue": "Queue ({{count}})",
+    "close": "Close",
+    "playAgain": "Play Again",
+    "wait": "Please wait",
+    "replayAfter": "Replay after"
   },
   "geofence": {
     "title": "Geofence Map",

@@ -44,7 +44,8 @@
     "detail": "查看详情",
     "reason": "原因",
     "optional": "非必填",
-    "search": "搜索..."
+    "search": "搜索...",
+    "smartGuide": "智能导览"
   },
   "poi": {
     "management_subtitle": "POI MANAGEMENT",
@@ -405,7 +406,13 @@
     "language": "Language",
     "languageHelp": "Select display language",
     "audioLockedFree": "Audio Locked (No free listens left)",
-    "deviceStatus": "Device status"
+    "deviceStatus": "Device status",
+    "listening": "正在播放",
+    "queue": "播放队列 ({{count}})",
+    "close": "关闭",
+    "playAgain": "重新播放",
+    "wait": "请稍候",
+    "replayAfter": "重新播放于"
   },
   "map": {
     "no_gps": "没有GPS"

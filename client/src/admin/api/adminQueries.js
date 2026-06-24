@@ -35,7 +35,13 @@ import {
   createVendorAccount,
   createZoneAdminAccount,
   fetchHourlyActiveUsers,
-  resetStallQr
+  resetStallQr,
+  fetchDashboardAnalytics,
+  fetchTours,
+  createTour,
+  updateTour,
+  deleteTour,
+  resetTourQr
 } from './adminApi';
 
 export const adminQueryKeys = {
@@ -51,7 +57,9 @@ export const adminQueryKeys = {
   pois: ['admin', 'pois'],
   stallsList: ['admin', 'stalls-list'],
   zonesList: ['admin', 'zones-list'],
-  hourlyActiveUsers: ['admin', 'analytics', 'hourly-active-users']
+  hourlyActiveUsers: ['admin', 'analytics', 'hourly-active-users'],
+  dashboardAnalytics: ['admin', 'analytics', 'dashboard'],
+  tours: ['admin', 'tours']
 };
 
 export function useVendors(params) {
@@ -315,5 +323,63 @@ export function useHourlyActiveUsers() {
     queryKey: adminQueryKeys.hourlyActiveUsers,
     queryFn: fetchHourlyActiveUsers,
     refetchInterval: 30000
+  });
+}
+
+export function useDashboardAnalytics() {
+  return useQuery({
+    queryKey: adminQueryKeys.dashboardAnalytics,
+    queryFn: fetchDashboardAnalytics,
+    refetchInterval: 30000
+  });
+}
+
+export function useTours() {
+  return useQuery({
+    queryKey: adminQueryKeys.tours,
+    queryFn: fetchTours
+  });
+}
+
+export function useCreateTour() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createTour,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.tours });
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.dashboardAnalytics });
+    }
+  });
+}
+
+export function useUpdateTour() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }) => updateTour(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.tours });
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.dashboardAnalytics });
+    }
+  });
+}
+
+export function useDeleteTour() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteTour,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.tours });
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.dashboardAnalytics });
+    }
+  });
+}
+
+export function useResetTourQr() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => resetTourQr(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.tours });
+    }
   });
 }

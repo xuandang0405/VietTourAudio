@@ -2,12 +2,12 @@ import { SatelliteDish, Home, Map as MapIcon, Bookmark, Globe, Crown, Headphones
 import { useEffect, useState, memo } from 'react';
 import { Link } from 'react-router-dom';
 import logo from '../../assets/logo/logo.png';
-import { DevGpsPanel } from '../components/DevGpsPanel';
-import { LeafletMap } from '../components/LeafletMap';
-import { PoiBottomSheet } from '../components/PoiBottomSheet';
+import { DevGpsPanel } from '../../features/geofence-audio/components/DevGpsPanel';
+import { LeafletMap } from '../../features/poi/components/LeafletMap';
+import { PoiBottomSheet } from '../../features/poi/components/PoiBottomSheet';
 import { useLanguageStore, languages } from '../../stores/languageStore';
-import { usePremiumStore } from '../../stores/premiumStore';
-import { useAudioStore } from '../../stores/audioStore';
+import { usePremiumStore } from '../../features/vendor-wallet/stores/premiumStore';
+import { useAudioStore } from '../../features/geofence-audio/stores/audioStore';
 import { visitorPois } from '../../data/visitorPois';
 
 // Embedded Audio Player for Col 2
