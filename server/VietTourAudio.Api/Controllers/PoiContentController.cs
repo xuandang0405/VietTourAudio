@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VietTourAudio.Api.DTOs;
 using VietTourAudio.Api.Helpers;
@@ -23,6 +24,7 @@ public class PoiContentController : ControllerBase
     return Ok(ApiResponseFactory.Ok(result, "Nội dung thuyết minh của POI."));
   }
 
+  [Authorize(Roles = "STALL_OWNER,ADMIN")]
   [HttpPost]
   public async Task<IActionResult> Create([FromBody] PoiContentRequestDto request)
   {

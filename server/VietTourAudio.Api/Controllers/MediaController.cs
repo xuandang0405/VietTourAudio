@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VietTourAudio.Api.Helpers;
 using VietTourAudio.Api.Interfaces;
@@ -15,6 +16,7 @@ public class MediaController : ControllerBase
     _mediaStorageService = mediaStorageService;
   }
 
+  [Authorize(Roles = "STALL_OWNER,ADMIN")]
   [HttpPost("upload")]
   [RequestSizeLimit(100_000_000)]
   public async Task<IActionResult> Upload(

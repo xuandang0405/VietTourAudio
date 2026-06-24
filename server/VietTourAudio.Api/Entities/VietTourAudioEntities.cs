@@ -10,29 +10,31 @@ public class User
   [Column("id")]
   public ulong Id { get; set; }
 
-  [Column("full_name")]
-  [MaxLength(150)]
-  public string FullName { get; set; } = string.Empty;
-
   [Column("email")]
   [MaxLength(255)]
   public string Email { get; set; } = string.Empty;
 
-  [Column("password_hash")]
+  [Column("pass_hash")]
   [MaxLength(255)]
-  public string PasswordHash { get; set; } = string.Empty;
+  public string PassHash { get; set; } = string.Empty;
 
-  [Column("phone")]
-  [MaxLength(30)]
-  public string? Phone { get; set; }
+  [Column("full_name")]
+  [MaxLength(160)]
+  public string FullName { get; set; } = string.Empty;
 
   [Column("role")]
-  [MaxLength(30)]
-  public string Role { get; set; } = "TOURIST";
+  [MaxLength(50)]
+  public string Role { get; set; } = "ADMIN";
 
   [Column("status")]
   [MaxLength(30)]
-  public string Status { get; set; } = "PENDING";
+  public string Status { get; set; } = "ACTIVE";
+
+  [Column("last_login_at")]
+  public DateTime? LastLoginAt { get; set; }
+
+  [Column("premium_expires_at")]
+  public DateTime? PremiumExpiresAt { get; set; }
 
   [Column("created_at")]
   public DateTime CreatedAt { get; set; }
@@ -47,8 +49,8 @@ public class Stall
   [Column("id")]
   public ulong Id { get; set; }
 
-  [Column("owner_id")]
-  public ulong OwnerId { get; set; }
+  [Column("vendor_id")]
+  public ulong VendorId { get; set; }
 
   [Column("name")]
   [MaxLength(255)]
@@ -71,22 +73,18 @@ public class Stall
   [Column("longitude")]
   public decimal Longitude { get; set; }
 
-  [Column("location", TypeName = "POINT")]
-  public Point? Location { get; set; }
-
-  [Column("opening_hours")]
-  [MaxLength(255)]
-  public string? OpeningHours { get; set; }
+  [Column("activation_radius")]
+  public int ActivationRadius { get; set; } = 30;
 
   [Column("status")]
   [MaxLength(30)]
   public string Status { get; set; } = "PENDING";
 
-  [Column("is_premium")]
-  public bool IsPremium { get; set; }
+  [Column("opening_hours")]
+  public string? OpeningHours { get; set; }
 
-  [Column("premium_priority")]
-  public int PremiumPriority { get; set; }
+  [Column("is_featured")]
+  public bool IsFeatured { get; set; }
 
   [Column("created_at")]
   public DateTime CreatedAt { get; set; }
@@ -138,6 +136,10 @@ public class Poi
   [MaxLength(255)]
   public string Name { get; set; } = string.Empty;
 
+  [Column("slug")]
+  [MaxLength(255)]
+  public string Slug { get; set; } = string.Empty;
+
   [Column("description")]
   public string? Description { get; set; }
 
@@ -147,18 +149,18 @@ public class Poi
   [Column("longitude")]
   public decimal Longitude { get; set; }
 
-  [Column("location", TypeName = "POINT")]
-  public Point? Location { get; set; }
-
   [Column("activation_radius")]
-  public int ActivationRadius { get; set; }
+  public int ActivationRadius { get; set; } = 25;
 
-  [Column("is_premium")]
-  public bool IsPremium { get; set; }
+  [Column("is_premium_content")]
+  public bool IsPremiumContent { get; set; }
 
   [Column("status")]
   [MaxLength(30)]
   public string Status { get; set; } = "ACTIVE";
+
+  [Column("sort_order")]
+  public int SortOrder { get; set; }
 
   [Column("created_at")]
   public DateTime CreatedAt { get; set; }
@@ -176,24 +178,28 @@ public class PoiContent
   [Column("poi_id")]
   public ulong PoiId { get; set; }
 
-  [Column("language_code")]
+  [Column("lang")]
   [MaxLength(10)]
-  public string LanguageCode { get; set; } = "vi";
+  public string Lang { get; set; } = "vi";
 
   [Column("title")]
   [MaxLength(255)]
   public string Title { get; set; } = string.Empty;
 
-  [Column("tts_script")]
-  public string? TtsScript { get; set; }
-
-  [Column("audio_file_url")]
+  [Column("short_text")]
   [MaxLength(500)]
-  public string? AudioFileUrl { get; set; }
+  public string? ShortText { get; set; }
 
-  [Column("voice_type")]
-  [MaxLength(30)]
-  public string VoiceType { get; set; } = "NORMAL";
+  [Column("tts_script")]
+  public string TtsScript { get; set; } = string.Empty;
+
+  [Column("audio_url")]
+  [MaxLength(500)]
+  public string? AudioUrl { get; set; }
+
+  [Column("voice_profile")]
+  [MaxLength(120)]
+  public string? VoiceProfile { get; set; }
 
   [Column("created_at")]
   public DateTime CreatedAt { get; set; }
@@ -368,11 +374,14 @@ public class Payment
   [Column("id")]
   public ulong Id { get; set; }
 
-  [Column("user_id")]
-  public ulong? UserId { get; set; }
+  [Column("vendor_id")]
+  public ulong? VendorId { get; set; }
 
-  [Column("stall_id")]
-  public ulong? StallId { get; set; }
+  [Column("visitor_session_id")]
+  public ulong? VisitorSessionId { get; set; }
+
+  [Column("vendor_subscription_id")]
+  public ulong? VendorSubscriptionId { get; set; }
 
   [Column("amount")]
   public decimal Amount { get; set; }
@@ -381,9 +390,9 @@ public class Payment
   [MaxLength(3)]
   public string Currency { get; set; } = "VND";
 
-  [Column("payment_method")]
+  [Column("provider")]
   [MaxLength(30)]
-  public string PaymentMethod { get; set; } = "BANK_QR";
+  public string Provider { get; set; } = "BANK_QR";
 
   [Column("payment_type")]
   [MaxLength(50)]
@@ -397,15 +406,17 @@ public class Payment
   [MaxLength(255)]
   public string? TransactionCode { get; set; }
 
-  [Column("note")]
-  [MaxLength(1000)]
-  public string? Note { get; set; }
+  [Column("provider_payload")]
+  public string? ProviderPayload { get; set; }
 
   [Column("paid_at")]
   public DateTime? PaidAt { get; set; }
 
   [Column("created_at")]
   public DateTime CreatedAt { get; set; }
+
+  [Column("updated_at")]
+  public DateTime UpdatedAt { get; set; }
 }
 
 [Table("cash_reports")]

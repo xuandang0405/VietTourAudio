@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VietTourAudio.Api.DTOs;
 using VietTourAudio.Api.Helpers;
@@ -16,6 +17,7 @@ public class QrCodeController : ControllerBase
     _qrTrackingService = qrTrackingService;
   }
 
+  [Authorize(Roles = "STALL_OWNER,ADMIN")]
   [HttpPost]
   public async Task<IActionResult> Create([FromBody] QrCodeRequestDto request)
   {

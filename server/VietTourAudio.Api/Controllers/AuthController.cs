@@ -20,22 +20,62 @@ public class AuthController : ControllerBase
   [HttpPost("register")]
   public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
   {
-    var result = await _authService.RegisterAsync(request);
-    return Ok(ApiResponseFactory.Ok(result, "Đăng ký tài khoản thành công."));
+    try
+    {
+      var result = await _authService.RegisterAsync(request);
+      return Ok(ApiResponseFactory.Ok(result, "Đăng ký tài khoản thành công."));
+    }
+    catch (InvalidOperationException ex)
+    {
+      return BadRequest(ApiResponseFactory.Fail(ex.Message));
+    }
   }
 
   [HttpPost("login")]
   public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
   {
-    var result = await _authService.LoginAsync(request);
-    return Ok(ApiResponseFactory.Ok(result, "Đăng nhập thành công."));
+    try
+    {
+      var result = await _authService.LoginAsync(request);
+      return Ok(ApiResponseFactory.Ok(result, "Đăng nhập thành công."));
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+      return Unauthorized(ApiResponseFactory.Fail(ex.Message));
+    }
   }
 
   [Authorize]
   [HttpGet("me")]
   public async Task<IActionResult> Me()
   {
-    var result = await _authService.GetCurrentUserAsync();
-    return Ok(ApiResponseFactory.Ok(result, "Thông tin người dùng hiện tại."));
+    try
+    {
+      var result = await _authService.GetCurrentUserAsync();
+      return Ok(ApiResponseFactory.Ok(result, "Thông tin người dùng hiện tại."));
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+      return Unauthorized(ApiResponseFactory.Fail(ex.Message));
+    }
+  }
+
+  [Authorize]
+  [HttpGet("premium-status")]
+  public async Task<IActionResult> PremiumStatus()
+  {
+    try
+    {
+      var result = await _authService.GetPremiumStatusAsync();
+      return Ok(ApiResponseFactory.Ok(result, "Trạng thái premium hiện tại."));
+    }
+    catch (KeyNotFoundException ex)
+    {
+      return NotFound(ApiResponseFactory.Fail(ex.Message));
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+      return Unauthorized(ApiResponseFactory.Fail(ex.Message));
+    }
   }
 }

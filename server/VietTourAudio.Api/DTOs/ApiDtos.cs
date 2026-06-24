@@ -3,7 +3,7 @@ namespace VietTourAudio.Api.DTOs;
 public sealed record LoginRequestDto(string Email, string Password);
 
 public sealed record RegisterRequestDto(
-  string FullName,
+  string DisplayName,
   string Email,
   string Password,
   string? Phone,
@@ -16,17 +16,27 @@ public sealed record AuthResponseDto(
   UserResponseDto User
 );
 
+public sealed record LoginResponseDto(
+  string Token,
+  string Role
+);
+
 public sealed record UserResponseDto(
   ulong Id,
   string FullName,
   string Email,
-  string? Phone,
   string Role,
   string Status
 );
 
+public sealed record PremiumStatusDto(
+  ulong UserId,
+  bool IsPremium,
+  DateTime? PremiumExpiresAt,
+  int RemainingMinutes
+);
+
 public sealed record StallRequestDto(
-  ulong OwnerId,
   string Name,
   string Slug,
   string? Description,
@@ -38,7 +48,7 @@ public sealed record StallRequestDto(
 
 public sealed record StallResponseDto(
   ulong Id,
-  ulong OwnerId,
+  ulong VendorId,
   string Name,
   string Slug,
   string? Description,
@@ -46,8 +56,7 @@ public sealed record StallResponseDto(
   decimal Latitude,
   decimal Longitude,
   string Status,
-  bool IsPremium,
-  int PremiumPriority
+  bool IsFeatured
 );
 
 public sealed record PoiRequestDto(
@@ -57,7 +66,17 @@ public sealed record PoiRequestDto(
   decimal Latitude,
   decimal Longitude,
   int ActivationRadius,
-  bool IsPremium
+  bool IsPremiumContent
+);
+
+public sealed record UpdatePoiRequestDto(
+  ulong StallId,
+  string Name,
+  string? Description,
+  decimal Latitude,
+  decimal Longitude,
+  int ActivationRadius,
+  bool IsPremiumContent
 );
 
 public sealed record PoiResponseDto(
@@ -68,26 +87,26 @@ public sealed record PoiResponseDto(
   decimal Latitude,
   decimal Longitude,
   int ActivationRadius,
-  bool IsPremium,
+  bool IsPremiumContent,
   string Status
 );
 
 public sealed record PoiContentRequestDto(
   ulong PoiId,
-  string LanguageCode,
+  string Lang,
   string Title,
   string? TtsScript,
-  string? AudioFileUrl,
-  string VoiceType
+  string? AudioUrl,
+  string? VoiceProfile
 );
 
 public sealed record PoiContentResponseDto(
   ulong Id,
   ulong PoiId,
-  string LanguageCode,
+  string Lang,
   string Title,
-  string? AudioFileUrl,
-  string VoiceType
+  string? AudioUrl,
+  string? VoiceProfile
 );
 
 public sealed record MediaUploadResponseDto(
@@ -138,29 +157,42 @@ public sealed record AudioPlayRequestDto(
   ulong? UserId,
   string SessionId,
   ulong PoiId,
-  string LanguageCode
+  string Lang
 );
 
 public sealed record PaymentRequestDto(
-  ulong? UserId,
-  ulong? StallId,
+  ulong? VendorId,
+  ulong? VisitorSessionId,
   decimal Amount,
   string Currency,
-  string PaymentMethod,
-  string PaymentType,
-  string? Note
+  string Provider,
+  string PaymentType
+);
+
+public sealed record MockPaymentRequestDto(
+  decimal Amount
 );
 
 public sealed record PaymentResponseDto(
   ulong Id,
-  ulong? UserId,
-  ulong? StallId,
+  ulong? VendorId,
+  ulong? VisitorSessionId,
   decimal Amount,
   string Currency,
-  string PaymentMethod,
+  string Provider,
   string PaymentType,
   string Status,
   string? TransactionCode
+);
+
+public sealed record StallSubscriptionResponseDto(
+  ulong Id,
+  ulong StallId,
+  string PlanName,
+  decimal Price,
+  DateOnly StartDate,
+  DateOnly EndDate,
+  string Status
 );
 
 public sealed record AnalyticsSummaryDto(
@@ -170,6 +202,28 @@ public sealed record AnalyticsSummaryDto(
   int VisitsToday,
   int AudioPlaysToday,
   decimal RevenueToday
+);
+
+public sealed record StallOwnerDashboardDto(
+  ulong OwnerId,
+  int TotalStalls,
+  int ApprovedStalls,
+  int PendingStalls,
+  int SuspendedStalls,
+  int TotalPois,
+  int ActivePois,
+  int PendingPois,
+  int RejectedPois,
+  string SubscriptionStatus,
+  DateOnly? SubscriptionEndDate,
+  int QrScansToday,
+  int VisitsToday,
+  int AudioPlaysToday,
+  decimal RevenueToday,
+  int PaidTransactions,
+  int PendingTransactions,
+  IReadOnlyList<StallResponseDto> Stalls,
+  IReadOnlyList<PaymentResponseDto> RecentPayments
 );
 
 public sealed record AdminLogResponseDto(

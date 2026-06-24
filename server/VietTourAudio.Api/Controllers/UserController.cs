@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VietTourAudio.Api.Helpers;
 using VietTourAudio.Api.Interfaces;
@@ -6,6 +7,7 @@ namespace VietTourAudio.Api.Controllers;
 
 [ApiController]
 [Route("api/users")]
+[Authorize(Roles = "ADMIN")]
 public class UserController : ControllerBase
 {
   private readonly IUserService _userService;

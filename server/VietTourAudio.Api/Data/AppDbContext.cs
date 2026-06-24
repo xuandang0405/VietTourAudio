@@ -31,7 +31,7 @@ public class AppDbContext : DbContext
 
     modelBuilder.Entity<User>().HasIndex(x => x.Email).IsUnique();
     modelBuilder.Entity<Stall>().HasIndex(x => x.Slug).IsUnique();
-    modelBuilder.Entity<PoiContent>().HasIndex(x => new { x.PoiId, x.LanguageCode, x.VoiceType }).IsUnique();
+    modelBuilder.Entity<PoiContent>().HasIndex(x => new { x.PoiId, x.Lang }).IsUnique();
     modelBuilder.Entity<AppSetting>().HasIndex(x => x.SettingKey).IsUnique();
   }
 }
