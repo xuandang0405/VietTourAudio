@@ -332,6 +332,8 @@
     "premium_conversions": "{{count}} premium"
   },
   "landing": {
+    "insideRadius": "Bạn đã vào bán kính kích hoạt",
+    "playing": "Đang phát thuyết minh tự động",
     "waiting": "Đang chờ tín hiệu...",
     "stopped": "Đã dừng phát",
     "smartGuide": "Hướng dẫn thông minh",

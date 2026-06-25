@@ -1,10 +1,21 @@
 import L from 'leaflet';
-import { memo, useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { Circle, MapContainer, Marker, TileLayer, Tooltip, useMap, Polyline } from 'react-leaflet';
 import { mapCenter, visitorPois } from '../../../data/visitorPois';
 
-function MapCamera({ selectedPoi, position, hasActiveRoute }) {
+function MapCamera({ selectedPoi, position, hasActiveRoute, zoneCenter }) {
   const map = useMap();
+  const lastZoneCenter = useRef(null);
+
+  useEffect(() => {
+    if (zoneCenter && (!lastZoneCenter.current || lastZoneCenter.current.lat !== zoneCenter.lat || lastZoneCenter.current.lng !== zoneCenter.lng)) {
+      lastZoneCenter.current = zoneCenter;
+      map.flyTo([zoneCenter.lat, zoneCenter.lng], 16, {
+        animate: true,
+        duration: 1.5
+      });
+    }
+  }, [map, zoneCenter]);
 
   useEffect(() => {
     if (hasActiveRoute) return;
@@ -127,7 +138,7 @@ const MapMarkers = memo(function MapMarkers({ pois, selectedPoi, position, onSel
   );
 });
 
-function LeafletMapComponent({ selectedPoi, enrichedPois, position, onSelectPoi, routingCoordinates }) {
+function LeafletMapComponent({ selectedPoi, enrichedPois, position, onSelectPoi, routingCoordinates, zoneCenter }) {
   const pois = Array.isArray(enrichedPois) && enrichedPois.length > 0 ? enrichedPois : visitorPois;
   const hasActiveRoute = Boolean(routingCoordinates && routingCoordinates.length > 0);
 
@@ -145,7 +156,7 @@ function LeafletMapComponent({ selectedPoi, enrichedPois, position, onSelectPoi,
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <MapCamera selectedPoi={selectedPoi} position={position} hasActiveRoute={hasActiveRoute} />
+      <MapCamera selectedPoi={selectedPoi} position={position} hasActiveRoute={hasActiveRoute} zoneCenter={zoneCenter} />
       <MapRouteHandler routingCoordinates={routingCoordinates} position={position} selectedPoi={selectedPoi} />
       <MapMarkers pois={pois} selectedPoi={selectedPoi} position={position} onSelectPoi={onSelectPoi} />
       {hasActiveRoute && (

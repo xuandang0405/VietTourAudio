@@ -332,6 +332,8 @@
     "premium_conversions": "{{count}} premium"
   },
   "landing": {
+    "insideRadius": "You are inside the activation radius",
+    "playing": "Playing audio guide",
     "waiting": "Waiting for signal...",
     "stopped": "Playback stopped",
     "smartGuide": "Smart Guide",

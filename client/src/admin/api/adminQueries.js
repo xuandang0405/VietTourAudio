@@ -57,7 +57,7 @@ export const adminQueryKeys = {
   revenueTimeline: (params = {}) => ['admin', 'revenue', 'timeline', params],
   contentQueue: (params = {}) => ['admin', 'content', params],
   geofences: ['admin', 'geofences'],
-  pois: ['admin', 'pois'],
+  pois: ['admin_pois'],
   stallsList: ['admin', 'stalls-list'],
   zonesList: ['admin', 'zones-list'],
   hourlyActiveUsers: ['admin', 'analytics', 'hourly-active-users'],
@@ -266,7 +266,8 @@ export function useDeletePoi() {
   return useMutation({
     mutationFn: deleteAdminPoi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.pois });
+      queryClient.invalidateQueries({ queryKey: ['admin_pois'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'tours'] });
     }
   });
 }

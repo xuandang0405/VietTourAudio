@@ -232,8 +232,10 @@ export async function updateAdminPoi(id, poiData) {
   return unwrap(await adminApiClient.put(`/admin/pois/${id}`, poiData));
 }
 
-export async function deleteAdminPoi(id) {
-  return unwrap(await adminApiClient.delete(`/admin/pois/${id}`));
+export async function deleteAdminPoi(arg) {
+  const id = typeof arg === 'object' ? arg.id : arg;
+  const reason = typeof arg === 'object' ? arg.reason : undefined;
+  return unwrap(await adminApiClient.delete(`/admin/pois/${id}`, { params: reason ? { reason } : undefined }));
 }
 
 export async function fetchGeofenceAllData() {
@@ -284,8 +286,10 @@ export async function updateTour(id, tourData) {
   return unwrap(await adminApiClient.put(`/admin/zones/${id}`, tourData));
 }
 
-export async function deleteTour(id) {
-  return unwrap(await adminApiClient.delete(`/admin/zones/${id}`));
+export async function deleteTour(arg) {
+  const id = typeof arg === 'object' ? arg.id : arg;
+  const reason = typeof arg === 'object' ? arg.reason : undefined;
+  return unwrap(await adminApiClient.delete(`/admin/zones/${id}`, { params: reason ? { reason } : undefined }));
 }
 
 export async function resetTourQr(id) {

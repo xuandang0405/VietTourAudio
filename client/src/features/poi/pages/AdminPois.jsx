@@ -30,6 +30,7 @@ export function AdminPois() {
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(null);
   const [error, setError] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
   const [distancePoiA, setDistancePoiA] = useState('');
   const [distancePoiB, setDistancePoiB] = useState('');
   const [isTestingScanner, setIsTestingScanner] = useState(false);
@@ -183,9 +184,9 @@ export function AdminPois() {
 
     try {
       if (modal.type === 'delete') {
-        await deleteMutation.mutateAsync(modal.poi.id);
+        await deleteMutation.mutateAsync({ id: modal.poi.id, reason: deleteReason.trim() });
       } else if (modal.type === 'delete-tour') {
-        await deleteTourMutation.mutateAsync(modal.tour.id);
+        await deleteTourMutation.mutateAsync({ id: modal.tour.id, reason: deleteReason.trim() });
         if (String(selectedTourId) === String(modal.tour.id)) setSelectedTourId(null);
       } else if (modal.type === 'add-tour' || modal.type === 'edit-tour') {
         if (!tourFormName.trim()) { setError('Tên khu vực không được để trống'); return; }
@@ -226,6 +227,7 @@ export function AdminPois() {
         if (modal.type === 'add') await createMutation.mutateAsync(payload);
         else await updateMutation.mutateAsync({ id: modal.poi.id, data: payload });
       }
+      setDeleteReason('');
       setModal(null);
     } catch (err) {
       setError(err.response?.data?.error ?? t('poi.error_save'));
@@ -700,9 +702,18 @@ export function AdminPois() {
         }
         confirmLabel={modal?.type === 'delete-tour' ? 'Xoá Khu vực' : t('poi.confirm_hide')}
         tone="danger"
-        onClose={() => setModal(null)}
+        onClose={() => { setModal(null); setDeleteReason(''); }}
         onConfirm={handleConfirm}
-      />
+      >
+        <div className="mt-4">
+          <textarea
+            value={deleteReason}
+            onChange={(e) => setDeleteReason(e.target.value)}
+            placeholder={t('admin.common.delete_reason_placeholder', { defaultValue: "Nhập lý do xóa (Không bắt buộc)..." })}
+            className="w-full h-20 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 resize-none"
+          />
+        </div>
+      </AdminModal>
 
       {/* ── View QR Modal ── */}
       <AdminModal

@@ -1,4 +1,5 @@
-import { query } from '../lib/db';
+import { query, pool } from '../lib/db';
+import { translateDynamicFields } from '../utils/translator';
 import { ZoneModel } from '../types/models.types';
 
 export class PoiRepository {
@@ -103,70 +104,69 @@ export class PoiRepository {
     const tourId = BigInt(data.tourId).toString();
     const stallId = BigInt(data.stallId).toString();
 
-    // First insert into legacy/referenced pois table to maintain integrity
-    const resultPoi = await query<any>(
-      `INSERT INTO pois (stall_id, zone_code, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-      [
-        stallId,
-        null, // zone_code
-        2, // free_listens_allowed
-        data.name,
-        data.slug,
-        data.description || null,
-        data.latitude,
-        data.longitude,
-        data.activationRadius || 25,
-        data.isPremiumContent ? 1 : 0,
-        data.status || 'ACTIVE',
-      ]
-    );
-    const poiId = resultPoi.insertId;
+    // 1. Fetch dynamic translations concurrently in the background first (outside transaction block)
+    let transMap: Record<string, { title: string; description: string }> = {};
+    try {
+      transMap = await translateDynamicFields({
+        title: data.name,
+        description: data.description || '',
+      });
+    } catch (err: any) {
+      console.error('Dynamic background POI translation helper failed:', err.message);
+    }
 
-    // Then insert into zones table using the exact same ID
-    await query<any>(
-      `INSERT INTO zones (id, tour_id, stall_id, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order)
-       VALUES (?, ?, ?, 2, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-      [
-        poiId,
-        tourId,
-        stallId,
-        data.name,
-        data.slug,
-        data.description || null,
-        data.latitude,
-        data.longitude,
-        data.activationRadius || 25,
-        data.isPremiumContent ? 1 : 0,
-        data.status || 'ACTIVE',
-      ]
-    );
+    // 2. Open transaction and insert all variants into database
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
 
-    // Insert into tour_pois junction table for safety/backward compatibility
-    await query(
-      `INSERT INTO tour_pois (tour_id, poi_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE tour_id = tour_id`,
-      [tourId, poiId]
-    );
+      // Insert into legacy pois table
+      const [resultPoi] = await connection.execute<any>(
+        `INSERT INTO pois (stall_id, zone_code, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        [
+          stallId,
+          null, // zone_code
+          2, // free_listens_allowed
+          data.name,
+          data.slug,
+          data.description || null,
+          data.latitude,
+          data.longitude,
+          data.activationRadius || 25,
+          data.isPremiumContent ? 1 : 0,
+          data.status || 'ACTIVE',
+        ]
+      );
+      const poiId = resultPoi.insertId;
 
-    // Insert multilingual content translations into poi_contents
-    if (data.translations && data.translations.length > 0) {
-      for (const t of data.translations) {
-        await query(
-          `INSERT INTO poi_contents (poi_id, lang, title, short_text, tts_script, approval_status)
-           VALUES (?, ?, ?, ?, ?, 'approved')
-           ON DUPLICATE KEY UPDATE title = VALUES(title), tts_script = VALUES(tts_script), approval_status = 'approved'`,
-          [
-            poiId.toString(),
-            t.lang,
-            t.title,
-            t.title, // short_text
-            t.ttsScript,
-          ]
-        );
-      }
-    } else {
-      // Fallback: at least insert the main Vietnamese content
-      await query(
+      // Insert into zones table
+      await connection.execute(
+        `INSERT INTO zones (id, tour_id, stall_id, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order)
+         VALUES (?, ?, ?, 2, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        [
+          poiId,
+          tourId,
+          stallId,
+          data.name,
+          data.slug,
+          data.description || null,
+          data.latitude,
+          data.longitude,
+          data.activationRadius || 25,
+          data.isPremiumContent ? 1 : 0,
+          data.status || 'ACTIVE',
+        ]
+      );
+
+      // Insert into tour_pois
+      await connection.execute(
+        `INSERT INTO tour_pois (tour_id, poi_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE tour_id = tour_id`,
+        [tourId, poiId]
+      );
+
+      // Insert 'vi' content
+      await connection.execute(
         `INSERT INTO poi_contents (poi_id, lang, title, short_text, tts_script, approval_status)
          VALUES (?, 'vi', ?, ?, ?, 'approved')
          ON DUPLICATE KEY UPDATE title = VALUES(title), tts_script = VALUES(tts_script), approval_status = 'approved'`,
@@ -177,9 +177,32 @@ export class PoiRepository {
           data.description || '',
         ]
       );
-    }
 
-    return BigInt(poiId);
+      // Insert other translations
+      for (const lang of ['en', 'ja', 'ko', 'zh']) {
+        const trans = transMap[lang] || { title: '', description: '' };
+        await connection.execute(
+          `INSERT INTO poi_contents (poi_id, lang, title, short_text, tts_script, approval_status)
+           VALUES (?, ?, ?, ?, ?, 'approved')
+           ON DUPLICATE KEY UPDATE title = VALUES(title), tts_script = VALUES(tts_script), approval_status = 'approved'`,
+          [
+            poiId.toString(),
+            lang,
+            trans.title || data.name,
+            trans.title || data.name,
+            trans.description || data.description || '',
+          ]
+        );
+      }
+
+      await connection.commit();
+      return BigInt(poiId);
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
+    }
   }
 
   async updatePoi(
@@ -291,6 +314,40 @@ export class PoiRepository {
        LEFT JOIN tours t ON t.id = z.tour_id
        WHERE z.status = 'ACTIVE'
        ORDER BY z.tour_id ASC, z.sort_order ASC`
+    );
+    return rows;
+  }
+
+  async getGuestPoisByZoneCode(zoneCode: string, lang: string): Promise<any[]> {
+    const rows = await query<any[]>(
+      `SELECT
+         p.id,
+         p.stall_id,
+         COALESCE(pc_lang.title, pc_vi.title, p.name) AS name,
+         p.slug,
+         COALESCE(pc_lang.tts_script, pc_vi.tts_script, p.description) AS description,
+         p.latitude,
+         p.longitude,
+         p.activation_radius,
+         p.is_premium_content,
+         p.status,
+         p.sort_order,
+         p.zone_code,
+         s.name AS stall_name,
+         z.tour_id,
+         t.slug AS tour_slug,
+         (SELECT COUNT(DISTINCT pc.lang) FROM poi_contents pc WHERE pc.poi_id = p.id) AS language_count,
+         (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = p.id AND pc.lang = ? LIMIT 1) AS audio_url,
+         (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = p.id AND pc.lang = 'vi' LIMIT 1) AS audio_url_vi
+       FROM pois p
+       LEFT JOIN stalls s ON s.id = p.stall_id
+       LEFT JOIN zones z ON z.id = p.id
+       LEFT JOIN tours t ON t.id = z.tour_id
+       LEFT JOIN poi_contents pc_lang ON pc_lang.poi_id = p.id AND pc_lang.lang = ?
+       LEFT JOIN poi_contents pc_vi ON pc_vi.poi_id = p.id AND pc_vi.lang = 'vi'
+       WHERE p.zone_code = ? AND p.status = 'ACTIVE'
+       ORDER BY p.sort_order ASC, p.id ASC`,
+      [lang, lang, zoneCode]
     );
     return rows;
   }

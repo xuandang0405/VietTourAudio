@@ -318,6 +318,8 @@
     "premium_conversions": "{{count}} premium"
   },
   "landing": {
+    "insideRadius": "您已进入激活半径范围",
+    "playing": "正在播放导览语音",
     "waiting": "正在等待信号...",
     "stopped": "已停止播放",
     "smartGuide": "智能导览",

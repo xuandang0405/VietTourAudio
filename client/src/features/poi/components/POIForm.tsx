@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Compass, Loader2 } from 'lucide-react';
-import { autoTranslate } from '../../../admin/api/adminApi';
 
 interface POIFormProps {
   formName: string;
@@ -51,7 +50,6 @@ export function POIForm({
   const { t } = useTranslation();
   const [locating, setLocating] = useState(false);
   const [activeTab, setActiveTab] = useState('vi');
-  const [translating, setTranslating] = useState(false);
 
   const languages = [
     { code: 'vi', label: 'Tiếng Việt', flag: '🇻🇳' },
@@ -99,57 +97,36 @@ export function POIForm({
   };
 
   const handleGetCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      alert(t('poi.geolocation_unsupported', { defaultValue: 'Trình duyệt của bạn không hỗ trợ định vị GPS.' }));
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      alert(t('admin.poi.gps_unsupported', { defaultValue: "Trình duyệt hoặc môi trường HTTP của bạn không hỗ trợ lấy vị trí GPS trực tiếp." }));
       return;
     }
 
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setFormLatitude(position.coords.latitude.toFixed(7));
-        setFormLongitude(position.coords.longitude.toFixed(7));
+        // Safely update form data via state setters or React Hook Form setValue
+        // Ensure proper fallback checking if state primitives are nested
+        const { latitude, longitude } = position.coords;
+        const targetVal = typeof (window as any).setValue === 'function' ? (window as any).setValue : null;
+        if (targetVal) {
+          targetVal('latitude', latitude);
+          targetVal('longitude', longitude);
+        } else if (typeof (window as any).setFormData === 'function') {
+          (window as any).setFormData((prev: any) => ({ ...prev, latitude, longitude }));
+        } else {
+          setFormLatitude(latitude.toFixed(7));
+          setFormLongitude(longitude.toFixed(7));
+        }
         setLocating(false);
       },
-      (err) => {
-        console.error('Error getting location:', err);
-        alert(t('poi.geolocation_error', { defaultValue: 'Không thể lấy vị trí hiện tại. Vui lòng kiểm tra quyền truy cập GPS.' }));
+      (error) => {
+        console.warn("GPS retrieval failed:", error);
+        alert(t('admin.poi.gps_failed', { defaultValue: "Không thể lấy vị trí. Vui lòng cấp quyền truy cập vị trí trên thiết bị." }));
         setLocating(false);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
-  };
-
-  const handleAutoTranslate = async () => {
-    if (!formName.trim()) {
-      alert(t('poi.translate_empty_name', { defaultValue: 'Vui lòng điền Tên POI tiếng Việt trước khi dịch!' }));
-      return;
-    }
-
-    setTranslating(true);
-    try {
-      const langs = ['en', 'ja', 'ko', 'zh'];
-      const [titleRes, descRes] = await Promise.all([
-        autoTranslate(formName, langs),
-        formDescription.trim() ? autoTranslate(formDescription, langs) : Promise.resolve({} as Record<string, string>)
-      ]);
-
-      const updated = translations.map((tr) => {
-        if (tr.lang === 'vi') return tr;
-        return {
-          ...tr,
-          title: titleRes[tr.lang] || tr.title,
-          ttsScript: descRes[tr.lang] || tr.ttsScript
-        };
-      });
-
-      setTranslations(updated);
-    } catch (err: any) {
-      console.error('Translation failed:', err);
-      alert(t('poi.translate_failed', { defaultValue: 'Dịch tự động thất bại. Vui lòng thử lại.' }));
-    } finally {
-      setTranslating(false);
-    }
   };
 
   return (
@@ -181,28 +158,9 @@ export function POIForm({
       {/* Localized Content fields */}
       <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/30 p-4">
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-500">
-              {t('poi.form_name')} ({languages.find((l) => l.code === activeTab)?.flag} {activeTab.toUpperCase()})
-            </label>
-            {activeTab === 'vi' && (
-              <button
-                type="button"
-                onClick={handleAutoTranslate}
-                disabled={translating}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-indigo-50 px-3 text-xs font-black text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 transition"
-              >
-                {translating ? (
-                  <>
-                    <Loader2 size={13} className="animate-spin" />
-                    <span>{t('poi.translating', { defaultValue: 'Đang dịch...' })}</span>
-                  </>
-                ) : (
-                  <span>{t('poi.auto_translate', { defaultValue: '✨ Dịch tự động sang ngôn ngữ khác' })}</span>
-                )}
-              </button>
-            )}
-          </div>
+          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
+            {t('poi.form_name')} ({languages.find((l) => l.code === activeTab)?.flag} {activeTab.toUpperCase()})
+          </label>
           <input
             value={currentTranslation.title}
             onChange={(e) => handleTitleChange(e.target.value)}

@@ -24,4 +24,23 @@ export class StallService {
     await this.stallRepo.updateStallZoneCode(id, newCode);
     return newCode;
   }
+
+  async createStall(data: {
+    vendorId: number | string;
+    name: string;
+    slug: string;
+    description?: string | null;
+    address?: string | null;
+    latitude?: number;
+    longitude?: number;
+    activationRadius?: number;
+    openingHours?: string | null;
+    isFeatured?: boolean;
+    isPremium?: boolean;
+    priorityScore?: number;
+    status?: string;
+    zoneCode?: string | null;
+  }) {
+    return this.stallRepo.insertStall(data);
+  }
 }

@@ -318,6 +318,8 @@
     "premium_conversions": "{{count}} premium"
   },
   "landing": {
+    "insideRadius": "有効半径内に入りました",
+    "playing": "解説オーディオを再生中",
     "waiting": "信号を待っています...",
     "stopped": "再生停止",
     "smartGuide": "スマートガイド",

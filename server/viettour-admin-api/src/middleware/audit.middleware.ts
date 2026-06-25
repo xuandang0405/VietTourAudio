@@ -13,6 +13,23 @@ export const auditMiddleware = (req: Request, res: Response, next: NextFunction)
     if (res.statusCode >= 200 && res.statusCode < 300 && req.auditMeta && req.user) {
       const meta = req.auditMeta;
 
+      let beforeData = meta.beforeData;
+      let afterData = meta.afterData;
+
+      if (meta.reason) {
+        if (beforeData && typeof beforeData === 'object' && !Array.isArray(beforeData)) {
+          beforeData = { ...(beforeData as any), reason: meta.reason };
+        } else if (beforeData === null || beforeData === undefined) {
+          beforeData = { reason: meta.reason };
+        }
+
+        if (afterData && typeof afterData === 'object' && !Array.isArray(afterData)) {
+          afterData = { ...(afterData as any), reason: meta.reason };
+        } else if (afterData === null || afterData === undefined) {
+          afterData = { reason: meta.reason };
+        }
+      }
+
       query(
         `INSERT INTO audit_logs
           (actor_user_id, action, target_type, target_id, before_data, after_data, ip_address, user_agent)
@@ -22,8 +39,8 @@ export const auditMiddleware = (req: Request, res: Response, next: NextFunction)
           meta.action,
           meta.targetType,
           meta.targetId?.toString() ?? null,
-          safeJson(meta.beforeData),
-          safeJson(meta.afterData),
+          safeJson(beforeData),
+          safeJson(afterData),
           req.ip,
           req.get('user-agent') ?? null
         ]

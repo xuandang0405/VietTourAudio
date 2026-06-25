@@ -101,7 +101,8 @@ export function PCLayout({
   setRoutingCoordinates,
   routingInfo,
   setRoutingInfo,
-  handleGetDirections
+  handleGetDirections,
+  zoneCenter
 }) {
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
   const setLanguage = useLanguageStore((state) => state.setLanguage);
@@ -226,6 +227,7 @@ export function PCLayout({
           position={position}
           onSelectPoi={handleSelectPoi}
           routingCoordinates={routingCoordinates}
+          zoneCenter={zoneCenter}
         />
         
         {(isFakeMode || searchParams.get('debug') === 'gps') && <DevGpsPanel pois={enrichedPois} onToast={onToast} />}

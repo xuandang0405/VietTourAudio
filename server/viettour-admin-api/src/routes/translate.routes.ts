@@ -2,24 +2,12 @@ import { Router, Request, Response } from 'express';
 import { UserRole } from '../types/domain';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { asyncHandler } from '../utils/asyncHandler';
+import { translateText } from '../utils/translator';
 
 export const router = Router();
 const allowedRoles = [UserRole.SUPER_ADMIN, UserRole.ADMIN];
 
 router.use(authenticate, authorize(...allowedRoles));
-
-async function translateText(text: string, targetLang: string): Promise<string> {
-  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=vi&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Google Translate returned HTTP ${response.status}`);
-  }
-  const data = await response.json();
-  if (Array.isArray(data) && Array.isArray(data[0])) {
-    return data[0].map((x: any) => x[0]).join('');
-  }
-  throw new Error('Failed to parse translation response');
-}
 
 router.post(
   '/',

@@ -7,7 +7,7 @@ import { useLanguageStore } from '../stores/languageStore';
 import { useTranslation } from 'react-i18next';
 
 export function AudioPlayerSheet() {
-  const { t } = useTranslation('translation', { keyPrefix: 'landing' });
+  const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   
   const isPlaying = useAudioStore((state) => state.isPlaying);
@@ -52,9 +52,9 @@ export function AudioPlayerSheet() {
             <Headphones size={20} className={isPlaying ? 'animate-pulse' : ''} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-slate-900">{activePoi?.title || t('waiting')}</p>
+            <p className="truncate text-sm font-bold text-slate-900">{activePoi?.title || t('landing.waiting')}</p>
             <p className="text-xs font-medium text-slate-500">
-              {isPlaying ? t('playing') : t('stopped')} {queue.length > 0 ? `• ${t('queue', { count: queue.length })}` : ''}
+              {isPlaying ? t('landing.playing') : t('landing.stopped')} {queue.length > 0 ? `• ${t('landing.queue', { count: queue.length })}` : ''}
             </p>
           </div>
         </div>
@@ -77,9 +77,9 @@ export function AudioPlayerSheet() {
       <div className="flex items-start justify-between mb-6 pt-2">
         <div>
           <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-teal-600">
-            {queue.length > 0 ? t('queue', { count: queue.length }) : t('listening')}
+            {queue.length > 0 ? t('landing.queue', { count: queue.length }) : t('landing.listening')}
           </span>
-          <h2 className="mt-1 text-xl font-black text-slate-900 line-clamp-1">{activePoi?.title || t('noInfo')}</h2>
+          <h2 className="mt-1 text-xl font-black text-slate-900 line-clamp-1">{activePoi?.title || t('landing.noInfo')}</h2>
         </div>
         <div className="flex gap-2">
           <button onClick={handleStop} className="rounded-full bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200 active:scale-95 border border-slate-200">
@@ -102,7 +102,7 @@ export function AudioPlayerSheet() {
       <div className="mt-6 flex flex-col gap-3">
         {cooldownTime > 0 && !isPlaying ? (
           <p className="text-center text-sm font-medium text-slate-500">
-            {t('replayAfter')} <span className="text-teal-600 font-mono font-bold">{Math.ceil(cooldownTime / 1000)}s</span>
+            {t('landing.replayAfter')} <span className="text-teal-600 font-mono font-bold">{Math.ceil(cooldownTime / 1000)}s</span>
           </p>
         ) : (
           <button
@@ -111,7 +111,7 @@ export function AudioPlayerSheet() {
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-teal-600 px-4 py-4 text-sm font-bold text-white shadow-sm transition hover:bg-teal-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <RefreshCw size={18} className={isPlaying ? 'animate-spin' : ''} />
-            {isPlaying ? t('playing') : t('replay')}
+            {isPlaying ? t('landing.playing') : t('landing.replay')}
           </button>
         )}
       </div>

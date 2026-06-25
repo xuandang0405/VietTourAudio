@@ -17,7 +17,7 @@ import { visitorPois, localizePoi } from '../../../data/visitorPois';
  * and visits tracking.
  */
 export function useGeofenceAudio({ onToast }) {
-  const { t } = useTranslation('translation', { keyPrefix: 'landing' });
+  const { t, i18n } = useTranslation('translation', { keyPrefix: 'landing' });
   const { t: tRoot } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedPoiId, setSelectedPoiId] = useState(searchParams.get('poi'));
@@ -88,7 +88,7 @@ export function useGeofenceAudio({ onToast }) {
         sessionStorage.setItem('last_scanned_zone', zoneParam);
 
         // Record scan event in backend (resolves and saves to qr_scan_events)
-        stallService.resolveCode(zoneParam).catch(() => {
+        stallService.resolveCode(zoneParam, i18n.language).catch(() => {
           // Ignore background resolution/analytics errors
         });
       }
@@ -106,7 +106,13 @@ export function useGeofenceAudio({ onToast }) {
   // Load POIs from backend, merge with local data fallback
   useEffect(() => {
     let active = true;
-    poiService.getAll().then((response) => {
+    const zoneCode = searchParams.get('zone');
+
+    const fetchPromise = zoneCode
+      ? poiService.getGuestPois(zoneCode, i18n.language)
+      : poiService.getAll();
+
+    fetchPromise.then((response) => {
       if (!active) return;
       const apiPois = response.data?.data ?? [];
       if (apiPois.length === 0) return;
@@ -120,7 +126,7 @@ export function useGeofenceAudio({ onToast }) {
       setPois((currentPois) => apiPois.map((apiPoi) => {
         const apiId = Number(apiPoi.id);
         const localPoi = currentPois.find((candidate) => candidate.apiId === apiId);
-        const fallback = localPoi ?? currentPois[0];
+        const fallback = localPoi ?? currentPois[0] ?? visitorPois[0];
         const description = apiPoi.description ?? fallback.description;
         return {
           ...fallback,
@@ -141,6 +147,7 @@ export function useGeofenceAudio({ onToast }) {
           qrCodeId: apiPoi.qrCodeId ?? localPoi?.qrCodeId ?? apiId,
           tourSlug: apiPoi.tourSlug ?? null,
           tourId: apiPoi.tourId ? String(apiPoi.tourId) : null,
+          zone_code: apiPoi.zone_code ?? null
         };
       }));
     }).catch(() => {
@@ -149,7 +156,27 @@ export function useGeofenceAudio({ onToast }) {
     return () => {
       active = false;
     };
-  }, [isFakeMode, simulateNearPoi]);
+  }, [isFakeMode, simulateNearPoi, searchParams, i18n.language]);
+
+  const zoneCenter = useMemo(() => {
+    const zoneCode = searchParams.get('zone');
+    if (!zoneCode || pois.length === 0) return null;
+
+    let latSum = 0;
+    let lngSum = 0;
+    let count = 0;
+    pois.forEach((p) => {
+      if (Number.isFinite(p.latitude) && Number.isFinite(p.longitude)) {
+        latSum += p.latitude;
+        lngSum += p.longitude;
+        count++;
+      }
+    });
+    if (count > 0) {
+      return { lat: latSum / count, lng: lngSum / count };
+    }
+    return null;
+  }, [pois, searchParams]);
 
   // Load POI language files/narration TTS scripts
   useEffect(() => {
@@ -283,6 +310,7 @@ export function useGeofenceAudio({ onToast }) {
     setRoutingCoordinates,
     routingInfo,
     setRoutingInfo,
-    handleGetDirections
+    handleGetDirections,
+    zoneCenter
   };
 }

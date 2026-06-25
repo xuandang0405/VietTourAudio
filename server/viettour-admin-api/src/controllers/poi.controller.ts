@@ -81,6 +81,68 @@ export class PoiController {
     res.json(ok({ distanceMeters: distance }));
   };
 
+  getGuestPois = async (req: Request, res: Response): Promise<void> => {
+    const rawZoneCode = req.query.zone_code;
+    const zoneCode = (typeof rawZoneCode === 'string' ? rawZoneCode : '').trim();
+    const rawLang = req.query.lang;
+    const lang = (typeof rawLang === 'string' ? rawLang : 'vi').trim();
+
+    const normalizedLang = ['vi', 'en', 'ja', 'ko', 'zh'].includes(lang) ? lang : 'vi';
+
+    const translations: Record<string, Record<string, string>> = {
+      vi: {
+        'error.zone_code_required': 'Mã khu vực (zone_code) là bắt buộc.',
+        'error.invalid_zone_code': 'Mã khu vực không hợp lệ.',
+        'error.no_pois_found': 'Không tìm thấy điểm tham quan nào cho mã khu vực này.',
+        'error.database_error': 'Lỗi kết nối cơ sở dữ liệu.'
+      },
+      en: {
+        'error.zone_code_required': 'Zone code (zone_code) is required.',
+        'error.invalid_zone_code': 'Invalid zone code.',
+        'error.no_pois_found': 'No POIs found for this zone code.',
+        'error.database_error': 'Database connection error.'
+      },
+      ja: {
+        'error.zone_code_required': 'ゾーンコード（zone_code）が必要です。',
+        'error.invalid_zone_code': '無効なゾーンコードです。',
+        'error.no_pois_found': 'このゾーンコードの観光スポットが見つかりません。',
+        'error.database_error': 'データベース接続エラー。'
+      },
+      ko: {
+        'error.zone_code_required': '구역 코드(zone_code)가 필요합니다.',
+        'error.invalid_zone_code': '유효하지 않은 구역 코드입니다.',
+        'error.no_pois_found': '이 구역 코드에 대한 관광명소를 찾을 수 없습니다.',
+        'error.database_error': '데이터베이스 연결 오류입니다.'
+      },
+      zh: {
+        'error.zone_code_required': '区域代码 (zone_code) 是必需的。',
+        'error.invalid_zone_code': '无效的区域代码。',
+        'error.no_pois_found': '未找到该区域代码 of 景点。',
+        'error.database_error': '数据库连接错误。'
+      }
+    };
+
+    const t = (key: string): string => {
+      return translations[normalizedLang]?.[key] ?? translations['vi']?.[key] ?? key;
+    };
+
+    if (!zoneCode) {
+      res.status(400).json({ success: false, error: t('error.zone_code_required') });
+      return;
+    }
+
+    try {
+      const pois = await this.poiService.getGuestPois(zoneCode, normalizedLang);
+      if (pois.length === 0) {
+        console.log(t('error.no_pois_found'));
+      }
+      res.json(ok(pois));
+    } catch (err: any) {
+      console.error(t('error.database_error'), err);
+      res.status(500).json({ success: false, error: t('error.database_error') });
+    }
+  };
+
   createPoi = async (req: Request, res: Response): Promise<void> => {
     const parsed = createPoiSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -154,6 +216,8 @@ export class PoiController {
 
   deletePoi = async (req: Request, res: Response): Promise<void> => {
     const id = toBigIntId(req.params.id, 'poi id');
+    const incomingReason = typeof req.body?.reason === 'string' ? req.body.reason : (typeof req.query?.reason === 'string' ? req.query.reason : '');
+    const reason = incomingReason.trim() ? incomingReason.trim() : "Không có lý do được cung cấp";
 
     try {
       const { before, after } = await this.poiService.deletePoi(id, req);
@@ -162,6 +226,7 @@ export class PoiController {
         action: 'DELETE_POI',
         targetType: 'pois',
         targetId: id,
+        reason,
         beforeData: before,
         afterData: after,
       };
@@ -283,6 +348,9 @@ export class TourController {
       return;
     }
 
+    const incomingReason = typeof req.body?.reason === 'string' ? req.body.reason : (typeof req.query?.reason === 'string' ? req.query.reason : '');
+    const reason = incomingReason.trim() ? incomingReason.trim() : "Không có lý do được cung cấp";
+
     try {
       await this.tourService.deleteTour(BigInt(zoneId));
 
@@ -290,6 +358,7 @@ export class TourController {
         action: 'DELETE_TOUR',
         targetType: 'tours',
         targetId: BigInt(zoneId),
+        reason,
         beforeData: null,
         afterData: null,
       };

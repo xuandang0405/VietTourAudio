@@ -37,6 +37,31 @@ export class PoiService {
     }));
   }
 
+  async getGuestPois(zoneCode: string, lang: string) {
+    const rows = await this.poiRepo.getGuestPoisByZoneCode(zoneCode, lang);
+    return rows.map((row) => ({
+      id: String(row.id),
+      stallId: String(row.stall_id),
+      stallName: row.stall_name || 'N/A',
+      name: row.name,
+      slug: row.slug,
+      description: row.description,
+      latitude: Number(row.latitude),
+      longitude: Number(row.longitude),
+      activationRadius: Number(row.activation_radius),
+      isPremium: Boolean(row.is_premium_content),
+      status: row.status,
+      sortOrder: Number(row.sort_order),
+      languageCount: Number(row.language_count ?? 0),
+      audioUrl: row.audio_url || row.audio_url_vi || null,
+      audioUrlVi: row.audio_url_vi || null,
+      tourId: row.tour_id ? String(row.tour_id) : null,
+      tourSlug: row.tour_slug || null,
+      zone_code: row.zone_code || null,
+    }));
+  }
+
+
   async getAllStalls(req: any) {
     const zoneScope = buildStallZoneScope(req);
     return this.poiRepo.getAllStalls(zoneScope.clause, zoneScope.params);

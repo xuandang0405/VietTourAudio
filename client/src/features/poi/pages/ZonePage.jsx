@@ -9,7 +9,7 @@ import { usePremiumStore } from '../../vendor-wallet/stores/premiumStore';
 import { useTranslation } from 'react-i18next';
 
 export function ZonePage({ onUpgrade, onToast }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { code } = useParams();
   const navigate = useNavigate();
   const isPremium = usePremiumStore((state) => state.isPremium);
@@ -29,7 +29,7 @@ export function ZonePage({ onUpgrade, onToast }) {
     setError(null);
 
     axios
-      .get(`${appConfig.guestApiBaseUrl}/resolve-code/${encodeURIComponent(code)}`)
+      .get(`${appConfig.guestApiBaseUrl}/resolve-code/${encodeURIComponent(code)}?lang=${i18n.language}`)
       .then((res) => {
         if (cancelled) return;
         const data = res.data?.data ?? res.data;
@@ -76,7 +76,7 @@ export function ZonePage({ onUpgrade, onToast }) {
     return () => {
       cancelled = true;
     };
-  }, [code, t]);
+  }, [code, i18n.language, t]);
 
   // Deep link: tự navigate vào map của zone này
   function handleEnterZone() {

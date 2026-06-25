@@ -11,6 +11,11 @@ const adminManagers = [UserRole.SUPER_ADMIN, UserRole.ADMIN];
 
 router.use(authenticate, authorize(...adminManagers));
 
+router.post(
+  '/',
+  asyncHandler(controller.createStall)
+);
+
 router.put(
   '/:id/qr/reset',
   asyncHandler(controller.resetStallQr)

@@ -318,6 +318,8 @@
     "premium_conversions": "{{count}} premium"
   },
   "landing": {
+    "insideRadius": "활성화 반경 내에 진입했습니다",
+    "playing": "오디오 가이드 재생 중",
     "waiting": "신호를 기다리는 중...",
     "stopped": "재생 중지됨",
     "smartGuide": "스마트 가이드",
