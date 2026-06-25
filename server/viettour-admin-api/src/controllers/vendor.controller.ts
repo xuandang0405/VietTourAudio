@@ -12,6 +12,14 @@ const createVendorSchema = z.object({
   assignedTourId: z.union([z.number(), z.string()]).nullable().optional(),
 });
 
+const updateVendorSchema = z.object({
+  legalName: z.string().min(1).optional(),
+  tradeName: z.string().min(1).optional(),
+  contactEmail: z.string().email().optional(),
+  vendorCode: z.string().min(1).optional(),
+  assignedTourId: z.union([z.number(), z.string()]).nullable().optional(),
+});
+
 export class VendorController {
   private vendorService = new VendorService();
 
@@ -154,6 +162,65 @@ export class VendorController {
       res.json(ok(mappedAfter));
     } catch (err: any) {
       res.status(404).json({ success: false, error: err.message });
+    }
+  };
+
+  updateVendorStatus = async (req: Request, res: Response): Promise<void> => {
+    const id = toBigIntId(req.params.id, 'vendor id');
+    const status = typeof req.body.status === 'string' ? req.body.status : '';
+    const reason = typeof req.body.reason === 'string' ? req.body.reason : '';
+
+    if (!['PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED'].includes(status)) {
+      res.status(400).json({ success: false, error: 'Invalid status value' });
+      return;
+    }
+
+    try {
+      const { before, after, mappedAfter } = await this.vendorService.updateVendorStatus(id, status, reason, req.user ? BigInt(req.user.userId) : undefined);
+
+      req.auditMeta = {
+        action: 'UPDATE_VENDOR_STATUS',
+        targetType: 'vendors',
+        targetId: id,
+        reason: reason || undefined,
+        beforeData: before,
+        afterData: after,
+      };
+
+      res.json(ok(mappedAfter));
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  };
+
+  updateVendor = async (req: Request, res: Response): Promise<void> => {
+    const id = toBigIntId(req.params.id, 'vendor id');
+    const parsed = updateVendorSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: 'Invalid request body', details: parsed.error.format() });
+      return;
+    }
+
+    try {
+      const { before, after, mappedAfter } = await this.vendorService.updateVendor(id, {
+        legalName: parsed.data.legalName,
+        tradeName: parsed.data.tradeName,
+        contactEmail: parsed.data.contactEmail,
+        vendorCode: parsed.data.vendorCode,
+        assignedTourId: parsed.data.assignedTourId ? String(parsed.data.assignedTourId) : (parsed.data.assignedTourId === null ? null : undefined),
+      });
+
+      req.auditMeta = {
+        action: 'UPDATE_VENDOR_ACCOUNT',
+        targetType: 'vendors',
+        targetId: id,
+        beforeData: before,
+        afterData: after,
+      };
+
+      res.json(ok(mappedAfter));
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
     }
   };
 }

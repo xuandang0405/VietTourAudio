@@ -28,7 +28,29 @@ export async function createQrLink({ targetType, targetId, label, maxUses, expir
 
 export async function scanQr({ token, sessionId, ipHash }) {
   const tokenHash = sha256(token);
-  const item = await prisma.qrDeepLink.findUnique({ where: { tokenHash } });
+  let item = await prisma.qrDeepLink.findUnique({ where: { tokenHash } });
+  
+  if (!item) {
+    // Try to parse manual format: TYPE:ID, e.g. TOUR:1, ZONE:5, SHOP:2
+    const parts = token.split(':');
+    if (parts.length === 2) {
+      const type = parts[0].toLowerCase();
+      const id = parseInt(parts[1], 10);
+      if ((type === 'tour' || type === 'zone' || type === 'shop') && !isNaN(id)) {
+        item = {
+          id: -1,
+          tokenHash,
+          targetType: type,
+          targetId: id,
+          isActive: true,
+          expiresAt: null,
+          maxUses: null,
+          currentUses: 0
+        };
+      }
+    }
+  }
+
   if (!item || !item.isActive) return { valid: false, reason: 'QR not found or disabled' };
 
   if (item.expiresAt && item.expiresAt.getTime() < Date.now()) return { valid: false, reason: 'QR expired' };
@@ -49,10 +71,12 @@ export async function scanQr({ token, sessionId, ipHash }) {
 
   cooldown.set(key, Date.now());
 
-  await prisma.qrDeepLink.update({
-    where: { id: item.id },
-    data: { currentUses: { increment: 1 } }
-  });
+  if (item.id !== -1) {
+    await prisma.qrDeepLink.update({
+      where: { id: item.id },
+      data: { currentUses: { increment: 1 } }
+    }).catch((err) => console.warn('Failed to update QR uses:', err));
+  }
 
   let data = {};
   if (item.targetType === 'tour') {

@@ -45,7 +45,8 @@
     "reason": "理由",
     "optional": "任意",
     "search": "検索...",
-    "smartGuide": "スマートガイド"
+    "smartGuide": "スマートガイド",
+    "minute": "分"
   },
   "poi": {
     "management_subtitle": "POI MANAGEMENT",
@@ -103,7 +104,12 @@
     "distance_empty": "距離を計算するには2つのPOIを選択してください。",
     "distance_loading": "距離を計算中...",
     "distance_same_poi": "異なる2つのPOIを選択してください。",
-    "distance_result": "距離: {{distance}} メートル"
+    "distance_result": "距離: {{distance}} メートル",
+    "auto_translate": "✨ 他言語へ自動翻訳",
+    "translating": "翻訳中...",
+    "translate_empty_name": "翻訳する前に、ベトナム語のPOI名を入力してください！",
+    "translate_failed": "自動翻訳に失敗しました。もう一度お試しください。",
+    "translate_success": "英語、日本語、韓国語、中国語への自動翻訳が完了しました！"
   },
   "users": {
     "create_zone_admin": "エリア管理者を作成",
@@ -115,6 +121,7 @@
     "group_system": "システム",
     "dashboard": "ダッシュボード",
     "vendors": "加盟店",
+    "zones": "エリア",
     "moderation": "モデレーション",
     "pois": "観光スポット",
     "vendor_wallet": "加盟店ウォレット",
@@ -311,6 +318,8 @@
     "premium_conversions": "{{count}} premium"
   },
   "landing": {
+    "waiting": "信号を待っています...",
+    "stopped": "再生停止",
     "smartGuide": "スマートガイド",
     "explore": "探索",
     "list": "一覧",
@@ -412,7 +421,10 @@
     "close": "閉じる",
     "playAgain": "もう一度再生",
     "wait": "お待ちください",
-    "replayAfter": "再再生まであと"
+    "replayAfter": "再再生まであと",
+    "locationUpdated": "位置情報が更新されました",
+    "playingAgain": "解説を再再生しています",
+    "textOnly": "テキストのみモード"
   },
   "map": {
     "no_gps": "GPSがありません"
@@ -604,5 +616,74 @@
     "reason": "操作理由",
     "ip_address": "IPアドレス",
     "eyebrow": "ログ"
+  },
+  "tour": {
+    "no_pois_assigned": "このツアーに割り当てられたPOIはありません。"
+  },
+  "routing": {
+    "get_directions": "ルート検索",
+    "distance": "距離",
+    "time": "時間",
+    "calculating": "ルート計算中...",
+    "error": "ルートを検索できませんでした。",
+    "enable_gps": "ルートを検索するにはGPSを有効にしてください。",
+    "clear": "ルート消去"
+  },
+  "admin": {
+    "scanner": {
+      "title": "管理者用QRスキャナーテスター",
+      "description": "管理者向けのカメラテストおよびQRコードデコード用インターフェース。",
+      "unsecure_warning": "非セキュアなHTTP環境のため、ブラウザがカメラへのアクセスをブロックしました。HTTPSを設定するか、画像ファイルを使用してテストしてください。",
+      "upload_fallback": "テスト用のQR画像を選択"
+    },
+    "vendors": {
+      "title": "出店アカウント管理",
+      "subtitle": "エリア権限、アカウントライフサイクル、アクティビティステータスを管理します。",
+      "create_btn": "出店アカウント発行",
+      "hierarchical_title": "エリア別出店者アカウント",
+      "back_to_zones": "エリア一覧に戻る",
+      "total_vendors_count": "{{count}} 出店者",
+      "edit_title": "出店者編集",
+      "form": {
+        "legal_name": "法的氏名",
+        "trade_name": "店舗名",
+        "email": "連絡先メール",
+        "code": "出店コード",
+        "zone": "エリア"
+      },
+      "table": {
+        "code": "出店コード",
+        "name": "店舗名",
+        "email": "連絡先メール",
+        "zone": "割り当てエリア",
+        "status": "ステータス",
+        "actions": "操作"
+      },
+      "status": {
+        "PENDING": "保留中",
+        "APPROVED": "有効",
+        "SUSPENDED": "一時停止中",
+        "REJECTED": "却下"
+      },
+      "confirm_suspend": "このアカウントを直ちに停止してもよろしいですか？この出店者のすべてのアクティブなログインセッションが終了します。"
+    },
+    "analytics": {
+      "realtime_title": "リアルタイムトラフィック（過去5分間）",
+      "active_visitors": "アクティブな訪問者",
+      "total_scans": "合計QRスキャン数",
+      "no_active_visitors": "アクティブな訪問者なし",
+      "last_update": "最終更新：{{time}}"
+    }
+  },
+  "status": {
+    "draft": "下書き",
+    "active": "有効",
+    "inactive": "無効",
+    "archived": "アーカイブ済み",
+    "published": "公開済み",
+    "pending": "保留中",
+    "approved": "承認済み",
+    "rejected": "却下済み",
+    "suspended": "一時停止"
   }
 }

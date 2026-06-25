@@ -98,13 +98,19 @@ export class PoiRepository {
     activationRadius?: number;
     isPremiumContent: boolean;
     status?: string;
+    translations?: { lang: string; title: string; ttsScript: string }[];
   }): Promise<bigint> {
-    const result = await query<any>(
-      `INSERT INTO zones (tour_id, stall_id, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+    const tourId = BigInt(data.tourId).toString();
+    const stallId = BigInt(data.stallId).toString();
+
+    // First insert into legacy/referenced pois table to maintain integrity
+    const resultPoi = await query<any>(
+      `INSERT INTO pois (stall_id, zone_code, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
       [
-        data.tourId,
-        data.stallId,
+        stallId,
+        null, // zone_code
+        2, // free_listens_allowed
         data.name,
         data.slug,
         data.description || null,
@@ -115,7 +121,65 @@ export class PoiRepository {
         data.status || 'ACTIVE',
       ]
     );
-    return BigInt(result.insertId);
+    const poiId = resultPoi.insertId;
+
+    // Then insert into zones table using the exact same ID
+    await query<any>(
+      `INSERT INTO zones (id, tour_id, stall_id, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order)
+       VALUES (?, ?, ?, 2, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      [
+        poiId,
+        tourId,
+        stallId,
+        data.name,
+        data.slug,
+        data.description || null,
+        data.latitude,
+        data.longitude,
+        data.activationRadius || 25,
+        data.isPremiumContent ? 1 : 0,
+        data.status || 'ACTIVE',
+      ]
+    );
+
+    // Insert into tour_pois junction table for safety/backward compatibility
+    await query(
+      `INSERT INTO tour_pois (tour_id, poi_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE tour_id = tour_id`,
+      [tourId, poiId]
+    );
+
+    // Insert multilingual content translations into poi_contents
+    if (data.translations && data.translations.length > 0) {
+      for (const t of data.translations) {
+        await query(
+          `INSERT INTO poi_contents (poi_id, lang, title, short_text, tts_script, approval_status)
+           VALUES (?, ?, ?, ?, ?, 'approved')
+           ON DUPLICATE KEY UPDATE title = VALUES(title), tts_script = VALUES(tts_script), approval_status = 'approved'`,
+          [
+            poiId.toString(),
+            t.lang,
+            t.title,
+            t.title, // short_text
+            t.ttsScript,
+          ]
+        );
+      }
+    } else {
+      // Fallback: at least insert the main Vietnamese content
+      await query(
+        `INSERT INTO poi_contents (poi_id, lang, title, short_text, tts_script, approval_status)
+         VALUES (?, 'vi', ?, ?, ?, 'approved')
+         ON DUPLICATE KEY UPDATE title = VALUES(title), tts_script = VALUES(tts_script), approval_status = 'approved'`,
+        [
+          poiId.toString(),
+          data.name,
+          data.name,
+          data.description || '',
+        ]
+      );
+    }
+
+    return BigInt(poiId);
   }
 
   async updatePoi(
@@ -131,15 +195,19 @@ export class PoiRepository {
       activationRadius: number;
       isPremiumContent: boolean;
       status: string;
+      translations?: { lang: string; title: string; ttsScript: string }[];
     }
   ): Promise<void> {
+    const tourId = BigInt(data.tourId).toString();
+    const stallId = BigInt(data.stallId).toString();
+
+    // Update pois table
     await query(
-      `UPDATE zones
-       SET tour_id = ?, stall_id = ?, name = ?, slug = ?, description = ?, latitude = ?, longitude = ?, activation_radius = ?, is_premium_content = ?, status = ?
+      `UPDATE pois
+       SET stall_id = ?, name = ?, slug = ?, description = ?, latitude = ?, longitude = ?, activation_radius = ?, is_premium_content = ?, status = ?
        WHERE id = ?`,
       [
-        data.tourId,
-        data.stallId,
+        stallId,
         data.name,
         data.slug,
         data.description || null,
@@ -151,9 +219,67 @@ export class PoiRepository {
         id.toString(),
       ]
     );
+
+    // Update zones table
+    await query(
+      `UPDATE zones
+       SET tour_id = ?, stall_id = ?, name = ?, slug = ?, description = ?, latitude = ?, longitude = ?, activation_radius = ?, is_premium_content = ?, status = ?
+       WHERE id = ?`,
+      [
+        tourId,
+        stallId,
+        data.name,
+        data.slug,
+        data.description || null,
+        data.latitude,
+        data.longitude,
+        data.activationRadius,
+        data.isPremiumContent ? 1 : 0,
+        data.status,
+        id.toString(),
+      ]
+    );
+
+    // Update/ensure tour_pois junction row matches
+    await query(
+      `INSERT INTO tour_pois (tour_id, poi_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE tour_id = VALUES(tour_id)`,
+      [tourId, id.toString()]
+    );
+
+    // Update/insert multilingual translations into poi_contents
+    if (data.translations && data.translations.length > 0) {
+      for (const t of data.translations) {
+        await query(
+          `INSERT INTO poi_contents (poi_id, lang, title, short_text, tts_script, approval_status)
+           VALUES (?, ?, ?, ?, ?, 'approved')
+           ON DUPLICATE KEY UPDATE title = VALUES(title), tts_script = VALUES(tts_script), approval_status = 'approved'`,
+          [
+            id.toString(),
+            t.lang,
+            t.title,
+            t.title, // short_text
+            t.ttsScript,
+          ]
+        );
+      }
+    } else {
+      // Fallback: at least update the main Vietnamese content
+      await query(
+        `INSERT INTO poi_contents (poi_id, lang, title, short_text, tts_script, approval_status)
+         VALUES (?, 'vi', ?, ?, ?, 'approved')
+         ON DUPLICATE KEY UPDATE title = VALUES(title), tts_script = VALUES(tts_script), approval_status = 'approved'`,
+        [
+          id.toString(),
+          data.name,
+          data.name,
+          data.description || '',
+        ]
+      );
+    }
   }
 
   async deletePoi(id: bigint): Promise<void> {
+    await query(`UPDATE pois SET status = 'HIDDEN' WHERE id = ?`, [id.toString()]);
     await query(`UPDATE zones SET status = 'HIDDEN' WHERE id = ?`, [id.toString()]);
   }
 
@@ -186,20 +312,30 @@ export class TourRepository {
     return rows;
   }
 
-  async getTourById(id: bigint): Promise<any | null> {
+  async getTourById(id: bigint): Promise<any[] | null> {
     const rows = await query<any[]>(
       `SELECT t.*,
               v.trade_name AS vendor_name,
               (SELECT COUNT(*) FROM zones z WHERE z.tour_id = t.id AND z.status != 'HIDDEN') AS poi_count,
               (SELECT qr.code FROM qr_codes qr WHERE qr.tour_id = t.id AND qr.qr_type = 'TOUR' AND qr.is_active = 1 LIMIT 1) AS qr_code,
-              (SELECT qr.image_url FROM qr_codes qr WHERE qr.tour_id = t.id AND qr.qr_type = 'TOUR' AND qr.is_active = 1 LIMIT 1) AS qr_image_url
+              (SELECT qr.image_url FROM qr_codes qr WHERE qr.tour_id = t.id AND qr.qr_type = 'TOUR' AND qr.is_active = 1 LIMIT 1) AS qr_image_url,
+              z.id AS poi_id,
+              z.name AS poi_name,
+              z.latitude AS poi_latitude,
+              z.longitude AS poi_longitude,
+              z.status AS poi_status,
+              z.activation_radius,
+              (SELECT COUNT(*) FROM poi_contents pc WHERE pc.poi_id = z.id) AS contents_count,
+              (SELECT COUNT(*) FROM media_files mf WHERE mf.poi_id = z.id) AS media_count,
+              s.name AS stall_name
        FROM tours t
        LEFT JOIN vendors v ON v.id = t.vendor_id
-       WHERE t.id = ?
-       LIMIT 1`,
+       LEFT JOIN zones z ON t.id = z.tour_id AND z.status != 'HIDDEN'
+       LEFT JOIN stalls s ON s.id = z.stall_id
+       WHERE t.id = ?`,
       [id.toString()]
     );
-    return rows[0] || null;
+    return rows.length > 0 ? rows : null;
   }
 
   async insertTour(data: {
@@ -209,10 +345,13 @@ export class TourRepository {
     description?: string | null;
     status?: string;
     isPremium?: boolean;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
+    coverImageUrl?: string | null;
   }): Promise<bigint> {
     const result = await query<any>(
-      `INSERT INTO tours (vendor_id, name, slug, description, status, is_premium, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, 0)`,
+      `INSERT INTO tours (vendor_id, name, slug, description, status, is_premium, sort_order, latitude, longitude, cover_image_url)
+       VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
       [
         data.vendorId,
         data.name,
@@ -220,6 +359,9 @@ export class TourRepository {
         data.description || null,
         data.status || 'DRAFT',
         data.isPremium ? 1 : 0,
+        data.latitude !== undefined && data.latitude !== null ? data.latitude : null,
+        data.longitude !== undefined && data.longitude !== null ? data.longitude : null,
+        data.coverImageUrl || null,
       ]
     );
     return BigInt(result.insertId);
@@ -234,10 +376,13 @@ export class TourRepository {
       description?: string | null;
       status: string;
       isPremium: boolean;
+      latitude?: number | string | null;
+      longitude?: number | string | null;
+      coverImageUrl?: string | null;
     }
   ): Promise<void> {
     await query(
-      `UPDATE tours SET vendor_id = ?, name = ?, slug = ?, description = ?, status = ?, is_premium = ?
+      `UPDATE tours SET vendor_id = ?, name = ?, slug = ?, description = ?, status = ?, is_premium = ?, latitude = ?, longitude = ?, cover_image_url = ?
        WHERE id = ?`,
       [
         data.vendorId,
@@ -246,6 +391,9 @@ export class TourRepository {
         data.description || null,
         data.status,
         data.isPremium ? 1 : 0,
+        data.latitude !== undefined && data.latitude !== null ? data.latitude : null,
+        data.longitude !== undefined && data.longitude !== null ? data.longitude : null,
+        data.coverImageUrl || null,
         id.toString(),
       ]
     );

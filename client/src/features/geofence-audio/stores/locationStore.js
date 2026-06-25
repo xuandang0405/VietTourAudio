@@ -55,18 +55,44 @@ export const useLocationStore = create((set, get) => ({
     const { watchId, isFakeMode } = get();
     if (watchId || isFakeMode || typeof navigator === 'undefined' || !navigator.geolocation) return;
 
-    let lastUpdate = 0;
-    const throttleMs = 5000;
+    const getHaversineDistance = (lat1, lon1, lat2, lon2) => {
+      const R = 6371000; // Radius of the earth in m
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
 
     const id = navigator.geolocation.watchPosition(
       (pos) => {
-        const now = Date.now();
-        if (now - lastUpdate >= throttleMs) {
-          lastUpdate = now;
+        const currentPos = get().position;
+        const newLat = pos.coords.latitude;
+        const newLng = pos.coords.longitude;
+
+        let shouldUpdate = false;
+        if (!currentPos) {
+          shouldUpdate = true;
+        } else {
+          const distance = getHaversineDistance(
+            currentPos.lat,
+            currentPos.lng,
+            newLat,
+            newLng
+          );
+          if (distance > 2) {
+            shouldUpdate = true;
+          }
+        }
+
+        if (shouldUpdate) {
           set({
             position: {
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
+              lat: newLat,
+              lng: newLng,
               accuracy: pos.coords.accuracy
             }
           });

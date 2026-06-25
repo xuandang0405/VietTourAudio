@@ -5,6 +5,8 @@ import { AdminBadge } from '../../../admin/components/AdminBadge';
 import { AdminDataTable } from '../../../admin/components/AdminDataTable';
 import { AdminPageHeader } from '../../../admin/components/AdminPageHeader';
 import { AdminModal } from '../../../admin/components/AdminModal';
+import { AdminScannerTest } from '../components/AdminScannerTest';
+import { POIForm } from '../components/POIForm';
 import {
   useAdminPois,
   useStallsList,
@@ -13,6 +15,7 @@ import {
   useDeletePoi,
   usePoiDistance,
   useTours,
+  useTour,
   useCreateTour,
   useUpdateTour,
   useDeleteTour,
@@ -29,6 +32,7 @@ export function AdminPois() {
   const [error, setError] = useState('');
   const [distancePoiA, setDistancePoiA] = useState('');
   const [distancePoiB, setDistancePoiB] = useState('');
+  const [isTestingScanner, setIsTestingScanner] = useState(false);
 
   // POI form
   const [formName, setFormName] = useState('');
@@ -39,6 +43,27 @@ export function AdminPois() {
   const [formRadius, setFormRadius] = useState('');
   const [formIsPremium, setFormIsPremium] = useState(false);
   const [formStatus, setFormStatus] = useState('ACTIVE');
+  const [formTranslations, setFormTranslations] = useState([
+    { lang: 'vi', title: '', ttsScript: '' },
+    { lang: 'en', title: '', ttsScript: '' },
+    { lang: 'ja', title: '', ttsScript: '' },
+    { lang: 'ko', title: '', ttsScript: '' },
+    { lang: 'zh', title: '', ttsScript: '' }
+  ]);
+
+  function getSafeTranslations(poi) {
+    const list = poi?.translations ?? [];
+    return ['vi', 'en', 'ja', 'ko', 'zh'].map((lang) => {
+      const match = list.find((item) => item.lang === lang);
+      if (match) {
+        return { lang, title: match.title ?? '', ttsScript: match.ttsScript ?? '' };
+      }
+      if (lang === 'vi') {
+        return { lang, title: poi?.name ?? '', ttsScript: poi?.description ?? '' };
+      }
+      return { lang, title: '', ttsScript: '' };
+    });
+  }
 
   // Tour form
   const [tourFormName, setTourFormName] = useState('');
@@ -60,19 +85,19 @@ export function AdminPois() {
   const resetQrMutation = useResetTourQr();
   const distanceQuery = usePoiDistance(distancePoiA, distancePoiB);
 
-  const selectedTour = useMemo(() => tours.find((t) => String(t.id) === String(selectedTourId)) ?? null, [tours, selectedTourId]);
+  const { data: tourDetail, isLoading: tourDetailLoading } = useTour(selectedTourId);
+  const selectedTour = useMemo(() => {
+    if (!selectedTourId) return null;
+    const tourFromList = tours.find((t) => String(t.id) === String(selectedTourId)) ?? null;
+    if (tourDetail) {
+      return { ...tourFromList, ...tourDetail };
+    }
+    return tourFromList;
+  }, [tours, selectedTourId, tourDetail]);
 
   // Filter POIs for selected tour
   const filteredPois = useMemo(() => {
-    let list = pois;
-    if (selectedTourId) {
-      // The API might not have tourId yet, so also filter by stall belonging to tour
-      list = pois.filter((poi) => {
-        // If tour_id is on the POI we filter directly
-        if (poi.tourId && String(poi.tourId) === String(selectedTourId)) return true;
-        return false;
-      });
-    }
+    let list = selectedTour?.pois ?? [];
     if (search) {
       list = list.filter(
         (poi) =>
@@ -81,7 +106,7 @@ export function AdminPois() {
       );
     }
     return list;
-  }, [pois, selectedTourId, search]);
+  }, [selectedTour, search]);
 
   const poiOptions = useMemo(() => pois.map((poi) => ({ value: poi.id, label: poi.stallName ? `${poi.name} - ${poi.stallName}` : poi.name })), [pois]);
   const distanceMeters = distanceQuery.data?.distanceMeters;
@@ -98,6 +123,13 @@ export function AdminPois() {
     setFormRadius('25');
     setFormIsPremium(false);
     setFormStatus('ACTIVE');
+    setFormTranslations([
+      { lang: 'vi', title: '', ttsScript: '' },
+      { lang: 'en', title: '', ttsScript: '' },
+      { lang: 'ja', title: '', ttsScript: '' },
+      { lang: 'ko', title: '', ttsScript: '' },
+      { lang: 'zh', title: '', ttsScript: '' }
+    ]);
     setModal({ type: 'add' });
   }
 
@@ -111,6 +143,7 @@ export function AdminPois() {
     setFormRadius(String(poi.activationRadius ?? '25'));
     setFormIsPremium(Boolean(poi.isPremiumContent));
     setFormStatus(poi.status ?? 'ACTIVE');
+    setFormTranslations(getSafeTranslations(poi));
     setModal({ type: 'edit', poi });
   }
 
@@ -178,7 +211,18 @@ export function AdminPois() {
         if (!Number.isFinite(lat) || lat < -90 || lat > 90) { setError(t('poi.error_lat_invalid')); return; }
         if (!Number.isFinite(lng) || lng < -180 || lng > 180) { setError(t('poi.error_lng_invalid')); return; }
         if (!Number.isFinite(rad) || rad <= 0) { setError(t('poi.error_radius_invalid')); return; }
-        const payload = { stallId: formStallId, name: formName.trim(), description: formDescription.trim(), latitude: lat, longitude: lng, activationRadius: rad, isPremiumContent: formIsPremium, status: formStatus };
+        const payload = {
+          tourId: selectedTourId ? Number(selectedTourId) : null,
+          stallId: formStallId,
+          name: formName.trim(),
+          description: formDescription.trim(),
+          latitude: lat,
+          longitude: lng,
+          activationRadius: rad,
+          isPremiumContent: formIsPremium,
+          status: formStatus,
+          translations: formTranslations
+        };
         if (modal.type === 'add') await createMutation.mutateAsync(payload);
         else await updateMutation.mutateAsync({ id: modal.poi.id, data: payload });
       }
@@ -393,10 +437,23 @@ export function AdminPois() {
         description="Quản lý Khu vực (Tours) và các Điểm tham quan (POIs) thuộc từng khu vực"
         action={
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setIsTestingScanner(true)}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-amber-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-amber-700"
+            >
+              <QrCode size={17} /> {t('admin.scanner.title')}
+            </button>
             <button type="button" onClick={openAddTourModal} className="inline-flex h-10 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-indigo-700">
               <Map size={17} /> Thêm Khu vực
             </button>
-            <button type="button" onClick={openAddPoiModal} className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-blue-700">
+            <button
+              type="button"
+              disabled={!selectedTourId}
+              onClick={openAddPoiModal}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={!selectedTourId ? "Vui lòng chọn một Khu vực để thêm POI" : ""}
+            >
               <Plus size={17} /> {t('poi.add_poi')}
             </button>
           </div>
@@ -537,7 +594,17 @@ export function AdminPois() {
               </section>
 
               {/* POI table */}
-              <AdminDataTable columns={poiColumns} rows={filteredPois} emptyText={poisLoading ? t('poi.loading_list') : 'Chưa có POI nào trong khu vực này'} />
+              {tourDetailLoading && !tourDetail ? (
+                <div className="flex h-40 items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
+                </div>
+              ) : (
+                <AdminDataTable
+                  columns={poiColumns}
+                  rows={filteredPois}
+                  emptyText={t('tour.no_pois_assigned', { defaultValue: 'Chưa có điểm tham quan nào được gán cho Tour này.' })}
+                />
+              )}
             </>
           ) : (
             <div className="flex h-[400px] items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50">
@@ -561,55 +628,28 @@ export function AdminPois() {
         onClose={() => setModal(null)}
         onConfirm={handleConfirm}
       >
-        <div className="space-y-4 py-2">
-          {error && <p className="text-xs font-bold text-red-600">{error}</p>}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_name')}</label>
-              <input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder={t('poi.form_name_placeholder')} className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_stall')}</label>
-              <select value={formStallId} onChange={(e) => setFormStallId(e.target.value)} className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500">
-                {stalls.map((s) => (<option key={s.id} value={s.id}>{s.name}</option>))}
-                {stalls.length === 0 && <option value="">{t('poi.no_stall')}</option>}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('common.description')}</label>
-            <textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder={t('poi.form_desc_placeholder')} className="w-full h-20 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold outline-none focus:border-blue-500 resize-none" />
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_latitude')}</label>
-              <input type="number" step="any" value={formLatitude} onChange={(e) => setFormLatitude(e.target.value)} placeholder="10.77582" className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_longitude')}</label>
-              <input type="number" step="any" value={formLongitude} onChange={(e) => setFormLongitude(e.target.value)} placeholder="106.70208" className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_radius_m')}</label>
-              <input type="number" value={formRadius} onChange={(e) => setFormRadius(e.target.value)} placeholder="25" className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500" />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('common.status')}</label>
-              <select value={formStatus} onChange={(e) => setFormStatus(e.target.value)} className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500">
-                <option value="ACTIVE">{t('common.active')}</option>
-                <option value="DRAFT">{t('common.draft')}</option>
-                <option value="INACTIVE">{t('common.inactive')}</option>
-                <option value="ARCHIVED">{t('common.archived')}</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2 pt-6">
-              <input type="checkbox" id="isPremiumContent" checked={formIsPremium} onChange={(e) => setFormIsPremium(e.target.checked)} className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-              <label htmlFor="isPremiumContent" className="text-sm font-bold text-slate-700">{t('poi.premium_content')}</label>
-            </div>
-          </div>
-        </div>
+        <POIForm
+          formName={formName}
+          setFormName={setFormName}
+          formStallId={formStallId}
+          setFormStallId={setFormStallId}
+          formDescription={formDescription}
+          setFormDescription={setFormDescription}
+          formLatitude={formLatitude}
+          setFormLatitude={setFormLatitude}
+          formLongitude={formLongitude}
+          setFormLongitude={setFormLongitude}
+          formRadius={formRadius}
+          setFormRadius={setFormRadius}
+          formIsPremium={formIsPremium}
+          setFormIsPremium={setFormIsPremium}
+          formStatus={formStatus}
+          setFormStatus={setFormStatus}
+          stalls={stalls}
+          error={error}
+          translations={formTranslations}
+          setTranslations={setFormTranslations}
+        />
       </AdminModal>
 
       {/* ── Tour Form Modal ── */}
@@ -698,6 +738,12 @@ export function AdminPois() {
           );
         })()}
       </AdminModal>
+
+      {/* ── Admin Scanner Test Modal ── */}
+      <AdminScannerTest
+        open={isTestingScanner}
+        onClose={() => setIsTestingScanner(false)}
+      />
     </div>
   );
 }

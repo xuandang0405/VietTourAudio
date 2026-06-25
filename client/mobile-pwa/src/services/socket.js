@@ -4,6 +4,6 @@ let socket = null;
 
 export function getSocket() {
   if (socket) return socket;
-  socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001', { autoConnect: true });
+  socket = io(import.meta.env.VITE_SOCKET_URL || window.location.origin, { autoConnect: true });
   return socket;
 }

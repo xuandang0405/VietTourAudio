@@ -22,7 +22,7 @@ export function TopBar({ title = 'VietTourAudio', compact = false }) {
   };
 
   return (
-    <header className="absolute left-4 right-4 top-4 z-[1200]">
+    <header className="absolute left-4 right-4 top-4 z-10">
       <div className="flex items-center justify-between px-4 py-3 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-2xl">
         <div className="flex min-w-0 items-center gap-3">
           <img className="h-10 w-10 flex-shrink-0 rounded-xl border border-slate-100" src={logo} alt="VietTourAudio" loading="lazy" decoding="async" />

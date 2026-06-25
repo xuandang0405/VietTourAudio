@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useAppStore } from '../stores/useAppStore';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const baseURL = import.meta.env.VITE_API_URL || '/api';
 
 export const api = axios.create({
   baseURL,
@@ -27,6 +27,6 @@ api.interceptors.response.use(
 export function toAssetUrl(path) {
   if (!path) return '';
   if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  const root = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace(/\/api$/, '');
-  return `${root}${path.startsWith('/') ? '' : '/'}${path}`;
+  const root = (import.meta.env.VITE_API_URL || '').replace(/\/api$/, '');
+  return root ? `${root}${path.startsWith('/') ? '' : '/'}${path}` : path;
 }

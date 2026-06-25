@@ -28,21 +28,23 @@ export function BottomNav() {
   const { t } = useTranslation('translation', { keyPrefix: 'landing' });
   const { pathname } = useLocation();
   const isPremium = usePremiumStore((state) => state.isPremium);
+  const lockedZone = localStorage.getItem('locked_zone');
 
   function openCheckout() {
     window.dispatchEvent(new CustomEvent('open-checkout'));
   }
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-[1300] border-t border-slate-200 bg-white/95 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)] backdrop-blur-xl tablet:bottom-6 tablet:left-1/2 tablet:right-auto tablet:w-[430px] tablet:-translate-x-1/2 tablet:rounded-2xl tablet:border tablet:pb-0">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)] backdrop-blur-xl tablet:bottom-6 tablet:left-1/2 tablet:right-auto tablet:w-[430px] tablet:-translate-x-1/2 tablet:rounded-2xl tablet:border tablet:pb-0">
       <div className="mx-auto flex max-w-md items-center justify-around px-2 py-3">
         {navigationTabs.map(({ id, labelKey, to, icon: Icon }) => {
           const active = pathname === to || (id === 'explore' && pathname === '/');
+          const targetTo = lockedZone ? `${to}?zone=${lockedZone}` : to;
 
           return (
             <Link
               key={id}
-              to={to}
+              to={targetTo}
               className={[
                 'flex min-w-[68px] flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1 transition duration-200 ease-out active:scale-95',
                 active ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'

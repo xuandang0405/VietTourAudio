@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Lock, QrCode, RefreshCw, Volume2, X } from 'lucide-react';
+import { Lock, Navigation, QrCode, RefreshCw, Volume2, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
 import { appConfig } from '../../../config/appConfig';
@@ -10,8 +10,31 @@ import { useLanguageStore } from '../../../stores/languageStore';
 import { usePremiumStore } from '../../vendor-wallet/stores/premiumStore';
 import { AudioVisualizer } from '../../geofence-audio/components/AudioVisualizer';
 
-export function PoiBottomSheet({ poi, onClose, onUpgrade, onToast }) {
+export function PoiBottomSheet({
+  poi,
+  onClose,
+  onUpgrade,
+  onToast,
+  routingCoordinates,
+  routingInfo,
+  onGetDirections,
+  onClearDirections
+}) {
   const { t } = useTranslation('translation', { keyPrefix: 'landing' });
+  const { t: tRoot } = useTranslation();
+
+  const formatDistance = (meters) => {
+    if (meters >= 1000) {
+      return `${(meters / 1000).toFixed(1)} km`;
+    }
+    return `${Math.round(meters)} m`;
+  };
+
+  const formatDuration = (seconds) => {
+    const mins = Math.round(seconds / 60);
+    if (mins < 1) return `1 ${tRoot('common.minute', { defaultValue: 'phút' })}`;
+    return `${mins} ${tRoot('common.minute', { defaultValue: 'phút' })}`;
+  };
   const [showQr, setShowQr] = useState(false);
   const isPremium = usePremiumStore((state) => state.isPremium);
   const freeListensRemaining = usePremiumStore((state) => state.freeListensRemaining);
@@ -42,7 +65,7 @@ export function PoiBottomSheet({ poi, onClose, onUpgrade, onToast }) {
           <motion.button
             type="button"
             aria-label={t('close')}
-            className="absolute inset-0 z-[1400] bg-slate-900/40 backdrop-blur-[2px]"
+            className="absolute inset-0 z-48 bg-slate-900/40 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -60,7 +83,7 @@ export function PoiBottomSheet({ poi, onClose, onUpgrade, onToast }) {
             onDragEnd={(_, info) => {
               if (info.offset.y > 120 || info.velocity.y > 650) onClose();
             }}
-            className="absolute bottom-0 left-0 right-0 z-[1500] max-h-[84%] overflow-hidden rounded-t-3xl border-t border-slate-200 bg-white text-slate-900 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] pc:left-[calc(50%-260px)] pc:right-auto pc:w-[520px]"
+            className="absolute bottom-0 left-0 right-0 z-50 max-h-[84%] overflow-hidden rounded-t-3xl border-t border-slate-200 bg-white text-slate-900 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] pc:left-[calc(50%-260px)] pc:right-auto pc:w-[520px]"
           >
             <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-slate-300" />
             <div className="max-h-[calc(84vh-1rem)] overflow-y-auto px-4 pb-6 pt-4 hide-scrollbar">
@@ -91,6 +114,45 @@ export function PoiBottomSheet({ poi, onClose, onUpgrade, onToast }) {
                 <h3 className="font-display font-bold text-slate-900">{t('freeText')}</h3>
                 <p className="mt-2 max-h-36 overflow-y-auto pr-1 text-sm leading-7 text-slate-600 hide-scrollbar">{localizedContent.description}</p>
               </section>
+
+              <button
+                type="button"
+                onClick={onGetDirections}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-teal-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition duration-150 ease-out hover:bg-teal-700 active:scale-[0.98]"
+              >
+                <Navigation size={18} />
+                {tRoot('routing.get_directions', { defaultValue: 'Tìm đường' })}
+              </button>
+
+              {routingInfo && (
+                <div className="mt-3 rounded-2xl border border-teal-100 bg-teal-50/50 p-4 text-sm font-semibold text-teal-800">
+                  {routingInfo.status === 'calculating' ? (
+                    <p className="flex items-center gap-2">
+                      <RefreshCw className="animate-spin" size={16} />
+                      {tRoot('routing.calculating', { defaultValue: 'Đang tính đường...' })}
+                    </p>
+                  ) : routingInfo.status === 'success' ? (
+                    <div>
+                      <div className="flex justify-between items-center">
+                        <p>
+                          {tRoot('routing.distance', { defaultValue: 'Khoảng cách' })}: <span className="font-bold">{formatDistance(routingInfo.distance)}</span>
+                          <span className="mx-2">·</span>
+                          {tRoot('routing.time', { defaultValue: 'Thời gian' })}: <span className="font-bold">{formatDuration(routingInfo.duration)}</span>
+                        </p>
+                        <button
+                          type="button"
+                          onClick={onClearDirections}
+                          className="text-xs font-bold text-red-600 hover:text-red-700 underline"
+                        >
+                          {tRoot('routing.clear', { defaultValue: 'Xóa' })}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-red-600">{tRoot('routing.error', { defaultValue: 'Không thể tìm đường.' })}</p>
+                  )}
+                </div>
+              )}
 
               <button
                 type="button"

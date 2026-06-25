@@ -1,12 +1,14 @@
 import L from 'leaflet';
 import { memo, useEffect, useMemo } from 'react';
-import { Circle, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
+import { Circle, MapContainer, Marker, TileLayer, Tooltip, useMap, Polyline } from 'react-leaflet';
 import { mapCenter, visitorPois } from '../../../data/visitorPois';
 
-function MapCamera({ selectedPoi, position }) {
+function MapCamera({ selectedPoi, position, hasActiveRoute }) {
   const map = useMap();
 
   useEffect(() => {
+    if (hasActiveRoute) return;
+
     if (selectedPoi) {
       map.flyTo([selectedPoi.latitude, selectedPoi.longitude], 18, {
         duration: 0.7
@@ -19,7 +21,25 @@ function MapCamera({ selectedPoi, position }) {
         duration: 0.7
       });
     }
-  }, [map, position, selectedPoi]);
+  }, [map, position, selectedPoi, hasActiveRoute]);
+
+  return null;
+}
+
+function MapRouteHandler({ routingCoordinates, position, selectedPoi }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (routingCoordinates && routingCoordinates.length > 0) {
+      map.fitBounds(routingCoordinates, { padding: [50, 50] });
+    } else if (position && selectedPoi) {
+      const bounds = L.latLngBounds([
+        [position.lat, position.lng],
+        [selectedPoi.latitude, selectedPoi.longitude]
+      ]);
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [map, routingCoordinates, position, selectedPoi]);
 
   return null;
 }
@@ -107,8 +127,9 @@ const MapMarkers = memo(function MapMarkers({ pois, selectedPoi, position, onSel
   );
 });
 
-function LeafletMapComponent({ selectedPoi, enrichedPois, position, onSelectPoi }) {
+function LeafletMapComponent({ selectedPoi, enrichedPois, position, onSelectPoi, routingCoordinates }) {
   const pois = Array.isArray(enrichedPois) && enrichedPois.length > 0 ? enrichedPois : visitorPois;
+  const hasActiveRoute = Boolean(routingCoordinates && routingCoordinates.length > 0);
 
   return (
     <MapContainer
@@ -124,8 +145,27 @@ function LeafletMapComponent({ selectedPoi, enrichedPois, position, onSelectPoi 
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <MapCamera selectedPoi={selectedPoi} position={position} />
+      <MapCamera selectedPoi={selectedPoi} position={position} hasActiveRoute={hasActiveRoute} />
+      <MapRouteHandler routingCoordinates={routingCoordinates} position={position} selectedPoi={selectedPoi} />
       <MapMarkers pois={pois} selectedPoi={selectedPoi} position={position} onSelectPoi={onSelectPoi} />
+      {hasActiveRoute && (
+        <>
+          <Polyline
+            positions={routingCoordinates}
+            color="#1e4ed8"
+            weight={8}
+            opacity={0.4}
+          />
+          <Polyline
+            positions={routingCoordinates}
+            color="#3b82f6"
+            weight={5}
+            opacity={1.0}
+            lineCap="round"
+            lineJoin="round"
+          />
+        </>
+      )}
     </MapContainer>
   );
 }

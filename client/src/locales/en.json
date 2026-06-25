@@ -59,7 +59,8 @@
     "reason": "Reason",
     "optional": "Optional",
     "search": "Search...",
-    "smartGuide": "Smart Guide"
+    "smartGuide": "Smart Guide",
+    "minute": "minute"
   },
   "poi": {
     "management_subtitle": "POI MANAGEMENT",
@@ -117,7 +118,12 @@
     "distance_empty": "Select two POIs to calculate distance.",
     "distance_loading": "Calculating distance...",
     "distance_same_poi": "Please select two different POIs.",
-    "distance_result": "Distance: {{distance}} meters"
+    "distance_result": "Distance: {{distance}} meters",
+    "auto_translate": "✨ Auto Translate All",
+    "translating": "Translating...",
+    "translate_empty_name": "Please fill in the Vietnamese POI Name first!",
+    "translate_failed": "Auto translation failed. Please try again.",
+    "translate_success": "Successfully auto-translated into English, Japanese, Korean, and Chinese!"
   },
   "users": {
     "create_zone_admin": "Create Zone Admin",
@@ -129,6 +135,7 @@
     "group_system": "System",
     "dashboard": "Dashboard",
     "vendors": "Vendors",
+    "zones": "Zones",
     "moderation": "Moderation",
     "pois": "POIs",
     "vendor_wallet": "Vendor Wallet",
@@ -325,6 +332,8 @@
     "premium_conversions": "{{count}} premium"
   },
   "landing": {
+    "waiting": "Waiting for signal...",
+    "stopped": "Playback stopped",
     "smartGuide": "Smart Guide",
     "explore": "Explore",
     "list": "List",
@@ -440,7 +449,10 @@
     "close": "Close",
     "playAgain": "Play Again",
     "wait": "Please wait",
-    "replayAfter": "Replay after"
+    "replayAfter": "Replay after",
+    "locationUpdated": "Location updated",
+    "playingAgain": "Replaying narrative",
+    "textOnly": "Text only mode"
   },
   "geofence": {
     "title": "Geofence Map",
@@ -647,10 +659,76 @@
     "label_admin_name": "Admin Full Name",
     "placeholder_admin_name": "e.g., Nguyen Hue Zone Admin",
     "placeholder_admin_email": "admin.zone@example.com",
-    "error_admin_name": "Admin name cannot be empty.",
-    "error_admin_email": "Admin email cannot be empty.",
-    "error_zone_required": "Please select an assigned zone.",
     "success_create_zone_admin": "Successfully created Zone Admin {{name}}!",
     "error_create_zone_admin": "Could not create Zone Admin account."
+  },
+  "tour": {
+    "no_pois_assigned": "No POIs assigned to this tour."
+  },
+  "routing": {
+    "get_directions": "Get Directions",
+    "distance": "Distance",
+    "time": "Time",
+    "calculating": "Calculating...",
+    "error": "Failed to calculate route.",
+    "enable_gps": "Please enable GPS to get directions.",
+    "clear": "Clear"
+  },
+  "admin": {
+    "scanner": {
+      "title": "Admin QR Scanner Tester",
+      "description": "Admin interface for testing camera and decoding QR codes.",
+      "unsecure_warning": "Browser blocked Camera access due to unsecure HTTP context. Please configure HTTPS or use an image file to test.",
+      "upload_fallback": "Select QR image for testing"
+    },
+    "vendors": {
+      "title": "Vendor Accounts Management",
+      "subtitle": "Manage region permissions, vendor account lifecycle, and activity status.",
+      "create_btn": "PROVISION VENDOR ACCOUNT",
+      "hierarchical_title": "Vendor Accounts by Zone",
+      "back_to_zones": "Back to Zones",
+      "total_vendors_count": "{{count}} vendors",
+      "edit_title": "Edit Vendor",
+      "form": {
+        "legal_name": "Legal Name",
+        "trade_name": "Stall Name",
+        "email": "Contact Email",
+        "code": "Vendor Code",
+        "zone": "Zone"
+      },
+      "table": {
+        "code": "VENDOR CODE",
+        "name": "STALL NAME",
+        "email": "CONTACT EMAIL",
+        "zone": "ASSIGNED ZONE",
+        "status": "STATUS",
+        "actions": "ACTIONS"
+      },
+      "status": {
+        "PENDING": "Pending",
+        "APPROVED": "Active",
+        "SUSPENDED": "Suspended",
+        "REJECTED": "Rejected"
+      },
+      "confirm_suspend": "Are you sure you want to suspend this account immediately? All active login sessions for this Vendor will be terminated."
+    },
+    "analytics": {
+      "realtime_title": "Real-time Traffic (Last 5 mins)",
+      "active_visitors": "Active Visitors",
+      "total_scans": "Total QR Scans",
+      "no_active_visitors": "No active visitors",
+      "last_update": "Last updated: {{time}}"
+    }
+  },
+  "status": {
+    "draft": "Draft",
+    "active": "Active",
+    "inactive": "Inactive",
+    "archived": "Archived",
+    "published": "Published",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "suspended": "Suspended"
   }
 }

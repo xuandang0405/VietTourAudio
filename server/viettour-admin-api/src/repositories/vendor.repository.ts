@@ -143,4 +143,56 @@ export class VendorRepository {
   async cancelSubscriptions(vendorId: bigint): Promise<void> {
     await query('UPDATE vendor_subscriptions SET status = ? WHERE vendor_id = ?', ['CANCELLED', vendorId.toString()]);
   }
+
+  async updateVendor(
+    id: bigint,
+    data: {
+      legalName?: string;
+      tradeName?: string;
+      slug?: string;
+      contactEmail?: string;
+      vendorCode?: string;
+      assignedTourId?: string | null;
+    }
+  ): Promise<void> {
+    const fields: string[] = [];
+    const params: unknown[] = [];
+
+    if (data.legalName !== undefined) {
+      fields.push('legal_name = ?');
+      params.push(data.legalName);
+    }
+    if (data.tradeName !== undefined) {
+      fields.push('trade_name = ?');
+      params.push(data.tradeName);
+    }
+    if (data.slug !== undefined) {
+      fields.push('slug = ?');
+      params.push(data.slug);
+    }
+    if (data.contactEmail !== undefined) {
+      fields.push('contact_email = ?');
+      params.push(data.contactEmail);
+    }
+    if (data.vendorCode !== undefined) {
+      fields.push('vendor_code = ?');
+      params.push(data.vendorCode);
+    }
+    if (data.assignedTourId !== undefined) {
+      fields.push('assigned_tour_id = ?');
+      params.push(data.assignedTourId);
+    }
+
+    if (fields.length === 0) return;
+
+    params.push(id.toString());
+    await query(`UPDATE vendors SET ${fields.join(', ')} WHERE id = ?`, params);
+
+    if (data.contactEmail !== undefined) {
+      await query(
+        'UPDATE vendor_portal_users SET email = ? WHERE vendor_id = ?',
+        [data.contactEmail, id.toString()]
+      );
+    }
+  }
 }

@@ -238,6 +238,89 @@ async function main() {
     });
   }
 
+  const tour2 = await prisma.tour.create({
+    data: {
+      name: 'Khu phố ẩm thực Vĩnh Khánh',
+      slug: 'vinh-khanh',
+      description: 'Thiên đường ẩm thực quận 4',
+      duration: 60,
+      imageUrl: '/uploads/images/tour-vinh-khanh.jpg',
+      priceAmount: 40000,
+      currency: 'VND',
+      isActive: true,
+      translations: {
+        create: [
+          { language: 'vi', name: 'Khu phố ẩm thực Vĩnh Khánh', description: 'Tour ẩm thực Vĩnh Khánh' },
+          { language: 'en', name: 'Vinh Khanh Food Street', description: 'Food walking tour in district 4' }
+        ]
+      }
+    }
+  });
+
+  const zonePayload2 = [
+    ['Ốc Đêm Vĩnh Khánh', 10.7612, 106.7032, 12, ZoneType.RESTAURANT],
+    ['Lẩu Bò Nhâm Nhi', 10.7615, 106.7038, 15, ZoneType.RESTAURANT]
+  ];
+
+  const zones2 = [];
+  for (let i = 0; i < zonePayload2.length; i += 1) {
+    const [name, lat, lng, radius, zoneType] = zonePayload2[i];
+    const zone = await prisma.zone.create({
+      data: {
+        shopId: shop1.id,
+        name,
+        description: `${name} - món ngon Vĩnh Khánh`,
+        latitude: lat,
+        longitude: lng,
+        radius,
+        zoneType,
+        isPremium: i % 2 === 0,
+        isActive: true,
+        orderIndex: i,
+        activeTime: 'ALL',
+        translations: {
+          create: [
+            {
+              language: 'vi',
+              title: name,
+              description: `Mô tả tiếng Việt cho ${name}`
+            },
+            {
+              language: 'en',
+              title: `EN ${name}`,
+              description: `English description for ${name}`
+            }
+          ]
+        }
+      }
+    });
+
+    zones2.push(zone);
+
+    await prisma.tourZone.create({
+      data: {
+        tourId: tour2.id,
+        zoneId: zone.id,
+        orderIndex: i
+      }
+    });
+
+    await prisma.narration.create({
+      data: {
+        zoneId: zone.id,
+        language: 'vi',
+        text: `Bản thuyết minh tiếng Việt cho ${name}`,
+        voiceId: 'vi-VN-Standard-A',
+        fileUrl: `/uploads/audio/narration_${zone.id}_vi.mp3`,
+        durationSeconds: 150 + i * 10,
+        audioStatus: AudioStatus.READY,
+        approvalStatus: ApprovalStatus.APPROVED,
+        updatedById: admin.id
+      }
+    });
+  }
+
+
   const qrTourToken = randomUUID().replace(/-/g, '');
   await prisma.qrDeepLink.create({
     data: {

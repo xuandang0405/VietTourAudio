@@ -46,7 +46,7 @@ export function AudioPlayerSheet() {
 
   if (isCollapsed) {
     return (
-      <aside className="absolute bottom-20 left-4 right-4 z-[1400] flex items-center justify-between rounded-2xl bg-white/95 p-3 shadow-lg backdrop-blur-md border border-slate-200 transition-all duration-300">
+      <aside className="absolute bottom-20 left-4 right-4 z-45 flex items-center justify-between rounded-2xl bg-white/95 p-3 shadow-lg backdrop-blur-md border border-slate-200 transition-all duration-300">
         <div className="flex items-center gap-3 overflow-hidden cursor-pointer w-full" onClick={() => setIsCollapsed(false)}>
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-600 shadow-sm border border-teal-200">
             <Headphones size={20} className={isPlaying ? 'animate-pulse' : ''} />
@@ -71,7 +71,7 @@ export function AudioPlayerSheet() {
   }
 
   return (
-    <aside className="absolute bottom-0 left-0 right-0 z-[1400] rounded-t-[2rem] bg-white p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl border-t border-slate-200 transition-all duration-300 pb-24">
+    <aside className="absolute bottom-0 left-0 right-0 z-45 rounded-t-[2rem] bg-white p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl border-t border-slate-200 transition-all duration-300 pb-24">
       <div className="absolute top-3 left-1/2 -translate-x-1/2 h-1.5 w-12 rounded-full bg-slate-300" />
       
       <div className="flex items-start justify-between mb-6 pt-2">

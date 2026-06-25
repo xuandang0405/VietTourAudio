@@ -4,28 +4,38 @@ import { PoiService, TourService } from '../services/poi.service';
 import { ok } from '../types/api.types';
 import { toBigIntId } from '../utils/serialization';
 
+const translationItemSchema = z.object({
+  lang: z.string(),
+  title: z.string(),
+  ttsScript: z.string(),
+});
+
 const createPoiSchema = z.object({
   tourId: z.union([z.number(), z.string()]),
   stallId: z.union([z.number(), z.string()]),
   name: z.string().min(1),
+  slug: z.string().optional(),
   description: z.string().nullable().optional(),
   latitude: z.number(),
   longitude: z.number(),
   activationRadius: z.number().optional(),
   isPremiumContent: z.boolean(),
   status: z.string().optional(),
+  translations: z.array(translationItemSchema).optional(),
 });
 
 const updatePoiSchema = z.object({
   tourId: z.union([z.number(), z.string()]),
   stallId: z.union([z.number(), z.string()]),
   name: z.string().min(1),
+  slug: z.string().optional(),
   description: z.string().nullable().optional(),
   latitude: z.number(),
   longitude: z.number(),
   activationRadius: z.number(),
   isPremiumContent: z.boolean(),
   status: z.string(),
+  translations: z.array(translationItemSchema).optional(),
 });
 
 function slugify(text: string): string {
@@ -79,9 +89,15 @@ export class PoiController {
     }
 
     try {
-      const slug = slugify(parsed.data.name);
+      const slug = parsed.data.slug && parsed.data.slug.trim()
+        ? slugify(parsed.data.slug)
+        : slugify(parsed.data.name);
+
+      // Strip out any explicit 'id' to prevent primary key allocation collisions
+      const { id, ...creationData } = parsed.data as any;
+
       const poi = await this.poiService.createPoi(req, {
-        ...parsed.data,
+        ...creationData,
         slug,
       });
 
@@ -114,7 +130,9 @@ export class PoiController {
         return;
       }
 
-      const slug = slugify(parsed.data.name);
+      const slug = parsed.data.slug && parsed.data.slug.trim()
+        ? slugify(parsed.data.slug)
+        : slugify(parsed.data.name);
       const poi = await this.poiService.updatePoi(id, req, {
         ...parsed.data,
         slug,
@@ -158,17 +176,25 @@ export class PoiController {
 const createTourSchema = z.object({
   vendorId: z.union([z.number(), z.string()]),
   name: z.string().min(1),
+  slug: z.string().optional(),
   description: z.string().nullable().optional(),
   status: z.string().optional(),
   isPremium: z.boolean().optional(),
+  latitude: z.union([z.number(), z.string()]).nullable().optional(),
+  longitude: z.union([z.number(), z.string()]).nullable().optional(),
+  coverImageUrl: z.string().nullable().optional(),
 });
 
 const updateTourSchema = z.object({
   vendorId: z.union([z.number(), z.string()]),
   name: z.string().min(1),
+  slug: z.string().optional(),
   description: z.string().nullable().optional(),
   status: z.string(),
   isPremium: z.boolean(),
+  latitude: z.union([z.number(), z.string()]).nullable().optional(),
+  longitude: z.union([z.number(), z.string()]).nullable().optional(),
+  coverImageUrl: z.string().nullable().optional(),
 });
 
 export class TourController {
@@ -180,9 +206,15 @@ export class TourController {
   };
 
   getTour = async (req: Request, res: Response): Promise<void> => {
+    const idStr = req.params.id as string;
+    const zoneId = parseInt(idStr, 10);
+    if (isNaN(zoneId)) {
+      res.status(400).json({ success: false, error: 'Invalid Zone ID format' });
+      return;
+    }
+
     try {
-      const id = toBigIntId(req.params.id, 'tour id');
-      const tour = await this.tourService.getTourById(id);
+      const tour = await this.tourService.getTourById(BigInt(zoneId));
       res.json(ok(tour));
     } catch (err: any) {
       res.status(404).json({ success: false, error: err.message });
@@ -214,7 +246,12 @@ export class TourController {
   };
 
   updateTour = async (req: Request, res: Response): Promise<void> => {
-    const id = toBigIntId(req.params.id, 'tour id');
+    const idStr = req.params.id as string;
+    const zoneId = parseInt(idStr, 10);
+    if (isNaN(zoneId)) {
+      res.status(400).json({ success: false, error: 'Invalid Zone ID format' });
+      return;
+    }
     const parsed = updateTourSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ success: false, error: 'Invalid request body', details: parsed.error.format() });
@@ -222,12 +259,12 @@ export class TourController {
     }
 
     try {
-      const tour = await this.tourService.updateTour(id, parsed.data);
+      const tour = await this.tourService.updateTour(BigInt(zoneId), parsed.data);
 
       req.auditMeta = {
         action: 'UPDATE_TOUR',
         targetType: 'tours',
-        targetId: id,
+        targetId: BigInt(zoneId),
         beforeData: null,
         afterData: tour,
       };
@@ -239,15 +276,20 @@ export class TourController {
   };
 
   deleteTour = async (req: Request, res: Response): Promise<void> => {
-    const id = toBigIntId(req.params.id, 'tour id');
+    const idStr = req.params.id as string;
+    const zoneId = parseInt(idStr, 10);
+    if (isNaN(zoneId)) {
+      res.status(400).json({ success: false, error: 'Invalid Zone ID format' });
+      return;
+    }
 
     try {
-      await this.tourService.deleteTour(id);
+      await this.tourService.deleteTour(BigInt(zoneId));
 
       req.auditMeta = {
         action: 'DELETE_TOUR',
         targetType: 'tours',
-        targetId: id,
+        targetId: BigInt(zoneId),
         beforeData: null,
         afterData: null,
       };
@@ -259,10 +301,15 @@ export class TourController {
   };
 
   resetTourQr = async (req: Request, res: Response): Promise<void> => {
-    const id = toBigIntId(req.params.id, 'tour id');
+    const idStr = req.params.id as string;
+    const zoneId = parseInt(idStr, 10);
+    if (isNaN(zoneId)) {
+      res.status(400).json({ success: false, error: 'Invalid Zone ID format' });
+      return;
+    }
 
     try {
-      const result = await this.tourService.resetTourQr(id);
+      const result = await this.tourService.resetTourQr(BigInt(zoneId));
       res.json(ok(result));
     } catch (err: any) {
       res.status(404).json({ success: false, error: err.message });

@@ -9,6 +9,12 @@ import './styles/variables.css';
 import './styles/global.css';
 import './styles/responsive.css';
 
+if (import.meta.env.DEV) {
+  console.log("🛠️ [DEV MODE] Auto-flushing local state and storage caches...");
+  localStorage.clear();
+  sessionStorage.clear();
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <QueryClientProvider client={adminQueryClient}>

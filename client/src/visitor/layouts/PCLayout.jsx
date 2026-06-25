@@ -93,9 +93,15 @@ export function PCLayout({
   permissionStatus,
   isFakeMode,
   handleSelectPoi,
+  handleClosePoi,
   handleLocate,
   onUpgrade,
-  onToast
+  onToast,
+  routingCoordinates,
+  setRoutingCoordinates,
+  routingInfo,
+  setRoutingInfo,
+  handleGetDirections
 }) {
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
   const setLanguage = useLanguageStore((state) => state.setLanguage);
@@ -214,7 +220,13 @@ export function PCLayout({
 
       {/* COLUMN 3: The Map Area */}
       <div className="flex-1 relative bg-slate-100 z-[1000]">
-        <LeafletMap selectedPoi={selectedPoi} enrichedPois={enrichedPois} position={position} onSelectPoi={handleSelectPoi} />
+        <LeafletMap
+          selectedPoi={selectedPoi}
+          enrichedPois={enrichedPois}
+          position={position}
+          onSelectPoi={handleSelectPoi}
+          routingCoordinates={routingCoordinates}
+        />
         
         {(isFakeMode || searchParams.get('debug') === 'gps') && <DevGpsPanel pois={enrichedPois} onToast={onToast} />}
 
@@ -245,7 +257,19 @@ export function PCLayout({
         )}
         
         {/* Render bottom sheet just in case (e.g. for full descriptions if needed later, though maybe not strictly needed for PC anymore, keeping it to avoid breaking props) */}
-        <PoiBottomSheet poi={selectedPoi} onClose={() => setSearchParams({})} onUpgrade={onUpgrade} onToast={onToast} />
+        <PoiBottomSheet
+          poi={selectedPoi}
+          onClose={handleClosePoi}
+          onUpgrade={onUpgrade}
+          onToast={onToast}
+          routingCoordinates={routingCoordinates}
+          routingInfo={routingInfo}
+          onGetDirections={() => handleGetDirections(selectedPoi)}
+          onClearDirections={() => {
+            setRoutingCoordinates([]);
+            setRoutingInfo(null);
+          }}
+        />
       </div>
     </div>
   );

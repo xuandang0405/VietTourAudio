@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { VendorRepository } from '../repositories/vendor.repository';
+import { query } from '../lib/db';
 
 function slugify(text: string): string {
   return text
@@ -23,6 +24,8 @@ function mapVendor(row: any): any {
     contactPhone: row.phone,
     address: row.address,
     verificationStatus: row.status,
+    vendorCode: row.vendor_code,
+    assignedTourId: row.assigned_tour_id ? String(row.assigned_tour_id) : null,
     rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -227,6 +230,14 @@ export class VendorService {
     }
 
     await this.vendorRepo.updateVendorStatus(id, 'REJECTED', undefined, reason);
+    await query(
+      `UPDATE vendor_portal_users SET status = 'DISABLED' WHERE vendor_id = ?`,
+      [id.toString()]
+    );
+    await query(
+      `DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM vendor_portal_users WHERE vendor_id = ?)`,
+      [id.toString()]
+    );
     const after = await this.vendorRepo.getVendorRow(id);
     return {
       before,
@@ -243,12 +254,54 @@ export class VendorService {
 
     await this.vendorRepo.updateVendorStatus(id, 'SUSPENDED');
     await this.vendorRepo.suspendStalls(id);
+    await query(
+      `UPDATE vendor_portal_users SET status = 'DISABLED' WHERE vendor_id = ?`,
+      [id.toString()]
+    );
+    await query(
+      `DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM vendor_portal_users WHERE vendor_id = ?)`,
+      [id.toString()]
+    );
+
     const after = await this.vendorRepo.getVendorRow(id);
     return {
       before,
       after,
       mappedAfter: mapVendor(after),
     };
+  }
+
+  async updateVendorStatus(id: bigint, status: string, reason?: string, userId?: bigint) {
+    const before = await this.vendorRepo.getVendorRow(id);
+    if (!before) {
+      throw new Error('Vendor not found');
+    }
+
+    if (status === 'APPROVED') {
+      return this.approveVendor(id, userId || BigInt(1));
+    } else if (status === 'REJECTED') {
+      return this.rejectVendor(id, reason || 'Rejected by admin');
+    } else if (status === 'SUSPENDED') {
+      return this.suspendVendor(id, reason || 'Suspended by admin');
+    } else {
+      await this.vendorRepo.updateVendorStatus(id, status as any);
+      if (status === 'DISABLED' || status === 'PENDING') {
+        await query(
+          `UPDATE vendor_portal_users SET status = 'DISABLED' WHERE vendor_id = ?`,
+          [id.toString()]
+        );
+        await query(
+          `DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM vendor_portal_users WHERE vendor_id = ?)`,
+          [id.toString()]
+        );
+      }
+      const after = await this.vendorRepo.getVendorRow(id);
+      return {
+        before,
+        after,
+        mappedAfter: mapVendor(after),
+      };
+    }
   }
 
   async forceCancelVendor(id: bigint, reason: string) {
@@ -260,6 +313,48 @@ export class VendorService {
     await this.vendorRepo.updateVendorStatus(id, 'SUSPENDED');
     await this.vendorRepo.suspendStalls(id);
     await this.vendorRepo.cancelSubscriptions(id);
+    await query(
+      `UPDATE vendor_portal_users SET status = 'DISABLED' WHERE vendor_id = ?`,
+      [id.toString()]
+    );
+    await query(
+      `DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM vendor_portal_users WHERE vendor_id = ?)`,
+      [id.toString()]
+    );
+    const after = await this.vendorRepo.getVendorRow(id);
+    return {
+      before,
+      after,
+      mappedAfter: mapVendor(after),
+    };
+  }
+
+  async updateVendor(
+    id: bigint,
+    data: {
+      legalName?: string;
+      tradeName?: string;
+      contactEmail?: string;
+      vendorCode?: string;
+      assignedTourId?: string | null;
+    }
+  ) {
+    const before = await this.vendorRepo.getVendorRow(id);
+    if (!before) {
+      throw new Error('Vendor not found');
+    }
+
+    const slug = data.tradeName ? slugify(data.tradeName) : undefined;
+
+    await this.vendorRepo.updateVendor(id, {
+      legalName: data.legalName,
+      tradeName: data.tradeName,
+      slug,
+      contactEmail: data.contactEmail,
+      vendorCode: data.vendorCode,
+      assignedTourId: data.assignedTourId,
+    });
+
     const after = await this.vendorRepo.getVendorRow(id);
     return {
       before,

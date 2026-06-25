@@ -1,6 +1,6 @@
 import { ChevronRight, Crown, Headphones } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import heroTravel from '../../../assets/img/hero-travel.png';
 import { destinationPreviews, localizeDestination, localizePoi, visitorPois } from '../../../data/visitorPois';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +15,10 @@ import { TopBar } from '../../../visitor/components/TopBar';
 
 export function ListPage({ onUpgrade }) {
   const { t } = useTranslation('translation', { keyPrefix: 'landing' });
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const zoneQuery = searchParams.get('zone');
+
   const [databasePois, setDatabasePois] = useState(null);
   const [databaseDestinations, setDatabaseDestinations] = useState(null);
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
@@ -22,6 +26,13 @@ export function ListPage({ onUpgrade }) {
   const position = useLocationStore((state) => state.position);
   const isFakeMode = useLocationStore((state) => state.isFakeMode);
   const simulateNearPoi = useLocationStore((state) => state.simulateNearPoi);
+
+  useEffect(() => {
+    const lockedZone = localStorage.getItem('locked_zone');
+    if (!zoneQuery && lockedZone) {
+      navigate(`/list?zone=${lockedZone}`, { replace: true });
+    }
+  }, [zoneQuery, navigate]);
 
   useEffect(() => {
     let active = true;
@@ -47,7 +58,9 @@ export function ListPage({ onUpgrade }) {
           isPremiumPoi: Boolean(apiPoi.isPremium),
           description,
           descriptions: { vi: description },
-          narration: { vi: description }
+          narration: { vi: description },
+          tourSlug: apiPoi.tourSlug,
+          tourId: apiPoi.tourId ? Number(apiPoi.tourId) : null
         };
       }));
     }).catch(() => {
@@ -83,13 +96,16 @@ export function ListPage({ onUpgrade }) {
   const pois = useMemo(() => {
     const sourcePois = databasePois ?? visitorPois;
     const localizedPois = sourcePois.map((poi) => localizePoi(poi, currentLanguage));
+    const filteredPois = zoneQuery
+      ? localizedPois.filter(poi => poi.tourSlug === zoneQuery || String(poi.tourId) === String(zoneQuery))
+      : localizedPois;
     return position
-      ? enrichPoisWithDistance(localizedPois, position, currentLanguage)
-      : localizedPois.map((poi) => ({
+      ? enrichPoisWithDistance(filteredPois, position, currentLanguage)
+      : filteredPois.map((poi) => ({
         ...poi,
         distanceLabel: poi.distanceHint ?? formatDistance(Number.POSITIVE_INFINITY, currentLanguage)
       }));
-  }, [currentLanguage, databasePois, position]);
+  }, [currentLanguage, databasePois, position, zoneQuery]);
   const destinations = useMemo(
     () => (databaseDestinations ?? destinationPreviews)
       .map((destination) => localizeDestination(destination, currentLanguage)),
@@ -109,8 +125,9 @@ export function ListPage({ onUpgrade }) {
         <div className="grid gap-4 pc:grid-cols-2">
           {pois.map((poi) => {
             const audioAvailable = !poi.isPremiumPoi || isPremium;
+            const detailTarget = zoneQuery ? `/map?zone=${zoneQuery}&poi=${poi.id}` : `/map?poi=${poi.id}`;
             return (
-              <Link key={poi.id} to={`/map?poi=${poi.id}`} className="glass-card flex items-center gap-4 p-3 active:scale-[0.98]">
+              <Link key={poi.id} to={detailTarget} className="glass-card flex items-center gap-4 p-3 active:scale-[0.98]">
                 <div className="relative h-20 w-20 flex-shrink-0">
                   <img className="h-full w-full rounded-xl border border-glassBorder object-cover" src={poi.image} alt={poi.title} loading="lazy" decoding="async" />
                   {audioAvailable && (
@@ -145,22 +162,24 @@ export function ListPage({ onUpgrade }) {
           </button>
         )}
 
-        <section className="mt-7">
-          <p className="text-xs font-bold uppercase text-oceanCyan">{t('discoverMore')}</p>
-          <h2 className="mt-1 font-display text-2xl font-bold text-textCrisp">{t('nextDestination')}</h2>
-          <div className="mt-4 grid grid-cols-2 gap-3 pc:grid-cols-4">
-            {destinations.map((destination) => (
-              <article key={destination.id} className="glass-card overflow-hidden">
-                <img className="aspect-[1.25] w-full object-cover" src={destination.image} alt={destination.name} loading="lazy" decoding="async" />
-                <div className="p-3">
-                  <p className="truncate text-sm font-bold text-textCrisp">{destination.name}</p>
-                  <p className="mt-1 text-xs font-semibold text-textSeafoam">{destination.city}</p>
-                  <span className="mt-2 inline-flex rounded-full border border-glassBorder bg-white/5 px-2.5 py-1 text-[11px] font-bold text-textSeafoam">{destination.label}</span>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+        {!zoneQuery && (
+          <section className="mt-7">
+            <p className="text-xs font-bold uppercase text-oceanCyan">{t('discoverMore')}</p>
+            <h2 className="mt-1 font-display text-2xl font-bold text-textCrisp">{t('nextDestination')}</h2>
+            <div className="mt-4 grid grid-cols-2 gap-3 pc:grid-cols-4">
+              {destinations.map((destination) => (
+                <article key={destination.id} className="glass-card overflow-hidden">
+                  <img className="aspect-[1.25] w-full object-cover" src={destination.image} alt={destination.name} loading="lazy" decoding="async" />
+                  <div className="p-3">
+                    <p className="truncate text-sm font-bold text-textCrisp">{destination.name}</p>
+                    <p className="mt-1 text-xs font-semibold text-textSeafoam">{destination.city}</p>
+                    <span className="mt-2 inline-flex rounded-full border border-glassBorder bg-white/5 px-2.5 py-1 text-[11px] font-bold text-textSeafoam">{destination.label}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
       <BottomNav />

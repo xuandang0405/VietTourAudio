@@ -15,7 +15,8 @@ import { AdminTopUps } from './features/vendor-wallet/pages/AdminTopUps';
 import { AdminUsers } from './features/auth/pages/AdminUsers';
 import { AdminVendorAccounts } from './features/vendor-wallet/pages/AdminVendorAccounts';
 import { AdminVendorDetail } from './features/vendor-wallet/pages/AdminVendorDetail';
-import { AdminVendors } from './features/vendor-wallet/pages/AdminVendors';
+import { AdminVendorsPage } from './features/vendor-wallet/pages/AdminVendorsPage';
+import { ZoneManagement } from './features/geofence-audio/pages/ZoneManagement';
 import { PREMIUM_ACTIVATION_CODE } from './data/visitorPois';
 import { useTranslation } from 'react-i18next';
 import { usePremiumStore } from './features/vendor-wallet/stores/premiumStore';
@@ -125,7 +126,8 @@ function AppRoutes() {
           <Route element={<AdminGuard />}>
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminAnalytics />} />
-              <Route path="vendors" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminVendors /></AdminGuard>} />
+              <Route path="vendors" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminVendorsPage /></AdminGuard>} />
+              <Route path="zones" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><ZoneManagement /></AdminGuard>} />
               <Route path="vendors/:id" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminVendorDetail /></AdminGuard>} />
               <Route path="content" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN', 'MODERATOR']}><AdminContent /></AdminGuard>} />
               <Route path="pois" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminPois /></AdminGuard>} />

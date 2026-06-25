@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Camera, Compass, Globe, MapPinned, ScanLine, ChevronRight } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../../assets/logo/logo.png';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +21,14 @@ export function LandingPage({ onToast, onUpgrade }) {
   const setLanguage = useLanguageStore((state) => state.setLanguage);
   const [showScanner, setShowScanner] = useState(false);
   const [zoneCodeInput, setZoneCodeInput] = useState('');
+
+  // Redirect if locked to a zone
+  useEffect(() => {
+    const lockedZone = localStorage.getItem('locked_zone');
+    if (lockedZone) {
+      navigate(`/map?zone=${lockedZone}`, { replace: true });
+    }
+  }, [navigate]);
 
   const FEATURED_ZONES = useMemo(() => [
     { id: 1, title: t('landing.featured.zone1_title'), subtitle: t('landing.featured.zone1_subtitle'), img: 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=200&h=200&fit=crop' },

@@ -197,6 +197,8 @@ CREATE TABLE tours (
   slug VARCHAR(255) NOT NULL,
   description TEXT NULL,
   cover_image_url VARCHAR(500) NULL,
+  latitude DECIMAL(10,7) NULL,
+  longitude DECIMAL(10,7) NULL,
   status ENUM('DRAFT', 'PUBLISHED', 'ARCHIVED') NOT NULL DEFAULT 'DRAFT',
   sort_order INT UNSIGNED NOT NULL DEFAULT 0,
   is_premium TINYINT(1) NOT NULL DEFAULT 0,

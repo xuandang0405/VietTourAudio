@@ -45,7 +45,8 @@
     "reason": "原因",
     "optional": "非必填",
     "search": "搜索...",
-    "smartGuide": "智能导览"
+    "smartGuide": "智能导览",
+    "minute": "分钟"
   },
   "poi": {
     "management_subtitle": "POI MANAGEMENT",
@@ -103,7 +104,12 @@
     "distance_empty": "请选择两个 POI 以计算距离。",
     "distance_loading": "正在计算距离...",
     "distance_same_poi": "请选择两个不同的 POI。",
-    "distance_result": "距离：{{distance}} 米"
+    "distance_result": "距离：{{distance}} 米",
+    "auto_translate": "✨ 自动翻译至其他语言",
+    "translating": "正在翻译...",
+    "translate_empty_name": "翻译前请先填写越南语景点名称！",
+    "translate_failed": "自动翻译失败。请重试。",
+    "translate_success": "成功自动翻译为英文、日文、韩文和中文！"
   },
   "users": {
     "create_zone_admin": "创建区域管理员",
@@ -115,6 +121,7 @@
     "group_system": "系统设置",
     "dashboard": "仪表板",
     "vendors": "商家管理",
+    "zones": "区域管理",
     "moderation": "审核",
     "pois": "景点管理",
     "vendor_wallet": "商家钱包",
@@ -311,6 +318,8 @@
     "premium_conversions": "{{count}} premium"
   },
   "landing": {
+    "waiting": "正在等待信号...",
+    "stopped": "已停止播放",
     "smartGuide": "智能导览",
     "explore": "探索",
     "list": "列表",
@@ -412,7 +421,10 @@
     "close": "关闭",
     "playAgain": "重新播放",
     "wait": "请稍候",
-    "replayAfter": "重新播放于"
+    "replayAfter": "重新播放于",
+    "locationUpdated": "位置已更新",
+    "playingAgain": "正在重新播放语音讲解",
+    "textOnly": "仅文本模式"
   },
   "map": {
     "no_gps": "没有GPS"
@@ -604,5 +616,74 @@
     "reason": "操作原因",
     "ip_address": "IP 地址",
     "eyebrow": "审计"
+  },
+  "tour": {
+    "no_pois_assigned": "此路线未分配任何兴趣点。"
+  },
+  "routing": {
+    "get_directions": "获取路线",
+    "distance": "距离",
+    "time": "时间",
+    "calculating": "计算中...",
+    "error": "无法计算路线。",
+    "enable_gps": "请开启GPS以获取路线。",
+    "clear": "清除"
+  },
+  "admin": {
+    "scanner": {
+      "title": "管理员二维码扫描测试器",
+      "description": "管理员用于测试摄像头和解码二维码的界面。",
+      "unsecure_warning": "由于非安全 HTTP 环境，浏览器阻止了相机访问。请配置 HTTPS 或使用图片文件进行测试。",
+      "upload_fallback": "选择二维码图片进行测试"
+    },
+    "vendors": {
+      "title": "商家账号 management",
+      "subtitle": "区域授权、账户生命周期 management 及运行状态监控。",
+      "create_btn": "开通商家账号",
+      "hierarchical_title": "按区域划分的商家账户",
+      "back_to_zones": "返回区域列表",
+      "total_vendors_count": "{{count}} 个商家",
+      "edit_title": "编辑商家",
+      "form": {
+        "legal_name": "法定名称",
+        "trade_name": "摊位名称",
+        "email": "联系邮箱",
+        "code": "商家代码",
+        "zone": "区域"
+      },
+      "table": {
+        "code": "商家代码",
+        "name": "摊位名称",
+        "email": "联系邮箱",
+        "zone": "关联区域",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "status": {
+        "PENDING": "待审批",
+        "APPROVED": "使用中",
+        "SUSPENDED": "已停用",
+        "REJECTED": "已拒绝"
+      },
+      "confirm_suspend": "您确定要立即停用此账号吗？该商家的所有活动登录会话将被立即终止。"
+    },
+    "analytics": {
+      "realtime_title": "实时流量 (最近 5 分钟)",
+      "active_visitors": "活跃游客",
+      "total_scans": "总二维码扫描量",
+      "no_active_visitors": "暂无活跃游客",
+      "last_update": "最近更新: {{time}}"
+    }
+  },
+  "status": {
+    "draft": "草稿",
+    "active": "启用",
+    "inactive": "禁用",
+    "archived": "已存档",
+    "published": "已发布",
+    "pending": "待审核",
+    "approved": "已批准",
+    "rejected": "已拒绝",
+    "suspended": "已挂起"
   }
 }

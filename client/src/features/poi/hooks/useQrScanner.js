@@ -15,6 +15,12 @@ export function useQrScanner({ onResult }) {
     let cancelled = false;
 
     async function start() {
+      const isSecureContext = window.isSecureContext || location.protocol === 'https:';
+      if (!navigator.mediaDevices || !isSecureContext) {
+        setStatus('unsecure');
+        return;
+      }
+
       // Check BarcodeDetector API presence
       if (!('BarcodeDetector' in window)) {
         setStatus('unsupported');

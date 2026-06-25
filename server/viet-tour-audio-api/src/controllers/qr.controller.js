@@ -66,3 +66,33 @@ export async function scan(req, res) {
 
   return res.json({ ...result, sessionId });
 }
+
+export async function scanPost(req, res) {
+  const token = String(req.body.token || '');
+  const guestId = String(req.body.guestId || '');
+  const sessionId = String(req.headers['x-session-id'] || randomUUID());
+  const ipHash = sha256(req.ip || req.headers['x-forwarded-for'] || 'na');
+
+  const result = await scanQr({ token, sessionId, ipHash });
+  if (!result.valid) return res.status(404).json({ error: result.reason || 'QR not found' });
+
+  await trackEvent({
+    sessionId,
+    actionType: 'QRScan',
+    guestId,
+    metadata: { token: token.slice(0, 8), cooldown: result.cooldown }
+  });
+
+  if (result.targetType === 'tour') {
+    return res.json({
+      session: { id: sessionId },
+      tour: result.data.tour,
+      zones: result.data.zones || []
+    });
+  }
+
+  return res.json({
+    session: { id: sessionId },
+    ...result.data
+  });
+}

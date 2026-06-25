@@ -64,9 +64,12 @@ export async function listZones(req, res) {
 }
 
 export async function getZoneById(req, res) {
-  const id = Number(req.params.id);
+  const zoneId = parseInt(req.params.id, 10);
+  if (isNaN(zoneId)) {
+    return res.status(400).json({ error: "Invalid Zone ID format" });
+  }
   const item = await prisma.zone.findUnique({
-    where: { id },
+    where: { id: zoneId },
     include: {
       translations: true,
       narrations: true,
@@ -111,11 +114,14 @@ export async function createZone(req, res) {
 }
 
 export async function updateZone(req, res) {
-  const id = Number(req.params.id);
+  const zoneId = parseInt(req.params.id, 10);
+  if (isNaN(zoneId)) {
+    return res.status(400).json({ error: "Invalid Zone ID format" });
+  }
   const payload = upsertZoneSchema.parse(req.body);
 
   await prisma.zone.update({
-    where: { id },
+    where: { id: zoneId },
     data: {
       shopId: payload.shopId ?? null,
       name: payload.name,
@@ -130,11 +136,11 @@ export async function updateZone(req, res) {
     }
   });
 
-  await prisma.zoneTranslation.deleteMany({ where: { zoneId: id } });
+  await prisma.zoneTranslation.deleteMany({ where: { zoneId: zoneId } });
   if (payload.translations.length) {
     await prisma.zoneTranslation.createMany({
       data: payload.translations.map((x) => ({
-        zoneId: id,
+        zoneId: zoneId,
         language: x.language,
         title: x.title,
         description: x.description
@@ -142,23 +148,29 @@ export async function updateZone(req, res) {
     });
   }
 
-  const item = await prisma.zone.findUnique({ where: { id }, include: { translations: true } });
+  const item = await prisma.zone.findUnique({ where: { id: zoneId }, include: { translations: true } });
   return res.json(item);
 }
 
 export async function deleteZone(req, res) {
-  const id = Number(req.params.id);
-  await prisma.zone.update({ where: { id }, data: { isActive: false } });
+  const zoneId = parseInt(req.params.id, 10);
+  if (isNaN(zoneId)) {
+    return res.status(400).json({ error: "Invalid Zone ID format" });
+  }
+  await prisma.zone.update({ where: { id: zoneId }, data: { isActive: false } });
   return res.json({ success: true });
 }
 
 export async function lockZone(req, res) {
-  const id = Number(req.params.id);
+  const zoneId = parseInt(req.params.id, 10);
+  if (isNaN(zoneId)) {
+    return res.status(400).json({ error: "Invalid Zone ID format" });
+  }
   const body = z.object({ lock: z.boolean(), reason: z.string().optional() }).parse(req.body);
 
-  const before = await prisma.zone.findUnique({ where: { id } });
+  const before = await prisma.zone.findUnique({ where: { id: zoneId } });
   const item = await prisma.zone.update({
-    where: { id },
+    where: { id: zoneId },
     data: {
       isLocked: body.lock,
       lockReason: body.reason || null
@@ -169,7 +181,7 @@ export async function lockZone(req, res) {
     actorUserId: req.user?.id,
     action: body.lock ? 'zone.lock' : 'zone.unlock',
     entityType: 'Zone',
-    entityId: id,
+    entityId: zoneId,
     reason: body.reason,
     beforeData: before,
     afterData: item

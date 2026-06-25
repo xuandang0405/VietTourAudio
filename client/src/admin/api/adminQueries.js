@@ -13,6 +13,7 @@ import {
   fetchRevenueTimeline,
   fetchTopUpRequests,
   fetchVendor,
+  updateVendor,
   fetchVendorWallet,
   fetchVendorWallets,
   fetchVendors,
@@ -38,10 +39,12 @@ import {
   resetStallQr,
   fetchDashboardAnalytics,
   fetchTours,
+  fetchTourById,
   createTour,
   updateTour,
   deleteTour,
-  resetTourQr
+  resetTourQr,
+  updateVendorStatus
 } from './adminApi';
 
 export const adminQueryKeys = {
@@ -59,7 +62,8 @@ export const adminQueryKeys = {
   zonesList: ['admin', 'zones-list'],
   hourlyActiveUsers: ['admin', 'analytics', 'hourly-active-users'],
   dashboardAnalytics: ['admin', 'analytics', 'dashboard'],
-  tours: ['admin', 'tours']
+  tours: ['admin', 'tours'],
+  tour: (id) => ['admin', 'tours', id]
 };
 
 export function useVendors(params) {
@@ -298,6 +302,29 @@ export function useCreateVendor() {
   });
 }
 
+export function useUpdateVendor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }) => updateVendor(id, data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(variables.id) });
+    }
+  });
+}
+
+export function useUpdateVendorStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status, reason }) => updateVendorStatus(id, status, reason),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(variables.id) });
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.wallets });
+    }
+  });
+}
+
 export function useCreateZoneAdmin() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -338,6 +365,14 @@ export function useTours() {
   return useQuery({
     queryKey: adminQueryKeys.tours,
     queryFn: fetchTours
+  });
+}
+
+export function useTour(id) {
+  return useQuery({
+    queryKey: adminQueryKeys.tour(id),
+    queryFn: () => fetchTourById(id),
+    enabled: Boolean(id)
   });
 }
 

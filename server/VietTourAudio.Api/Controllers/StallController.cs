@@ -66,7 +66,7 @@ public class StallController : ControllerBase
 
     await using (var qrLookup = connection.CreateCommand())
     {
-      qrLookup.CommandText = @"SELECT qr.tour_id, t.id, t.name, t.slug, t.description, t.status, t.vendor_id
+      qrLookup.CommandText = @"SELECT qr.id AS qr_id, qr.tour_id, t.id, t.name, t.slug, t.description, t.status, t.vendor_id
                                 FROM qr_codes qr
                                 JOIN tours t ON t.id = qr.tour_id
                                 WHERE REPLACE(qr.code, '-', '') = REPLACE(@code, '-', '') AND qr.qr_type = 'TOUR' AND qr.is_active = 1
@@ -75,12 +75,20 @@ public class StallController : ControllerBase
       await using var reader = await qrLookup.ExecuteReaderAsync();
       if (await reader.ReadAsync())
       {
+        var qrId = reader.UInt64("qr_id");
         var tourId = reader.UInt64("id");
+        var vendorId = reader.IsDBNull(reader.GetOrdinal("vendor_id")) ? (ulong?)null : reader.UInt64("vendor_id");
         var tourName = reader.GetString(reader.GetOrdinal("name"));
         var tourSlug = reader.GetString(reader.GetOrdinal("slug"));
         var tourDesc = reader.NullableString("description");
         var tourStatus = reader.GetString(reader.GetOrdinal("status"));
         await reader.CloseAsync();
+
+        // Log scan event!
+        await LogScanEventAsync(connection, qrId, vendorId, tourId, null, 
+          HttpContext.Connection.RemoteIpAddress?.ToString(), 
+          Request.Headers["User-Agent"].ToString(),
+          Request.Headers["Referer"].ToString());
 
         var pois = await GetZonesForTour(connection, tourId);
         return Ok(ApiResponseFactory.Ok(new
@@ -100,11 +108,18 @@ public class StallController : ControllerBase
       if (await reader.ReadAsync())
       {
         var tourId = reader.UInt64("id");
+        var vendorId = reader.IsDBNull(reader.GetOrdinal("vendor_id")) ? (ulong?)null : reader.UInt64("vendor_id");
         var tourName = reader.GetString(reader.GetOrdinal("name"));
         var tourSlug = reader.GetString(reader.GetOrdinal("slug"));
         var tourDesc = reader.NullableString("description");
         var tourStatus = reader.GetString(reader.GetOrdinal("status"));
         await reader.CloseAsync();
+
+        // Log scan event!
+        await LogScanEventAsync(connection, null, vendorId, tourId, null, 
+          HttpContext.Connection.RemoteIpAddress?.ToString(), 
+          Request.Headers["User-Agent"].ToString(),
+          Request.Headers["Referer"].ToString());
 
         var pois = await GetZonesForTour(connection, tourId);
         return Ok(ApiResponseFactory.Ok(new
@@ -121,8 +136,46 @@ public class StallController : ControllerBase
     {
       return NotFound(ApiResponseFactory.Fail("Mã khu vực không hợp lệ hoặc không tồn tại."));
     }
+
+    // Log scan event!
+    await LogScanEventAsync(connection, null, stall.OwnerId, null, stall.Id, 
+      HttpContext.Connection.RemoteIpAddress?.ToString(), 
+      Request.Headers["User-Agent"].ToString(),
+      Request.Headers["Referer"].ToString());
+
     var stallPois = await _poiService.GetPoisAsync(stall.Id);
     return Ok(ApiResponseFactory.Ok(new { Stall = stall, Pois = stallPois }, "Tìm thấy thông tin sạp và điểm tham quan."));
+  }
+
+  private static async Task LogScanEventAsync(
+    System.Data.Common.DbConnection connection,
+    ulong? qrCodeId,
+    ulong? vendorId,
+    ulong? tourId,
+    ulong? stallId,
+    string? ipAddress,
+    string? userAgent,
+    string? referrer)
+  {
+    try
+    {
+      await using var command = connection.CreateCommand();
+      command.CommandText = @"INSERT INTO qr_scan_events 
+                              (qr_code_id, vendor_id, tour_id, stall_id, ip_address, user_agent, referrer, scanned_at)
+                              VALUES (@qrId, @vendorId, @tourId, @stallId, @ip, @userAgent, @referrer, NOW())";
+      command.AddParameter("@qrId", qrCodeId);
+      command.AddParameter("@vendorId", vendorId);
+      command.AddParameter("@tourId", tourId);
+      command.AddParameter("@stallId", stallId);
+      command.AddParameter("@ip", ipAddress);
+      command.AddParameter("@userAgent", userAgent);
+      command.AddParameter("@referrer", referrer);
+      await command.ExecuteNonQueryAsync();
+    }
+    catch (System.Exception ex)
+    {
+      System.Console.WriteLine($"Error logging scan event in background: {ex.Message}");
+    }
   }
 
   private static async Task<List<object>> GetZonesForTour(System.Data.Common.DbConnection connection, ulong tourId)

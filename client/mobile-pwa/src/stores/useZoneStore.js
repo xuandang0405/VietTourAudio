@@ -19,10 +19,10 @@ export const useZoneStore = create((set, get) => ({
   setLastScanResult: (lastScanResult) => set({ lastScanResult }),
   markEntered: (zoneId) => set((s) => ({ enteredZoneIds: { ...s.enteredZoneIds, [zoneId]: Date.now() } })),
   hydrateFromCache: async (tourId) => {
+    set({ currentTour: null, zones: [] });
     const tour = await getTour(Number(tourId));
     const zones = await getZonesByTour(Number(tourId));
-    if (tour) set({ currentTour: tour });
-    if (zones?.length) set({ zones });
+    set({ currentTour: tour || null, zones: zones || [] });
     return { tour, zones };
   }
 }));

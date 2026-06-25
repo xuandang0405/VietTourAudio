@@ -59,7 +59,8 @@
     "reason": "Lý do",
     "optional": "Không bắt buộc",
     "search": "Tìm kiếm...",
-    "smartGuide": "Hướng dẫn thông minh"
+    "smartGuide": "Hướng dẫn thông minh",
+    "minute": "phút"
   },
   "poi": {
     "management_subtitle": "POI MANAGEMENT",
@@ -117,7 +118,12 @@
     "distance_empty": "Chọn hai POI để tính khoảng cách.",
     "distance_loading": "Đang tính khoảng cách...",
     "distance_same_poi": "Vui lòng chọn hai POI khác nhau.",
-    "distance_result": "Khoảng cách: {{distance}} mét"
+    "distance_result": "Khoảng cách: {{distance}} mét",
+    "auto_translate": "✨ Dịch tự động sang ngôn ngữ khác",
+    "translating": "Đang dịch...",
+    "translate_empty_name": "Vui lòng điền Tên POI tiếng Việt trước khi dịch!",
+    "translate_failed": "Dịch tự động thất bại. Vui lòng thử lại.",
+    "translate_success": "Đã tự động dịch sang tiếng Anh, Nhật, Hàn, Trung!"
   },
   "users": {
     "create_zone_admin": "Tạo Admin Khu vực",
@@ -129,6 +135,7 @@
     "group_system": "Hệ thống",
     "dashboard": "Bảng điều khiển",
     "vendors": "Nhà cung cấp",
+    "zones": "Khu vực",
     "moderation": "Kiểm duyệt",
     "pois": "Điểm tham quan",
     "vendor_wallet": "Ví vendor",
@@ -325,6 +332,8 @@
     "premium_conversions": "{{count}} premium"
   },
   "landing": {
+    "waiting": "Đang chờ tín hiệu...",
+    "stopped": "Đã dừng phát",
     "smartGuide": "Hướng dẫn thông minh",
     "explore": "Khám phá",
     "list": "Danh sách",
@@ -440,7 +449,10 @@
     "close": "Đóng",
     "playAgain": "Phát lại",
     "wait": "Vui lòng chờ",
-    "replayAfter": "Phát lại sau"
+    "replayAfter": "Phát lại sau",
+    "locationUpdated": "Vị trí đã cập nhật",
+    "playingAgain": "Đang phát lại thuyết minh",
+    "textOnly": "Chế độ văn bản"
   },
   "geofence": {
     "title": "Bản đồ vùng kích hoạt",
@@ -647,10 +659,76 @@
     "label_admin_name": "Họ tên Admin",
     "placeholder_admin_name": "Ví dụ: Admin Khu Nguyễn Huệ",
     "placeholder_admin_email": "admin.khuvuc@example.com",
-    "error_admin_name": "Tên Admin không được trống.",
-    "error_admin_email": "Email Admin không được trống.",
-    "error_zone_required": "Vui lòng chọn khu vực được gán.",
     "success_create_zone_admin": "Đã tạo Admin Khu vực {{name}} thành công!",
     "error_create_zone_admin": "Không thể tạo tài khoản Admin Khu vực."
+  },
+  "tour": {
+    "no_pois_assigned": "Chưa có điểm tham quan nào được gán cho Tour này."
+  },
+  "routing": {
+    "get_directions": "Tìm đường",
+    "distance": "Khoảng cách",
+    "time": "Thời gian",
+    "calculating": "Đang tính đường...",
+    "error": "Không thể tìm đường.",
+    "enable_gps": "Vui lòng bật GPS để tìm đường.",
+    "clear": "Xóa"
+  },
+  "admin": {
+    "scanner": {
+      "title": "Trình kiểm thử quét mã QR",
+      "description": "Giao diện kiểm thử camera và giải mã QR cho Quản trị viên.",
+      "unsecure_warning": "Trình duyệt chặn Camera do môi trường HTTP không bảo mật. Vui lòng cấu hình HTTPS hoặc dùng file ảnh để test.",
+      "upload_fallback": "Chọn ảnh chụp QR để test"
+    },
+    "vendors": {
+      "title": "Quản lý đối tác sạp hàng",
+      "subtitle": "Phân quyền khu vực, kiểm soát vòng đời tài khoản và trạng thái hoạt động của các Vendor.",
+      "create_btn": "CẤP TÀI KHOẢN VENDOR",
+      "hierarchical_title": "Danh sách nhà cung cấp theo Khu vực",
+      "back_to_zones": "Quay lại danh sách Khu vực",
+      "total_vendors_count": "{{count}} nhà cung cấp",
+      "edit_title": "Chỉnh sửa nhà cung cấp",
+      "form": {
+        "legal_name": "Tên pháp lý",
+        "trade_name": "Tên sạp",
+        "email": "Email liên hệ",
+        "code": "Mã Vendor",
+        "zone": "Khu vực"
+      },
+      "table": {
+        "code": "MÃ VENDOR",
+        "name": "TÊN SẠP HÀNG",
+        "email": "EMAIL LIÊN HỆ",
+        "zone": "KHU VỰC GÁN",
+        "status": "TRẠNG THÁI",
+        "actions": "THAO TÁC"
+      },
+      "status": {
+        "PENDING": "Chờ duyệt",
+        "APPROVED": "Đang hoạt động",
+        "SUSPENDED": "Đã khóa tài khoản",
+        "REJECTED": "Từ chối"
+      },
+      "confirm_suspend": "Bạn có chắc chắn muốn khóa tài khoản này lập tức? Tất cả các phiên đăng nhập của Vendor này sẽ bị chấm dứt ngay."
+    },
+    "analytics": {
+      "realtime_title": "Theo dõi thời gian thực (5 phút qua)",
+      "active_visitors": "Số lượng du khách đang truy cập",
+      "total_scans": "Tổng số quét QR",
+      "no_active_visitors": "Không có du khách hoạt động",
+      "last_update": "Cập nhật lúc: {{time}}"
+    }
+  },
+  "status": {
+    "draft": "Bản nháp",
+    "active": "Hoạt động",
+    "inactive": "Ngưng hoạt động",
+    "archived": "Lưu trữ",
+    "published": "Đã xuất bản",
+    "pending": "Chờ duyệt",
+    "approved": "Đã duyệt",
+    "rejected": "Từ chối",
+    "suspended": "Bị khóa"
   }
 }

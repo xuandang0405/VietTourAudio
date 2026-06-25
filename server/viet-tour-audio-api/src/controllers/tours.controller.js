@@ -50,7 +50,14 @@ export async function getTour(req, res) {
     }
   });
   if (!item) return res.status(404).json({ error: 'Tour not found' });
-  return res.json({ ...item, zones: item.tourZones.map((x) => ({ ...x.zone, orderIndex: x.orderIndex })) });
+
+  const tourData = { ...item };
+  delete tourData.tourZones;
+
+  return res.json({
+    tour: tourData,
+    zones: item.tourZones.map((x) => ({ ...x.zone, orderIndex: x.orderIndex }))
+  });
 }
 
 export async function createTour(req, res) {

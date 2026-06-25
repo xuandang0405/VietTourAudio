@@ -21,24 +21,36 @@ export function MobileLayout({
   isFakeMode,
   handleSelectPoi,
   handleLocate,
+  handleClosePoi,
   onUpgrade,
-  onToast
+  onToast,
+  routingCoordinates,
+  setRoutingCoordinates,
+  routingInfo,
+  setRoutingInfo,
+  handleGetDirections
 }) {
   const { t } = useTranslation('translation', { keyPrefix: 'landing' });
 
   return (
     <section className="relative h-[100vh] min-h-[100vh] overflow-hidden bg-slate-50">
       <div className="absolute inset-0">
-        <LeafletMap selectedPoi={selectedPoi} enrichedPois={enrichedPois} position={position} onSelectPoi={handleSelectPoi} />
+        <LeafletMap
+          selectedPoi={selectedPoi}
+          enrichedPois={enrichedPois}
+          position={position}
+          onSelectPoi={handleSelectPoi}
+          routingCoordinates={routingCoordinates}
+        />
       </div>
 
       <TopBar title={t('mapTitle')} compact />
 
-      <div className="absolute left-1/2 top-[92px] z-[1200] w-[calc(100%-2rem)] -translate-x-1/2 text-center">
+      <div className="absolute left-1/2 top-[92px] z-30 w-[calc(100%-2rem)] -translate-x-1/2 text-center">
         <PremiumStatusButton onUpgrade={onUpgrade} />
       </div>
 
-      <div className="absolute bottom-[calc(38%+112px)] right-4 z-[1200] grid gap-3">
+      <div className="absolute bottom-[calc(38%+112px)] right-4 z-30 grid gap-3">
         <button
           type="button"
           onClick={onUpgrade}
@@ -60,7 +72,7 @@ export function MobileLayout({
       {(isFakeMode || searchParams.get('debug') === 'gps') && <DevGpsPanel pois={enrichedPois} onToast={onToast} />}
 
       {!position && (
-        <article className="absolute left-4 right-4 top-[150px] z-[1200] bg-white rounded-2xl p-4 text-center shadow-xl border border-slate-100">
+        <article className="absolute left-4 right-4 top-[150px] z-35 bg-white rounded-2xl p-4 text-center shadow-xl border border-slate-100">
           <SatelliteDish className="mx-auto text-teal-500" size={30} />
           <h2 className="mt-2 font-display text-base font-bold text-slate-900">{t('locating')}</h2>
           <p className="mt-1 text-sm leading-6 text-slate-500">{t('locatingHelp')}</p>
@@ -75,7 +87,7 @@ export function MobileLayout({
         </article>
       )}
 
-      <section className="absolute bottom-[86px] left-0 right-0 z-[1100] max-h-[38%] rounded-t-3xl border-t border-slate-200 bg-white px-4 pb-4 pt-3 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl">
+      <section className="absolute bottom-[86px] left-0 right-0 z-20 max-h-[38%] rounded-t-3xl border-t border-slate-200 bg-white px-4 pb-4 pt-3 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl">
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300" />
         <label className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-600 focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500">
           <Search size={17} />
@@ -114,7 +126,19 @@ export function MobileLayout({
 
       <BottomNav />
       <AudioPlayerSheet />
-      <PoiBottomSheet poi={selectedPoi} onClose={() => setSearchParams({})} onUpgrade={onUpgrade} onToast={onToast} />
+      <PoiBottomSheet
+        poi={selectedPoi}
+        onClose={handleClosePoi}
+        onUpgrade={onUpgrade}
+        onToast={onToast}
+        routingCoordinates={routingCoordinates}
+        routingInfo={routingInfo}
+        onGetDirections={() => handleGetDirections(selectedPoi)}
+        onClearDirections={() => {
+          setRoutingCoordinates([]);
+          setRoutingInfo(null);
+        }}
+      />
     </section>
   );
 }

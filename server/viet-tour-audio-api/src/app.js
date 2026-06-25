@@ -43,6 +43,7 @@ export function createApp(io) {
   app.use('/api/auth', authRoutes);
   app.use('/api/zones', zonesRoutes);
   app.use('/api/tours', toursRoutes);
+  app.use('/api/tour', toursRoutes);
   app.use('/api/narrations', narrationsRoutes);
   app.use('/api/qr', qrRoutes);
   app.use('/api/analytics', analyticsRoutes);

@@ -72,6 +72,7 @@ export class PoiService {
       activationRadius?: number;
       isPremiumContent: boolean;
       status?: string;
+      translations?: any[];
     }
   ) {
     const allowed = await this.isStallAllowed(req, String(data.stallId));
@@ -119,6 +120,7 @@ export class PoiService {
       activationRadius: number;
       isPremiumContent: boolean;
       status: string;
+      translations?: any[];
     }
   ) {
     const before = await this.getPoiRow(id, req);
@@ -191,6 +193,9 @@ export class TourService {
       name: row.name,
       slug: row.slug,
       description: row.description,
+      coverImageUrl: row.cover_image_url ?? null,
+      latitude: row.latitude !== null && row.latitude !== undefined ? Number(row.latitude) : null,
+      longitude: row.longitude !== null && row.longitude !== undefined ? Number(row.longitude) : null,
       status: row.status,
       sortOrder: Number(row.sort_order),
       isPremium: Boolean(row.is_premium),
@@ -203,34 +208,104 @@ export class TourService {
   }
 
   async getTourById(id: bigint) {
-    const row = await this.tourRepo.getTourById(id);
-    if (!row) throw new Error('Tour not found');
+    const rows = await this.tourRepo.getTourById(id);
+    if (!rows || rows.length === 0) throw new Error('Tour not found');
+    const first = rows[0];
+
+    const poiIds = rows
+      .filter((row) => row.poi_id !== null && row.poi_id !== undefined)
+      .map((row) => String(row.poi_id));
+
+    const translationsMap: Record<string, any[]> = {};
+    if (poiIds.length > 0) {
+      const { query } = require('../lib/db');
+      const uniquePoiIds = Array.from(new Set(poiIds));
+      const placeholders = uniquePoiIds.map(() => '?').join(',');
+      const translationRows = await query(
+        `SELECT poi_id, lang, title, tts_script FROM poi_contents WHERE poi_id IN (${placeholders})`,
+        uniquePoiIds
+      );
+      for (const t of translationRows) {
+        const poiId = String(t.poi_id);
+        if (!translationsMap[poiId]) {
+          translationsMap[poiId] = [];
+        }
+        translationsMap[poiId].push({
+          lang: t.lang,
+          title: t.title,
+          ttsScript: t.tts_script,
+        });
+      }
+    }
+
+    const pois = rows
+      .filter((row) => row.poi_id !== null && row.poi_id !== undefined)
+      .map((row) => {
+        const pId = String(row.poi_id);
+        return {
+          id: pId,
+          name: row.poi_name,
+          latitude: Number(row.poi_latitude),
+          longitude: Number(row.poi_longitude),
+          activationRadius: row.activation_radius ? Number(row.activation_radius) : 25,
+          status: row.poi_status ?? 'ACTIVE',
+          stallName: row.stall_name || 'N/A',
+          contents: row.contents_count ? Number(row.contents_count) : 0,
+          mediaFiles: row.media_count ? Number(row.media_count) : 0,
+          translations: translationsMap[pId] || [],
+        };
+      });
+
+    // De-duplicate pois list if any
+    const seenPoiIds = new Set();
+    const uniquePois = [];
+    for (const poi of pois) {
+      if (!seenPoiIds.has(poi.id)) {
+        seenPoiIds.add(poi.id);
+        uniquePois.push(poi);
+      }
+    }
+
     return {
-      id: String(row.id),
-      vendorId: String(row.vendor_id),
-      vendorName: row.vendor_name || 'N/A',
-      name: row.name,
-      slug: row.slug,
-      description: row.description,
-      status: row.status,
-      sortOrder: Number(row.sort_order),
-      isPremium: Boolean(row.is_premium),
-      poiCount: Number(row.poi_count),
-      qrCode: row.qr_code ?? null,
-      qrImageUrl: row.qr_image_url ?? null,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      id: String(first.id),
+      vendorId: String(first.vendor_id),
+      vendorName: first.vendor_name || 'N/A',
+      name: first.name,
+      slug: first.slug,
+      description: first.description,
+      coverImageUrl: first.cover_image_url ?? null,
+      latitude: first.latitude !== null && first.latitude !== undefined ? Number(first.latitude) : null,
+      longitude: first.longitude !== null && first.longitude !== undefined ? Number(first.longitude) : null,
+      status: first.status,
+      sortOrder: Number(first.sort_order),
+      isPremium: Boolean(first.is_premium),
+      poiCount: Number(first.poi_count),
+      qrCode: first.qr_code ?? null,
+      qrImageUrl: first.qr_image_url ?? null,
+      createdAt: first.created_at,
+      updatedAt: first.updated_at,
+      pois: uniquePois,
     };
   }
 
   async createTour(data: {
     vendorId: number | string;
     name: string;
+    slug?: string;
     description?: string | null;
     status?: string;
     isPremium?: boolean;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
+    coverImageUrl?: string | null;
   }) {
-    const slug = slugify(data.name);
+    const slug = data.slug && data.slug.trim() ? slugify(data.slug) : slugify(data.name);
+    const { query } = require('../lib/db');
+    const existing = await query("SELECT id FROM tours WHERE slug = ? AND status != 'ARCHIVED'", [slug]);
+    if (existing.length > 0) {
+      throw new Error('Mã khu vực (Zone code / Slug) đã được sử dụng. Vui lòng chọn mã khác.');
+    }
+
     const insertId = await this.tourRepo.insertTour({ ...data, slug });
     return this.getTourById(insertId);
   }
@@ -240,15 +315,25 @@ export class TourService {
     data: {
       vendorId: number | string;
       name: string;
+      slug?: string;
       description?: string | null;
       status: string;
       isPremium: boolean;
+      latitude?: number | string | null;
+      longitude?: number | string | null;
+      coverImageUrl?: string | null;
     }
   ) {
     const before = await this.tourRepo.getTourById(id);
     if (!before) throw new Error('Tour not found');
 
-    const slug = slugify(data.name);
+    const slug = data.slug && data.slug.trim() ? slugify(data.slug) : slugify(data.name);
+    const { query } = require('../lib/db');
+    const existing = await query("SELECT id FROM tours WHERE slug = ? AND id != ? AND status != 'ARCHIVED'", [slug, id.toString()]);
+    if (existing.length > 0) {
+      throw new Error('Mã khu vực (Zone code / Slug) đã được sử dụng. Vui lòng chọn mã khác.');
+    }
+
     await this.tourRepo.updateTour(id, { ...data, slug });
     return this.getTourById(id);
   }

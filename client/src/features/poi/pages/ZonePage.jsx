@@ -33,8 +33,12 @@ export function ZonePage({ onUpgrade, onToast }) {
       .then((res) => {
         if (cancelled) return;
         const data = res.data?.data ?? res.data;
+        const resolvedSlug = data.stall?.slug ?? code.toLowerCase();
+        localStorage.setItem('locked_zone', resolvedSlug);
+        sessionStorage.setItem('last_scanned_zone', resolvedSlug);
+
         setZone({
-          code: data.stall?.zoneCode ?? code.toUpperCase(),
+          code: resolvedSlug,
           name: data.stall?.name ?? `${t('zone.fallback_name')} ${code}`,
           description: data.stall?.description ?? t('zone.fallback_desc'),
           poiCount: data.pois?.length ?? 0,

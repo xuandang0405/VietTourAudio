@@ -9,6 +9,7 @@ import {
   FileVideo,
   LayoutDashboard,
   LogOut,
+  Map,
   MapPinned,
   Menu,
   Settings,
@@ -41,6 +42,7 @@ const navGroups = [
     items: [
       { labelKey: 'sidebar.dashboard', to: '/admin', icon: LayoutDashboard },
       { labelKey: 'sidebar.vendors', to: '/admin/vendors', icon: Store, roles: roles.vendor },
+      { labelKey: 'sidebar.zones', to: '/admin/zones', icon: Map, roles: roles.vendor },
       { labelKey: 'sidebar.moderation', to: '/admin/content', icon: FileVideo, roles: roles.moderate },
       { labelKey: 'sidebar.poi_management', to: '/admin/pois', icon: MapPinned, roles: roles.vendor }
     ]
@@ -66,6 +68,7 @@ const navGroups = [
 const breadcrumbByPath = {
   '/admin': ['Admin', 'Dashboard'],
   '/admin/vendors': ['Admin', 'Nhà cung cấp'],
+  '/admin/zones': ['Admin', 'Khu vực'],
   '/admin/content': ['Admin', 'Kiểm duyệt'],
   '/admin/pois': ['Admin', 'Điểm tham quan'],
   '/admin/vendor-accounts': ['Admin', 'Ví vendor'],
@@ -81,6 +84,7 @@ const crumbTranslationKeys = {
   'Admin': 'sidebar.admin_portal',
   'Dashboard': 'sidebar.dashboard',
   'Nhà cung cấp': 'sidebar.vendors',
+  'Khu vực': 'sidebar.zones',
   'Kiểm duyệt': 'sidebar.moderation',
   'Điểm tham quan': 'sidebar.poi_management',
   'Ví vendor': 'sidebar.vendor_wallet',
@@ -99,6 +103,8 @@ const getBreadcrumbUrl = (crumb, currentPathname) => {
       return '/admin';
     case 'Nhà cung cấp':
       return '/admin/vendors';
+    case 'Khu vực':
+      return '/admin/zones';
     case 'Kiểm duyệt':
       return '/admin/content';
     case 'Điểm tham quan':

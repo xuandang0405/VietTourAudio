@@ -169,4 +169,69 @@ router.get(
   })
 );
 
+// ──────────────────────────────────────────────
+// GET /realtime-traffic — Real-time live analytics per tour zone
+// ──────────────────────────────────────────────
+router.get(
+  '/realtime-traffic',
+  asyncHandler(async (_req, res) => {
+    const activeVisitors = await query<any[]>(
+      `SELECT 
+         t.id AS tour_id,
+         t.name AS tour_name,
+         COALESCE(active_sessions.count, 0) AS active_visitors
+       FROM tours t
+       LEFT JOIN (
+         SELECT latest_tour.tour_id, COUNT(DISTINCT latest_tour.visitor_session_id) AS count
+         FROM (
+           SELECT 
+             vs.id AS visitor_session_id,
+             (
+               SELECT COALESCE(
+                 (SELECT z.tour_id 
+                  FROM visit_events ve 
+                  JOIN zones z ON z.id = ve.poi_id 
+                  WHERE ve.visitor_session_id = vs.id 
+                  ORDER BY ve.visited_at DESC LIMIT 1),
+                 (SELECT qse.tour_id 
+                  FROM qr_scan_events qse 
+                  WHERE qse.visitor_session_id = vs.id 
+                  ORDER BY qse.scanned_at DESC LIMIT 1),
+                 NULL
+               )
+             ) AS tour_id
+           FROM visitor_sessions vs
+           WHERE vs.last_seen_at >= NOW() - INTERVAL 5 MINUTE
+         ) latest_tour
+         WHERE latest_tour.tour_id IS NOT NULL
+         GROUP BY latest_tour.tour_id
+       ) active_sessions ON active_sessions.tour_id = t.id
+       WHERE t.status != 'ARCHIVED'
+       ORDER BY active_visitors DESC, t.name ASC`
+    );
+
+    const qrScans = await query<any[]>(
+      `SELECT 
+         t.id AS tour_id,
+         COUNT(qse.id) AS total_qr_scans
+       FROM tours t
+       LEFT JOIN qr_scan_events qse ON qse.tour_id = t.id
+       WHERE t.status != 'ARCHIVED'
+       GROUP BY t.id`
+    );
+
+    const results = activeVisitors.map((row) => {
+      const scanRow = qrScans.find((s) => String(s.tour_id) === String(row.tour_id));
+      return {
+        tourId: String(row.tour_id),
+        tourName: row.tour_name,
+        activeVisitors: Number(row.active_visitors),
+        totalQrScans: Number(scanRow?.total_qr_scans ?? 0)
+      };
+    });
+
+    res.json(ok(results));
+  })
+);
+
 export default router;

@@ -105,6 +105,10 @@ export async function fetchVendor(id) {
   return unwrap(await adminApiClient.get(`/admin/vendors/${id}`));
 }
 
+export async function updateVendor(id, vendorData) {
+  return unwrap(await adminApiClient.put(`/admin/vendors/${id}`, vendorData));
+}
+
 export async function approveVendor(id) {
   return unwrap(await adminApiClient.post(`/admin/vendors/${id}/approve`));
 }
@@ -119,6 +123,10 @@ export async function suspendVendor(id, reason) {
 
 export async function forceCancelVendor(id, reason) {
   return unwrap(await adminApiClient.post(`/admin/vendors/${id}/force-cancel`, { reason }));
+}
+
+export async function updateVendorStatus(id, status, reason) {
+  return unwrap(await adminApiClient.put(`/admin/vendors/${id}/status`, { status, reason }));
 }
 
 export async function fetchVendorWallets() {
@@ -261,25 +269,29 @@ export async function fetchDashboardAnalytics() {
 }
 
 export async function fetchTours() {
-  return unwrap(await adminApiClient.get('/admin/pois/tours'));
+  return unwrap(await adminApiClient.get('/admin/zones'));
 }
 
 export async function fetchTourById(id) {
-  return unwrap(await adminApiClient.get(`/admin/pois/tours/${id}`));
+  return unwrap(await adminApiClient.get(`/admin/zones/${id}`));
 }
 
 export async function createTour(tourData) {
-  return unwrap(await adminApiClient.post('/admin/pois/tours', tourData));
+  return unwrap(await adminApiClient.post('/admin/zones', tourData));
 }
 
 export async function updateTour(id, tourData) {
-  return unwrap(await adminApiClient.put(`/admin/pois/tours/${id}`, tourData));
+  return unwrap(await adminApiClient.put(`/admin/zones/${id}`, tourData));
 }
 
 export async function deleteTour(id) {
-  return unwrap(await adminApiClient.delete(`/admin/pois/tours/${id}`));
+  return unwrap(await adminApiClient.delete(`/admin/zones/${id}`));
 }
 
 export async function resetTourQr(id) {
   return unwrap(await adminApiClient.post(`/admin/pois/tours/${id}/qr/reset`));
+}
+
+export async function autoTranslate(text, targetLangs) {
+  return unwrap(await adminApiClient.post('/admin/translate', { text, targetLangs }));
 }

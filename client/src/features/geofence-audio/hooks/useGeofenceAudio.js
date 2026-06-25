@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { poiService } from '../../poi/services/poiService';
+import { stallService } from '../../vendor-wallet/services/stallService';
 import { useAudioStore } from '../stores/audioStore';
 import { useLanguageStore } from '../../../stores/languageStore';
 import { useLocationStore } from '../stores/locationStore';
@@ -17,10 +18,13 @@ import { visitorPois, localizePoi } from '../../../data/visitorPois';
  */
 export function useGeofenceAudio({ onToast }) {
   const { t } = useTranslation('translation', { keyPrefix: 'landing' });
+  const { t: tRoot } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedPoiId, setSelectedPoiId] = useState(searchParams.get('poi'));
   const [pois, setPois] = useState(visitorPois);
   const [searchQuery, setSearchQuery] = useState('');
+  const [routingCoordinates, setRoutingCoordinates] = useState([]);
+  const [routingInfo, setRoutingInfo] = useState(null);
   const enteredGeofences = useRef(new Set());
   const announcedQrPoi = useRef(null);
 
@@ -63,6 +67,41 @@ export function useGeofenceAudio({ onToast }) {
     [enrichedPois, selectedPoiId]
   );
   const activeAutoPoi = useMemo(() => enrichedPois.find((poi) => poi.isInsideRadius) ?? null, [enrichedPois]);
+
+  // Sync selectedPoiId with URL search params changes
+  useEffect(() => {
+    const urlPoi = searchParams.get('poi');
+    if (urlPoi !== selectedPoiId) {
+      setSelectedPoiId(urlPoi);
+    }
+  }, [searchParams, selectedPoiId]);
+
+  // Handle locked zone synchronization and scan logging
+  useEffect(() => {
+    const zoneParam = searchParams.get('zone');
+    if (zoneParam) {
+      const lockedZone = localStorage.getItem('locked_zone');
+      const lastScanned = sessionStorage.getItem('last_scanned_zone');
+
+      if (zoneParam !== lockedZone || zoneParam !== lastScanned) {
+        localStorage.setItem('locked_zone', zoneParam);
+        sessionStorage.setItem('last_scanned_zone', zoneParam);
+
+        // Record scan event in backend (resolves and saves to qr_scan_events)
+        stallService.resolveCode(zoneParam).catch(() => {
+          // Ignore background resolution/analytics errors
+        });
+      }
+    } else {
+      // If zone param is missing in URL but we are locked, restore it
+      const lockedZone = localStorage.getItem('locked_zone');
+      if (lockedZone) {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set('zone', lockedZone);
+        setSearchParams(nextParams, { replace: true });
+      }
+    }
+  }, [searchParams, setSearchParams]);
 
   // Load POIs from backend, merge with local data fallback
   useEffect(() => {
@@ -170,6 +209,17 @@ export function useGeofenceAudio({ onToast }) {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('poi', poi.id);
     setSearchParams(nextParams);
+    setRoutingCoordinates([]);
+    setRoutingInfo(null);
+  }
+
+  function handleClosePoi() {
+    setSelectedPoiId(null);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('poi');
+    setSearchParams(nextParams);
+    setRoutingCoordinates([]);
+    setRoutingInfo(null);
   }
 
   async function handleLocate() {
@@ -180,6 +230,39 @@ export function useGeofenceAudio({ onToast }) {
     }
     useDemoLocation();
     onToast?.(t('demoGpsEnabled'));
+  }
+
+  async function handleGetDirections(targetPoi) {
+    if (!position) {
+      onToast?.(tRoot('routing.enable_gps', { defaultValue: 'Vui lòng bật GPS để tìm đường.' }));
+      return;
+    }
+    if (!targetPoi) return;
+
+    try {
+      setRoutingInfo({ status: 'calculating' });
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/foot/${position.lng},${position.lat};${targetPoi.longitude},${targetPoi.latitude}?overview=full&geometries=geojson`
+      );
+      if (!response.ok) throw new Error('OSRM API error');
+      const data = await response.json();
+      if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+        throw new Error('No route found');
+      }
+
+      const route = data.routes[0];
+      const leafletCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+      setRoutingCoordinates(leafletCoords);
+      setRoutingInfo({
+        distance: route.distance,
+        duration: route.duration,
+        status: 'success'
+      });
+    } catch (err) {
+      console.error('OSRM Routing error:', err);
+      setRoutingInfo({ status: 'error' });
+      onToast?.(tRoot('routing.error', { defaultValue: 'Không thể tìm đường.' }));
+    }
   }
 
   return {
@@ -194,6 +277,12 @@ export function useGeofenceAudio({ onToast }) {
     permissionStatus,
     isFakeMode,
     handleSelectPoi,
+    handleClosePoi,
     handleLocate,
+    routingCoordinates,
+    setRoutingCoordinates,
+    routingInfo,
+    setRoutingInfo,
+    handleGetDirections
   };
 }

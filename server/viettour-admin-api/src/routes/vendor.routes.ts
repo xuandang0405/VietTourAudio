@@ -59,5 +59,17 @@ router.post(
   asyncHandler(controller.forceCancelVendor)
 );
 
+router.put(
+  '/:id/status',
+  authorize(...vendorManagers),
+  asyncHandler(controller.updateVendorStatus)
+);
+
+router.put(
+  '/:id',
+  authorize(...vendorManagers),
+  asyncHandler(controller.updateVendor)
+);
+
 export default router;
 
