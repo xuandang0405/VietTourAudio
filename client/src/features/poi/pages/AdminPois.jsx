@@ -560,9 +560,19 @@ export function AdminPois() {
               {/* Search + Filter bar */}
               <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                 <div className="flex items-center gap-3">
-                  <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3">
+                  <label className="relative flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3">
                     <Search size={17} className="text-slate-400" />
-                    <input value={search} onChange={(e) => setSearch(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-slate-400" placeholder={t('poi.search_placeholder')} />
+                    <input value={search} onChange={(e) => setSearch(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none pr-6 placeholder:text-slate-400" placeholder={t('poi.search_placeholder')} />
+                    {search && (
+                      <button
+                        type="button"
+                        onClick={() => setSearch('')}
+                        className="absolute right-3 p-1 text-slate-400 hover:text-slate-600 transition"
+                        aria-label="Xóa tìm kiếm"
+                      >
+                        <X size={15} />
+                      </button>
+                    )}
                   </label>
                   <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700">
                     <MapPin size={12} className="inline mr-1 -mt-0.5" />{filteredPois.length} POI

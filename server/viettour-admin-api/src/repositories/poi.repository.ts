@@ -319,36 +319,57 @@ export class PoiRepository {
   }
 
   async getGuestPoisByZoneCode(zoneCode: string, lang: string): Promise<any[]> {
-    const rows = await query<any[]>(
-      `SELECT
-         p.id,
-         p.stall_id,
-         COALESCE(pc_lang.title, pc_vi.title, p.name) AS name,
-         p.slug,
-         COALESCE(pc_lang.tts_script, pc_vi.tts_script, p.description) AS description,
-         p.latitude,
-         p.longitude,
-         p.activation_radius,
-         p.is_premium_content,
-         p.status,
-         p.sort_order,
-         p.zone_code,
-         s.name AS stall_name,
-         z.tour_id,
-         t.slug AS tour_slug,
-         (SELECT COUNT(DISTINCT pc.lang) FROM poi_contents pc WHERE pc.poi_id = p.id) AS language_count,
-         (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = p.id AND pc.lang = ? LIMIT 1) AS audio_url,
-         (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = p.id AND pc.lang = 'vi' LIMIT 1) AS audio_url_vi
-       FROM pois p
-       LEFT JOIN stalls s ON s.id = p.stall_id
-       LEFT JOIN zones z ON z.id = p.id
-       LEFT JOIN tours t ON t.id = z.tour_id
-       LEFT JOIN poi_contents pc_lang ON pc_lang.poi_id = p.id AND pc_lang.lang = ?
-       LEFT JOIN poi_contents pc_vi ON pc_vi.poi_id = p.id AND pc_vi.lang = 'vi'
-       WHERE p.zone_code = ? AND p.status = 'ACTIVE'
-       ORDER BY p.sort_order ASC, p.id ASC`,
-      [lang, lang, zoneCode]
-    );
+    const isNumeric = /^\d+$/.test(zoneCode);
+    const queryStr = `
+      SELECT
+        p.id,
+        p.stall_id,
+        COALESCE(pc_lang.title, pc_vi.title, p.name) AS name,
+        p.slug,
+        COALESCE(pc_lang.tts_script, pc_vi.tts_script, p.description) AS description,
+        p.latitude,
+        p.longitude,
+        p.activation_radius,
+        p.is_premium_content,
+        p.status,
+        p.sort_order,
+        p.zone_code,
+        s.name AS stall_name,
+        z.tour_id,
+        t.slug AS tour_slug,
+        (SELECT COUNT(DISTINCT pc.lang) FROM poi_contents pc WHERE pc.poi_id = p.id) AS language_count,
+        (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = p.id AND pc.lang = ? LIMIT 1) AS audio_url,
+        (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = p.id AND pc.lang = 'vi' LIMIT 1) AS audio_url_vi
+      FROM pois p
+      LEFT JOIN stalls s ON s.id = p.stall_id
+      LEFT JOIN zones z ON z.id = p.id
+      LEFT JOIN tours t ON t.id = z.tour_id
+      LEFT JOIN poi_contents pc_lang ON pc_lang.poi_id = p.id AND pc_lang.lang = ?
+      LEFT JOIN poi_contents pc_vi ON pc_vi.poi_id = p.id AND pc_vi.lang = 'vi'
+      WHERE (
+        p.zone_code = ? OR
+        s.zone_code = ? OR
+        s.slug = ? OR
+        t.slug = ?
+        ${isNumeric ? 'OR t.id = ? OR s.id = ?' : ''}
+      ) AND p.status = 'ACTIVE'
+      ORDER BY p.sort_order ASC, p.id ASC
+    `;
+
+    const params: any[] = [
+      lang,
+      lang,
+      zoneCode,
+      zoneCode,
+      zoneCode,
+      zoneCode
+    ];
+
+    if (isNumeric) {
+      params.push(zoneCode, zoneCode);
+    }
+
+    const rows = await query<any[]>(queryStr, params);
     return rows;
   }
 }

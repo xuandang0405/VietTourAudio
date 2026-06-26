@@ -1,9 +1,10 @@
-import { Crosshair, Globe2, MapPin, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Crosshair, Globe2, MapPin, X, Heart } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 import logo from '../../assets/logo/logo.png';
 import logoText from '../../assets/logo/logo-text.png';
 import { languages, useLanguageStore } from '../../stores/languageStore';
-import { PremiumStatusButton } from './PremiumStatusButton';
+import { useFavoritesStore } from '../../stores/favoritesStore';
 import { SidebarPoiCard } from '../../features/poi/components/SidebarPoiCard';
 import { useTranslation } from 'react-i18next';
 
@@ -17,9 +18,14 @@ export function SidebarContent({
   selectedPoi,
   handleSelectPoi
 }) {
-  const { t } = useTranslation('translation', { keyPrefix: 'landing' });
+  const { t, i18n } = useTranslation('translation', { keyPrefix: 'landing' });
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
   const setLanguage = useLanguageStore((state) => state.setLanguage);
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const [activeTab, setActiveTab] = useState('nearby');
+  const favorites = useFavoritesStore((state) => state.favorites);
+  const favoritePois = enrichedPois.filter((poi) => poi.stallId && favorites.includes(poi.stallId));
 
   const gpsLabels = {
     granted: t('gps_granted'),
@@ -49,10 +55,6 @@ export function SidebarContent({
       </div>
 
       <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-6 hide-scrollbar">
-        <section>
-          <p className="mb-2 text-[10px] font-bold uppercase text-textGhost">{t('account_status')}</p>
-          <PremiumStatusButton onUpgrade={onUpgrade} />
-        </section>
 
         <section>
           <div className="mb-2 flex items-center gap-2">
@@ -64,7 +66,13 @@ export function SidebarContent({
               <button
                 key={lang.code}
                 type="button"
-                onClick={() => setLanguage(lang.code)}
+                onClick={() => {
+                  setLanguage(lang.code);
+                  i18n.changeLanguage(lang.code);
+                  const newParams = new URLSearchParams(searchParams);
+                  newParams.set('lang', lang.code);
+                  setSearchParams(newParams);
+                }}
                 className={[
                   'rounded-full border px-3 py-2 text-xs font-bold transition duration-150 ease-out active:scale-[0.98]',
                   currentLanguage === lang.code
@@ -100,22 +108,56 @@ export function SidebarContent({
         </section>
 
         <section className="flex flex-1 flex-col">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase text-textGhost">{t('near_you')}</p>
-            <Link to="/list" className="text-xs font-bold text-oceanCyan transition duration-150 ease-out hover:text-electricBlue">
-              {t('view_all')}
-            </Link>
+          <div className="mb-3 flex items-center justify-between border-b border-glassBorder pb-2">
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setActiveTab('nearby')}
+                className={`text-xs font-bold uppercase tracking-wider transition ${
+                  activeTab === 'nearby' ? 'text-textCrisp border-b-2 border-oceanCyan pb-1' : 'text-textGhost hover:text-textSeafoam'
+                }`}
+              >
+                {t('near_you')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('favorites')}
+                className={`text-xs font-bold uppercase tracking-wider transition flex items-center gap-1 ${
+                  activeTab === 'favorites' ? 'text-textCrisp border-b-2 border-oceanCyan pb-1' : 'text-textGhost hover:text-textSeafoam'
+                }`}
+              >
+                <Heart size={12} className={activeTab === 'favorites' ? "text-red-500 fill-red-500" : ""} />
+                {t('favorites', { defaultValue: 'Yêu thích' })}
+              </button>
+            </div>
+            {activeTab === 'nearby' && (
+              <Link to="/list" className="text-xs font-bold text-oceanCyan transition duration-150 ease-out hover:text-electricBlue">
+                {t('view_all')}
+              </Link>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
-            {enrichedPois.length > 0 ? (
-              enrichedPois.slice(0, 5).map((poi) => (
-                <SidebarPoiCard key={poi.id} poi={poi} active={selectedPoi?.id === poi.id} onClick={() => handleSelectPoi(poi)} />
-              ))
+            {activeTab === 'nearby' ? (
+              enrichedPois.length > 0 ? (
+                enrichedPois.slice(0, 5).map((poi) => (
+                  <SidebarPoiCard key={poi.id} poi={poi} active={selectedPoi?.id === poi.id} onClick={() => handleSelectPoi(poi)} />
+                ))
+              ) : (
+                <div className="glass-card p-4 text-center text-sm font-semibold text-textSeafoam">
+                  {t('no_poi_nearby')}
+                </div>
+              )
             ) : (
-              <div className="glass-card p-4 text-center text-sm font-semibold text-textSeafoam">
-                {t('no_poi_nearby')}
-              </div>
+              favoritePois.length > 0 ? (
+                favoritePois.map((poi) => (
+                  <SidebarPoiCard key={poi.id} poi={poi} active={selectedPoi?.id === poi.id} onClick={() => handleSelectPoi(poi)} />
+                ))
+              ) : (
+                <div className="glass-card p-4 text-center text-sm font-semibold text-textSeafoam">
+                  {t('no_favorites', { defaultValue: 'Chưa có sạp yêu thích' })}
+                </div>
+              )
             )}
           </div>
         </section>

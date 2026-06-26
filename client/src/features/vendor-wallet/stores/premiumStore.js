@@ -49,17 +49,14 @@ export const usePremiumStore = create(
 
       return ({
       deviceId: createDeviceId(),
-      isPremium: legacyPremium.isPremium,
+      isPremium: true,
       expiresAt: legacyPremium.expiresAt,
       purchasedAt: 0,
       paymentRef: null,
       freeListensRemaining: FREE_LISTENS_DEFAULT,
 
       // Kiểm tra user có thể nghe không (còn lượt free HOẶC đang Premium)
-      canListen: () => {
-        const { isPremium, freeListensRemaining } = get();
-        return isPremium || freeListensRemaining > 0;
-      },
+      canListen: () => true,
 
       // Trừ 1 lượt nghe miễn phí; trả về số lượt còn lại (-1 nếu đã hết)
       decrementFreeListens: () => {

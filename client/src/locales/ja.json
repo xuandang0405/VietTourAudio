@@ -46,7 +46,10 @@
     "optional": "任意",
     "search": "検索...",
     "smartGuide": "スマートガイド",
-    "minute": "分"
+    "minute": "分",
+    "km": "km",
+    "m": "m",
+    "unknown_stall": "不明な店舗"
   },
   "poi": {
     "management_subtitle": "POI MANAGEMENT",
@@ -318,6 +321,7 @@
     "premium_conversions": "{{count}} premium"
   },
   "landing": {
+    "no_description": "説明はありません",
     "insideRadius": "有効半径内に入りました",
     "playing": "解説オーディオを再生中",
     "waiting": "信号を待っています...",
@@ -426,7 +430,12 @@
     "replayAfter": "再再生まであと",
     "locationUpdated": "位置情報が更新されました",
     "playingAgain": "解説を再再生しています",
-    "textOnly": "テキストのみモード"
+    "textOnly": "テキストのみモード",
+    "paymentSuccess": "支払い成功！プレミアムパスが有効になりました。",
+    "demoGpsEnabled": "ジオフェンス検証用のGPSシミュレーションモードが有効になりました。",
+    "demoMoved": "シミュレーション位置が更新されました",
+    "favorites": "お気に入り",
+    "no_favorites": "お気に入りの屋台はまだありません"
   },
   "map": {
     "no_gps": "GPSがありません"
@@ -629,7 +638,9 @@
     "calculating": "ルート計算中...",
     "error": "ルートを検索できませんでした。",
     "enable_gps": "ルートを検索するにはGPSを有効にしてください。",
-    "clear": "ルート消去"
+    "clear": "ルート消去",
+    "recalculating_alert": "ルートから外れました。再検索しています...",
+    "arrived": "目的地に到着しました！"
   },
   "admin": {
     "scanner": {
@@ -687,5 +698,8 @@
     "approved": "承認済み",
     "rejected": "却下済み",
     "suspended": "一時停止"
-  }
+  },
+  "favorites": "お気に入り",
+  "favorites_add": "お気に入りに追加",
+  "favorites_remove": "お気に入りから削除"
 }

@@ -60,7 +60,10 @@
     "optional": "Optional",
     "search": "Search...",
     "smartGuide": "Smart Guide",
-    "minute": "minute"
+    "minute": "minute",
+    "km": "km",
+    "m": "m",
+    "unknown_stall": "Unknown stall"
   },
   "poi": {
     "management_subtitle": "POI MANAGEMENT",
@@ -332,6 +335,7 @@
     "premium_conversions": "{{count}} premium"
   },
   "landing": {
+    "no_description": "No description available",
     "insideRadius": "You are inside the activation radius",
     "playing": "Playing audio guide",
     "waiting": "Waiting for signal...",
@@ -454,7 +458,12 @@
     "replayAfter": "Replay after",
     "locationUpdated": "Location updated",
     "playingAgain": "Replaying narrative",
-    "textOnly": "Text only mode"
+    "textOnly": "Text only mode",
+    "paymentSuccess": "Payment successful! Your Premium pass is now active.",
+    "demoGpsEnabled": "GPS Simulation mode enabled for geofence testing.",
+    "demoMoved": "Simulation position updated",
+    "favorites": "Favorites",
+    "no_favorites": "No favorite stalls yet"
   },
   "geofence": {
     "title": "Geofence Map",
@@ -674,7 +683,9 @@
     "calculating": "Calculating...",
     "error": "Failed to calculate route.",
     "enable_gps": "Please enable GPS to get directions.",
-    "clear": "Clear"
+    "clear": "Clear",
+    "recalculating_alert": "You are off-route. Recalculating directions...",
+    "arrived": "Arrived at the destination!"
   },
   "admin": {
     "scanner": {
@@ -732,5 +743,8 @@
     "approved": "Approved",
     "rejected": "Rejected",
     "suspended": "Suspended"
-  }
+  },
+  "favorites": "Favorites",
+  "favorites_add": "Add to favorites",
+  "favorites_remove": "Remove from favorites"
 }

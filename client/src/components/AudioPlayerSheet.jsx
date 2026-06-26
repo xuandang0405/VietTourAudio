@@ -6,7 +6,7 @@ import { localizePoi, visitorPois } from '../data/visitorPois';
 import { useLanguageStore } from '../stores/languageStore';
 import { useTranslation } from 'react-i18next';
 
-export function AudioPlayerSheet() {
+export function AudioPlayerSheet({ enrichedPois = [], selectedStall }) {
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   
@@ -16,6 +16,8 @@ export function AudioPlayerSheet() {
   const replayPoi = useAudioStore((state) => state.replayPoi);
   const getCooldownRemaining = useAudioStore((state) => state.getCooldownRemaining);
   const canAutoPlay = useAudioStore((state) => state.canAutoPlay);
+  const pauseAudio = useAudioStore((state) => state.pauseAudio);
+  const resumeAudio = useAudioStore((state) => state.resumeAudio);
   
   const queue = useAudioQueueStore((state) => state.queue);
   const getLanguageMeta = useLanguageStore((state) => state.getLanguageMeta);
@@ -23,8 +25,10 @@ export function AudioPlayerSheet() {
 
   const [cooldownTime, setCooldownTime] = useState(0);
 
-  const activePoiData = visitorPois.find(p => p.id === currentPoiId);
+  const activePoiData = enrichedPois.find(p => p.id === currentPoiId) || visitorPois.find(p => p.id === currentPoiId);
   const activePoi = activePoiData ? localizePoi(activePoiData, currentLanguage) : null;
+  const activeStallName = activePoi?.stall_name || selectedStall?.name || t('common.unknown_stall');
+  const activeStallDescription = activePoi?.stall_description || selectedStall?.description || t('landing.no_description');
 
   useEffect(() => {
     if (!currentPoiId) return;
@@ -44,9 +48,17 @@ export function AudioPlayerSheet() {
     stop();
   };
 
+  const handleTogglePlay = () => {
+    if (isPlaying) {
+      pauseAudio();
+    } else {
+      resumeAudio();
+    }
+  };
+
   if (isCollapsed) {
     return (
-      <aside className="absolute bottom-20 left-4 right-4 z-45 flex items-center justify-between rounded-2xl bg-white/95 p-3 shadow-lg backdrop-blur-md border border-slate-200 transition-all duration-300">
+      <aside className="absolute bottom-20 left-4 right-4 z-45 pointer-events-auto flex items-center justify-between rounded-2xl bg-white/95 p-3 shadow-lg backdrop-blur-md border border-slate-200 transition-all duration-300">
         <div className="flex items-center gap-3 overflow-hidden cursor-pointer w-full" onClick={() => setIsCollapsed(false)}>
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-600 shadow-sm border border-teal-200">
             <Headphones size={20} className={isPlaying ? 'animate-pulse' : ''} />
@@ -59,7 +71,7 @@ export function AudioPlayerSheet() {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1 border-l border-slate-200 pl-3">
-          <button onClick={handleStop} className="p-2 text-slate-400 hover:text-slate-700 transition active:scale-95 bg-slate-50 rounded-full">
+          <button onClick={handleTogglePlay} className="p-2 text-slate-400 hover:text-slate-700 transition active:scale-95 bg-slate-50 rounded-full" aria-label={isPlaying ? "Tạm dừng" : "Phát tiếp"}>
             {isPlaying ? <Pause size={20} /> : <Play size={20} />}
           </button>
           <button onClick={() => setIsCollapsed(false)} className="p-2 text-slate-400 hover:text-slate-700 transition active:scale-95">
@@ -71,15 +83,16 @@ export function AudioPlayerSheet() {
   }
 
   return (
-    <aside className="absolute bottom-0 left-0 right-0 z-45 rounded-t-[2rem] bg-white p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl border-t border-slate-200 transition-all duration-300 pb-24">
+    <aside className="absolute bottom-0 left-0 right-0 z-45 pointer-events-auto rounded-t-[2rem] bg-white p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl border-t border-slate-200 transition-all duration-300 pb-24">
       <div className="absolute top-3 left-1/2 -translate-x-1/2 h-1.5 w-12 rounded-full bg-slate-300" />
       
       <div className="flex items-start justify-between mb-6 pt-2">
         <div>
           <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-teal-600">
-            {queue.length > 0 ? t('landing.queue', { count: queue.length }) : t('landing.listening')}
+            {activeStallName} • {queue.length > 0 ? t('landing.queue', { count: queue.length }) : t('landing.listening')}
           </span>
           <h2 className="mt-1 text-xl font-black text-slate-900 line-clamp-1">{activePoi?.title || t('landing.noInfo')}</h2>
+          <p className="mt-1 text-xs text-slate-400 line-clamp-1" title={activeStallDescription}>{activeStallDescription}</p>
         </div>
         <div className="flex gap-2">
           <button onClick={handleStop} className="rounded-full bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200 active:scale-95 border border-slate-200">

@@ -148,7 +148,6 @@ function AppRoutes() {
       </AppErrorBoundary>
 
       <OfflineBanner />
-      {!isAdminOrVendor && <FloatingPremiumBadge onUpgrade={() => setCheckoutOpen(true)} />}
       <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} onSuccess={handlePaymentSuccess} />
       <Toast message={toast} />
       <Confetti show={showConfetti} />

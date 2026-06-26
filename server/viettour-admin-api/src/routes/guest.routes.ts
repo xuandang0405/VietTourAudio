@@ -80,10 +80,11 @@ router.get(
 
       let tour: any = null;
       let qrCodeId: string | null = null;
+      const isNumeric = /^\d+$/.test(code);
 
       // Strategy 1: Find Tour via QR code table
       const qrRows = await query<any[]>(
-        `SELECT qr.id AS qr_id, qr.tour_id, qr.vendor_id,
+        `SELECT qr.id AS qr_id, qr.tour_id, qr.vendor_id, qr.code AS qr_code,
                 t.id AS t_id, t.name, t.slug, t.description, t.status, t.vendor_id AS t_vendor_id
          FROM qr_codes qr
          JOIN tours t ON t.id = qr.tour_id
@@ -102,43 +103,88 @@ router.get(
           description: row.description,
           status: row.status,
           vendor_id: row.t_vendor_id,
+          zone_code: row.qr_code,
         };
       }
 
-      // Strategy 2: Find Tour by slug (manual code entry)
+      // Strategy 2: Find Tour by slug or numeric ID (manual code entry)
       if (!tour) {
-        const slugRows = await query<any[]>(
-          `SELECT t.id, t.name, t.slug, t.description, t.status, t.vendor_id
-           FROM tours t
-           WHERE t.slug = ? AND t.status = 'PUBLISHED'
-           LIMIT 1`,
-          [code.toLowerCase()]
-        );
+        let slugRows: any[] = [];
+        if (isNumeric) {
+          slugRows = await query<any[]>(
+            `SELECT t.id, t.name, t.slug, t.description, t.status, t.vendor_id,
+                    (SELECT qr.code FROM qr_codes qr WHERE qr.tour_id = t.id AND qr.qr_type = 'TOUR' AND qr.is_active = 1 LIMIT 1) AS qr_code
+             FROM tours t
+             WHERE t.id = ? AND t.status = 'PUBLISHED'
+             LIMIT 1`,
+            [code]
+          );
+        } else {
+          slugRows = await query<any[]>(
+            `SELECT t.id, t.name, t.slug, t.description, t.status, t.vendor_id,
+                    (SELECT qr.code FROM qr_codes qr WHERE qr.tour_id = t.id AND qr.qr_type = 'TOUR' AND qr.is_active = 1 LIMIT 1) AS qr_code
+             FROM tours t
+             WHERE t.slug = ? AND t.status = 'PUBLISHED'
+             LIMIT 1`,
+            [code.toLowerCase()]
+          );
+        }
         if (slugRows.length > 0) {
-          tour = slugRows[0];
+          const row = slugRows[0];
+          tour = {
+            id: row.id,
+            name: row.name,
+            slug: row.slug,
+            description: row.description,
+            status: row.status,
+            vendor_id: row.vendor_id,
+            zone_code: row.qr_code || row.slug,
+          };
         }
       }
 
-      // Strategy 3: Legacy fallback — find stall by zone_code, return its POIs from zones
+      // Strategy 3: Legacy fallback — find stall by zone_code or numeric ID, return its POIs from zones
       if (!tour) {
-        const stallRows = await query<any[]>(
-          `SELECT
-             s.id, s.vendor_id,
-             COALESCE(sc_lang.name, sc_vi.name, s.name) AS name,
-             s.slug,
-             COALESCE(sc_lang.description, sc_vi.description, s.description) AS description,
-             s.address,
-             s.latitude, s.longitude, s.activation_radius, s.status,
-             s.is_featured, s.zone_code, s.opening_hours,
-             v.trade_name AS vendor_name
-           FROM stalls s
-           JOIN vendors v ON v.id = s.vendor_id
-           LEFT JOIN stall_contents sc_lang ON sc_lang.stall_id = s.id AND sc_lang.lang = ?
-           LEFT JOIN stall_contents sc_vi ON sc_vi.stall_id = s.id AND sc_vi.lang = 'vi'
-           WHERE REPLACE(s.zone_code, '-', '') = REPLACE(?, '-', '')
-           LIMIT 1`,
-          [lang, code.toUpperCase()]
-        );
+        let stallRows: any[] = [];
+        if (isNumeric) {
+          stallRows = await query<any[]>(
+            `SELECT
+               s.id, s.vendor_id,
+               COALESCE(sc_lang.name, sc_vi.name, s.name) AS name,
+               s.slug,
+               COALESCE(sc_lang.description, sc_vi.description, s.description) AS description,
+               s.address,
+               s.latitude, s.longitude, s.activation_radius, s.status,
+               s.is_featured, s.zone_code, s.opening_hours,
+               v.trade_name AS vendor_name
+             FROM stalls s
+             JOIN vendors v ON v.id = s.vendor_id
+             LEFT JOIN stall_contents sc_lang ON sc_lang.stall_id = s.id AND sc_lang.lang = ?
+             LEFT JOIN stall_contents sc_vi ON sc_vi.stall_id = s.id AND sc_vi.lang = 'vi'
+             WHERE s.id = ?
+             LIMIT 1`,
+            [lang, code]
+          );
+        } else {
+          stallRows = await query<any[]>(
+            `SELECT
+               s.id, s.vendor_id,
+               COALESCE(sc_lang.name, sc_vi.name, s.name) AS name,
+               s.slug,
+               COALESCE(sc_lang.description, sc_vi.description, s.description) AS description,
+               s.address,
+               s.latitude, s.longitude, s.activation_radius, s.status,
+               s.is_featured, s.zone_code, s.opening_hours,
+               v.trade_name AS vendor_name
+             FROM stalls s
+             JOIN vendors v ON v.id = s.vendor_id
+             LEFT JOIN stall_contents sc_lang ON sc_lang.stall_id = s.id AND sc_lang.lang = ?
+             LEFT JOIN stall_contents sc_vi ON sc_vi.stall_id = s.id AND sc_vi.lang = 'vi'
+             WHERE REPLACE(s.zone_code, '-', '') = REPLACE(?, '-', '')
+             LIMIT 1`,
+            [lang, code.toUpperCase()]
+          );
+        }
 
         if (stallRows.length === 0) {
           res.status(404).json({ success: false, error: t('error.code_not_found'), message: t('error.code_not_found') });
@@ -163,29 +209,43 @@ router.get(
         );
 
         // Fetch zones belonging to this stall
-        const poiRows = await query<any[]>(
-          `SELECT
-             z.id,
-             COALESCE(pc_lang.title, pc_vi.title, z.name) AS name,
-             z.slug,
-             COALESCE(pc_lang.tts_script, pc_vi.tts_script, z.description) AS description,
-             z.latitude, z.longitude,
-             z.activation_radius, z.is_premium_content, z.status, z.sort_order,
-             (SELECT COUNT(DISTINCT pc.lang) FROM poi_contents pc WHERE pc.poi_id = z.id) AS language_count,
-             (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = ? LIMIT 1) AS audio_url,
-             (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = 'vi' LIMIT 1) AS audio_url_vi
-           FROM zones z
-           LEFT JOIN poi_contents pc_lang ON pc_lang.poi_id = z.id AND pc_lang.lang = ?
-           LEFT JOIN poi_contents pc_vi ON pc_vi.poi_id = z.id AND pc_vi.lang = 'vi'
-           WHERE z.stall_id = ? AND z.status = 'ACTIVE'
-           ORDER BY z.sort_order ASC, z.id ASC`,
-          [lang, lang, lang, stall.id.toString()]
-        );
+        let poiRows: any[] = [];
+        try {
+          poiRows = await query<any[]>(
+            `SELECT
+               z.id,
+               COALESCE(pc_lang.title, pc_vi.title, z.name) AS name,
+               z.slug,
+               COALESCE(pc_lang.tts_script, pc_vi.tts_script, z.description) AS description,
+               z.latitude, z.longitude,
+               z.activation_radius, z.is_premium_content, z.status, z.sort_order,
+               z.stall_id,
+               (SELECT COUNT(DISTINCT pc.lang) FROM poi_contents pc WHERE pc.poi_id = z.id) AS language_count,
+               (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = ? LIMIT 1) AS audio_url,
+               (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = 'vi' LIMIT 1) AS audio_url_vi,
+               COALESCE(sc_lang.name, sc_vi.name, s.name) AS stall_name,
+               COALESCE(sc_lang.description, sc_vi.description, s.description) AS stall_description
+             FROM zones z
+             LEFT JOIN stalls s ON s.id = z.stall_id
+             LEFT JOIN stall_contents sc_lang ON sc_lang.stall_id = s.id AND sc_lang.lang = ?
+             LEFT JOIN stall_contents sc_vi ON sc_vi.stall_id = s.id AND sc_vi.lang = 'vi'
+             LEFT JOIN poi_contents pc_lang ON pc_lang.poi_id = z.id AND pc_lang.lang = ?
+             LEFT JOIN poi_contents pc_vi ON pc_vi.poi_id = z.id AND pc_vi.lang = 'vi'
+             WHERE z.stall_id = ? AND z.status = 'ACTIVE'
+             ORDER BY z.sort_order ASC, z.id ASC`,
+            [lang, lang, lang, lang, stall.id.toString()]
+          );
+        } catch (err: any) {
+          console.error('Error fetching zones for stall:', err);
+          res.status(500).json({ success: false, error: t('error.database_error'), message: t('error.database_error') });
+          return;
+        }
 
         res.json(
           ok({
             stall: {
-              id: String(stall.id),
+              id: Number(stall.id),
+              zone_code: stall.zone_code,
               name: stall.name,
               slug: stall.slug,
               description: stall.description,
@@ -207,11 +267,17 @@ router.get(
               latitude: Number(poi.latitude),
               longitude: Number(poi.longitude),
               isPremiumContent: Boolean(poi.is_premium_content),
+              activationRadius: Number(poi.activation_radius),
               status: poi.status,
               sortOrder: Number(poi.sort_order ?? 0),
               languageCount: Number(poi.language_count ?? 0),
               audioUrl: poi.audio_url || poi.audio_url_vi || null,
-              audioUrlVi: poi.audio_url_vi
+              audioUrlVi: poi.audio_url_vi,
+              stallId: Number(poi.stall_id),
+              stall_id: Number(poi.stall_id),
+              stallName: poi.stall_name ?? null,
+              stall_name: poi.stall_name ?? null,
+              stall_description: poi.stall_description ?? null
             }))
           })
         );
@@ -238,35 +304,45 @@ router.get(
       );
 
       // Fetch all zones (POIs) belonging to this tour
-      const zoneRows = await query<any[]>(
-        `SELECT
-           z.id,
-           COALESCE(pc_lang.title, pc_vi.title, z.name) AS name,
-           z.slug,
-           COALESCE(pc_lang.tts_script, pc_vi.tts_script, z.description) AS description,
-           z.latitude, z.longitude,
-           z.activation_radius, z.is_premium_content, z.status, z.sort_order,
-           z.tour_id,
-           (SELECT COUNT(DISTINCT pc.lang) FROM poi_contents pc WHERE pc.poi_id = z.id) AS language_count,
-           (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = ? LIMIT 1) AS audio_url,
-           (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = 'vi' LIMIT 1) AS audio_url_vi,
-           COALESCE(sc_lang.name, sc_vi.name, s.name) AS stall_name
-         FROM zones z
-         LEFT JOIN stalls s ON s.id = z.stall_id
-         LEFT JOIN stall_contents sc_lang ON sc_lang.stall_id = s.id AND sc_lang.lang = ?
-         LEFT JOIN stall_contents sc_vi ON sc_vi.stall_id = s.id AND sc_vi.lang = 'vi'
-         LEFT JOIN poi_contents pc_lang ON pc_lang.poi_id = z.id AND pc_lang.lang = ?
-         LEFT JOIN poi_contents pc_vi ON pc_vi.poi_id = z.id AND pc_vi.lang = 'vi'
-         WHERE z.tour_id = ? AND z.status = 'ACTIVE'
-         ORDER BY z.sort_order ASC, z.id ASC`,
-        [lang, lang, lang, lang, lang, String(tour.id)]
-      );
+      let zoneRows: any[] = [];
+      try {
+        zoneRows = await query<any[]>(
+          `SELECT
+             z.id,
+             COALESCE(pc_lang.title, pc_vi.title, z.name) AS name,
+             z.slug,
+             COALESCE(pc_lang.tts_script, pc_vi.tts_script, z.description) AS description,
+             z.latitude, z.longitude,
+             z.activation_radius, z.is_premium_content, z.status, z.sort_order,
+             z.tour_id,
+             z.stall_id,
+             (SELECT COUNT(DISTINCT pc.lang) FROM poi_contents pc WHERE pc.poi_id = z.id) AS language_count,
+             (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = ? LIMIT 1) AS audio_url,
+             (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = 'vi' LIMIT 1) AS audio_url_vi,
+             COALESCE(sc_lang.name, sc_vi.name, s.name) AS stall_name,
+             COALESCE(sc_lang.description, sc_vi.description, s.description) AS stall_description
+           FROM zones z
+           LEFT JOIN stalls s ON s.id = z.stall_id
+           LEFT JOIN stall_contents sc_lang ON sc_lang.stall_id = s.id AND sc_lang.lang = ?
+           LEFT JOIN stall_contents sc_vi ON sc_vi.stall_id = s.id AND sc_vi.lang = 'vi'
+           LEFT JOIN poi_contents pc_lang ON pc_lang.poi_id = z.id AND pc_lang.lang = ?
+           LEFT JOIN poi_contents pc_vi ON pc_vi.poi_id = z.id AND pc_vi.lang = 'vi'
+           WHERE z.tour_id = ? AND z.status = 'ACTIVE'
+           ORDER BY z.sort_order ASC, z.id ASC`,
+          [lang, lang, lang, String(tour.id)]
+        );
+      } catch (err: any) {
+        console.error('Error fetching zones for tour:', err);
+        res.status(500).json({ success: false, error: t('error.database_error'), message: t('error.database_error') });
+        return;
+      }
 
       // Return Tour info in `stall` field for backward compatibility with client
       res.json(
         ok({
           stall: {
-            id: String(tour.id),
+            id: Number(tour.id),
+            zone_code: tour.zone_code || tour.slug,
             name: tour.name,
             slug: tour.slug,
             description: tour.description,
@@ -280,7 +356,7 @@ router.get(
             openingHours: null,
             vendorName: null,
             isTour: true,
-            tourId: String(tour.id),
+            tourId: Number(tour.id),
             tourSlug: tour.slug
           },
           pois: zoneRows.map((z) => ({
@@ -297,7 +373,11 @@ router.get(
             languageCount: Number(z.language_count ?? 0),
             audioUrl: z.audio_url || z.audio_url_vi || null,
             audioUrlVi: z.audio_url_vi,
+            stallId: z.stall_id ? Number(z.stall_id) : null,
+            stall_id: z.stall_id ? Number(z.stall_id) : null,
             stallName: z.stall_name ?? null,
+            stall_name: z.stall_name ?? null,
+            stall_description: z.stall_description ?? null,
             tourId: String(z.tour_id),
             tourSlug: tour.slug
           }))

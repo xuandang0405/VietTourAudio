@@ -7,6 +7,27 @@ export const useLocationStore = create((set, get) => ({
   lastError: '',
   isFakeMode: false,
   watchId: null,
+  isAutoPanEnabled: true,
+
+  activePoi: null,
+  selectedStallId: null,
+  isPoiSheetOpen: false,
+  mapInstance: null,
+
+  setMapInstance: (mapInstance) => set({ mapInstance }),
+  setAutoPanEnabled: (isAutoPanEnabled) => set({ isAutoPanEnabled }),
+
+  selectAndFocusPoi: (poi, mapInstance) => {
+    set({
+      activePoi: poi,
+      selectedStallId: poi ? (poi.stall_id ?? poi.stallId ?? null) : null,
+      isPoiSheetOpen: Boolean(poi)
+    });
+    const map = mapInstance || get().mapInstance;
+    if (map && poi && poi.latitude && poi.longitude) {
+      map.flyTo([poi.latitude, poi.longitude], 16, { animate: true, duration: 1.2 });
+    }
+  },
 
   requestLocation: () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -101,7 +122,7 @@ export const useLocationStore = create((set, get) => ({
       (err) => {
         console.warn('GPS watch error:', err);
       },
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
 
     set({ watchId: id });

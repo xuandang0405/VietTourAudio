@@ -60,7 +60,10 @@
     "optional": "Không bắt buộc",
     "search": "Tìm kiếm...",
     "smartGuide": "Hướng dẫn thông minh",
-    "minute": "phút"
+    "minute": "phút",
+    "km": "km",
+    "m": "m",
+    "unknown_stall": "Không xác định"
   },
   "poi": {
     "management_subtitle": "POI MANAGEMENT",
@@ -332,6 +335,7 @@
     "premium_conversions": "{{count}} premium"
   },
   "landing": {
+    "no_description": "Chưa có mô tả",
     "insideRadius": "Bạn đã vào bán kính kích hoạt",
     "playing": "Đang phát thuyết minh tự động",
     "waiting": "Đang chờ tín hiệu...",
@@ -454,7 +458,12 @@
     "replayAfter": "Phát lại sau",
     "locationUpdated": "Vị trí đã cập nhật",
     "playingAgain": "Đang phát lại thuyết minh",
-    "textOnly": "Chế độ văn bản"
+    "textOnly": "Chế độ văn bản",
+    "paymentSuccess": "Thanh toán thành công! Gói Premium của bạn đã được kích hoạt.",
+    "demoGpsEnabled": "Chế độ giả lập GPS đã được bật để kiểm thử vùng kích hoạt.",
+    "demoMoved": "Vị trí giả lập đã thay đổi",
+    "favorites": "Yêu thích",
+    "no_favorites": "Chưa có sạp yêu thích"
   },
   "geofence": {
     "title": "Bản đồ vùng kích hoạt",
@@ -674,7 +683,9 @@
     "calculating": "Đang tính đường...",
     "error": "Không thể tìm đường.",
     "enable_gps": "Vui lòng bật GPS để tìm đường.",
-    "clear": "Xóa"
+    "clear": "Xóa",
+    "recalculating_alert": "Bạn đã đi chệch hướng, đang tính toán lại đường đi...",
+    "arrived": "Đã đến điểm hẹn!"
   },
   "admin": {
     "scanner": {
@@ -732,5 +743,8 @@
     "approved": "Đã duyệt",
     "rejected": "Từ chối",
     "suspended": "Bị khóa"
-  }
+  },
+  "favorites": "Yêu thích",
+  "favorites_add": "Thêm vào yêu thích",
+  "favorites_remove": "Xóa khỏi yêu thích"
 }

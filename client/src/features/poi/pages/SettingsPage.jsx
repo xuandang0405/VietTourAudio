@@ -1,6 +1,7 @@
 import { Globe2, MapPin, ShieldCheck, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { languages, useLanguageStore } from '../../../stores/languageStore';
 import { useLocationStore } from '../../geofence-audio/stores/locationStore';
 import { usePremiumStore } from '../../vendor-wallet/stores/premiumStore';
@@ -9,10 +10,11 @@ import { BottomNav } from '../../../visitor/components/BottomNav';
 import { TopBar } from '../../../visitor/components/TopBar';
 
 export function SettingsPage({ onUpgrade, onToast }) {
-  const { t } = useTranslation('translation', { keyPrefix: 'landing' });
+  const { t, i18n } = useTranslation('translation', { keyPrefix: 'landing' });
   const [now, setNow] = useState(Date.now());
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
   const setLanguage = useLanguageStore((state) => state.setLanguage);
+  const [searchParams, setSearchParams] = useSearchParams();
   const isPremium = usePremiumStore((state) => state.isPremium);
   const expiresAt = usePremiumStore((state) => state.expiresAt);
   const deactivatePremium = usePremiumStore((state) => state.deactivatePremium);
@@ -65,7 +67,13 @@ export function SettingsPage({ onUpgrade, onToast }) {
               {languages.map((language) => {
                 const active = currentLanguage === language.code;
                 return (
-                  <button key={language.code} type="button" onClick={() => setLanguage(language.code)} className={active
+                  <button key={language.code} type="button" onClick={() => {
+                    setLanguage(language.code);
+                    i18n.changeLanguage(language.code);
+                    const newParams = new URLSearchParams(searchParams);
+                    newParams.set('lang', language.code);
+                    setSearchParams(newParams);
+                  }} className={active
                     ? 'rounded-full border bg-teal-50 border-teal-500 text-teal-700 px-4 py-3 text-sm font-bold transition duration-150 ease-out active:scale-[0.98]'
                     : 'rounded-full border bg-white border-slate-200 text-slate-600 px-4 py-3 text-sm font-bold transition duration-150 ease-out hover:bg-slate-50 hover:text-slate-800 active:scale-[0.98]'}>
                     {language.name}

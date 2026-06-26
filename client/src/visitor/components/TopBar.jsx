@@ -1,5 +1,7 @@
 import { Languages } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useLanguageStore } from '../../stores/languageStore';
+import { useSearchParams } from 'react-router-dom';
 import logo from '../../assets/logo/logo.png';
 
 const languages = [
@@ -12,13 +14,18 @@ const languages = [
 
 export function TopBar({ title = 'VietTourAudio', compact = false }) {
   const { t, i18n } = useTranslation();
+  const { currentLanguage, setLanguage } = useLanguageStore();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const toggleLanguage = () => {
-    const currentIndex = languages.findIndex(l => l.code === i18n.language);
+    const currentIndex = languages.findIndex(l => l.code === currentLanguage);
     const nextIndex = (currentIndex + 1) % languages.length;
     const nextLang = languages[nextIndex].code;
     i18n.changeLanguage(nextLang);
-    localStorage.setItem('admin_lang', nextLang); // Sync with store
+    setLanguage(nextLang);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('lang', nextLang);
+    setSearchParams(newParams);
   };
 
   return (

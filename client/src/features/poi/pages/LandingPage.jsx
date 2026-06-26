@@ -31,9 +31,9 @@ export function LandingPage({ onToast, onUpgrade }) {
   }, [navigate]);
 
   const FEATURED_ZONES = useMemo(() => [
-    { id: 1, title: t('landing.featured.zone1_title'), subtitle: t('landing.featured.zone1_subtitle'), img: 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=200&h=200&fit=crop' },
-    { id: 2, title: t('landing.featured.zone2_title'), subtitle: t('landing.featured.zone2_subtitle'), img: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=200&h=200&fit=crop' },
-    { id: 3, title: t('landing.featured.zone3_title'), subtitle: t('landing.featured.zone3_subtitle'), img: 'https://images.unsplash.com/photo-1555921015-5532091f6026?w=200&h=200&fit=crop' },
+    { id: 1, slug: 'nguyen-hue', title: t('landing.featured.zone1_title'), subtitle: t('landing.featured.zone1_subtitle'), img: 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=200&h=200&fit=crop' },
+    { id: 2, slug: 'hoi-an', title: t('landing.featured.zone2_title'), subtitle: t('landing.featured.zone2_subtitle'), img: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=200&h=200&fit=crop' },
+    { id: 3, slug: 'hue-citadel', title: t('landing.featured.zone3_title'), subtitle: t('landing.featured.zone3_subtitle'), img: 'https://images.unsplash.com/photo-1555921015-5532091f6026?w=200&h=200&fit=crop' },
   ], [t]);
 
   // Handle i18next language switch
@@ -267,6 +267,7 @@ export function LandingPage({ onToast, onUpgrade }) {
               {FEATURED_ZONES.map((zone) => (
                 <div
                   key={zone.id}
+                  onClick={() => navigate(`/zone/${zone.slug}`)}
                   className="group flex items-center gap-4 rounded-xl bg-white p-3 border border-slate-100 shadow-sm transition hover:shadow-md hover:border-teal-200 cursor-pointer"
                 >
                   <img

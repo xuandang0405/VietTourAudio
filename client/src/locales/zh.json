@@ -46,7 +46,10 @@
     "optional": "非必填",
     "search": "搜索...",
     "smartGuide": "智能导览",
-    "minute": "分钟"
+    "minute": "分钟",
+    "km": "km",
+    "m": "m",
+    "unknown_stall": "未知摊位"
   },
   "poi": {
     "management_subtitle": "POI MANAGEMENT",
@@ -318,6 +321,7 @@
     "premium_conversions": "{{count}} premium"
   },
   "landing": {
+    "no_description": "暂无描述",
     "insideRadius": "您已进入激活半径范围",
     "playing": "正在播放导览语音",
     "waiting": "正在等待信号...",
@@ -426,7 +430,12 @@
     "replayAfter": "重新播放于",
     "locationUpdated": "位置已更新",
     "playingAgain": "正在重新播放语音讲解",
-    "textOnly": "仅文本模式"
+    "textOnly": "仅文本模式",
+    "paymentSuccess": "支付成功！您的高级通行证现已激活。",
+    "demoGpsEnabled": "已启用用于地理围栏测试的 GPS 模拟模式。",
+    "demoMoved": "模拟位置已更新",
+    "favorites": "收藏",
+    "no_favorites": "暂无收藏店铺"
   },
   "map": {
     "no_gps": "没有GPS"
@@ -629,7 +638,9 @@
     "calculating": "计算中...",
     "error": "无法计算路线。",
     "enable_gps": "请开启GPS以获取路线。",
-    "clear": "清除"
+    "clear": "清除",
+    "recalculating_alert": "您已偏离路线。正在重新规划路线...",
+    "arrived": "已到达目的地！"
   },
   "admin": {
     "scanner": {
@@ -687,5 +698,8 @@
     "approved": "已批准",
     "rejected": "已拒绝",
     "suspended": "已挂起"
-  }
+  },
+  "favorites": "收藏",
+  "favorites_add": "添加至收藏",
+  "favorites_remove": "从收藏中移除"
 }
