@@ -37,8 +37,8 @@ export class PoiService {
     }));
   }
 
-  async getGuestPois(zoneCode: string, lang: string) {
-    const rows = await this.poiRepo.getGuestPoisByZoneCode(zoneCode, lang);
+  async getGuestPois(zoneCode: string, lang: string, activeTourId?: string) {
+    const rows = await this.poiRepo.getGuestPoisByZoneCode(zoneCode, lang, activeTourId);
     return rows.map((row) => ({
       id: String(row.id),
       stallId: String(row.stall_id),
@@ -58,6 +58,7 @@ export class PoiService {
       tourId: row.tour_id ? String(row.tour_id) : null,
       tourSlug: row.tour_slug || null,
       zone_code: row.zone_code || null,
+      imageUrl: row.imageUrl || null,
     }));
   }
 

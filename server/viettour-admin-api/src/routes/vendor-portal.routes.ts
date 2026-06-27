@@ -162,6 +162,10 @@ router.get(
          p.status,
          p.sort_order,
          p.is_premium_content,
+         p.pending_name,
+         p.pending_description,
+         p.pending_cover_image_url,
+         p.approval_status,
          s.name AS stall_name,
          (SELECT COUNT(DISTINCT pc.lang) FROM poi_contents pc WHERE pc.poi_id = p.id) AS language_count,
          (SELECT COUNT(*) FROM play_history ph WHERE ph.poi_id = p.id) AS audio_plays,
@@ -186,7 +190,11 @@ router.get(
           stallName: row.stall_name,
           languageCount: Number(row.language_count ?? 0),
           audioPlays: Number(row.audio_plays ?? 0),
-          imageUrl: row.image_url
+          imageUrl: row.image_url,
+          pendingName: row.pending_name,
+          pendingDescription: row.pending_description,
+          pendingCoverImageUrl: row.pending_cover_image_url,
+          approvalStatus: row.approval_status
         }))
       })
     );
@@ -530,6 +538,43 @@ router.post(
     );
 
     res.json(ok({ paid: true, message: 'Mock payment successful. Subscription extended by 30 days.' }));
+  })
+);
+
+// ──────────────────────────────────────────────
+// PUT /pois/:id — Vendor submits updates for approval
+// ──────────────────────────────────────────────
+router.put(
+  '/pois/:id',
+  asyncHandler(async (req, res) => {
+    const vendorId = getVendorId(req.user?.vendorId);
+    const poiId = req.params.id;
+    const { name, description, imageUrl } = req.body;
+
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Tên POI là bắt buộc' });
+    }
+
+    // Verify POI belongs to vendor
+    const check = await query<any[]>(
+      `SELECT p.id FROM zones p JOIN stalls s ON s.id = p.stall_id WHERE p.id = ? AND s.vendor_id = ?`,
+      [poiId, vendorId]
+    );
+    if (check.length === 0) {
+      return res.status(403).json({ error: 'Không có quyền chỉnh sửa POI này' });
+    }
+
+    // Update pending_* columns and set approval_status to 'PENDING'
+    await query(
+      `UPDATE pois SET pending_name = ?, pending_description = ?, pending_cover_image_url = ?, approval_status = 'PENDING', updated_at = NOW() WHERE id = ?`,
+      [name.trim(), description ? description.trim() : null, imageUrl ? imageUrl.trim() : null, poiId]
+    );
+    await query(
+      `UPDATE zones SET pending_name = ?, pending_description = ?, pending_cover_image_url = ?, approval_status = 'PENDING', updated_at = NOW() WHERE id = ?`,
+      [name.trim(), description ? description.trim() : null, imageUrl ? imageUrl.trim() : null, poiId]
+    );
+
+    res.json(ok({ success: true, message: 'Gửi yêu cầu chỉnh sửa POI thành công. Vui lòng chờ admin duyệt.' }));
   })
 );
 

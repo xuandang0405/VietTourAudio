@@ -117,13 +117,29 @@ public sealed class DatabasePoiService : IPoiService
     _geofence = geofence;
   }
 
-  public async Task<IReadOnlyList<PoiResponseDto>> GetPoisAsync(ulong? stallId = null)
+  public async Task<IReadOnlyList<PoiResponseDto>> GetPoisAsync(ulong? stallId = null, ulong? tourId = null, string? tourSlug = null)
   {
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
     await using var command = connection.CreateCommand();
-    var filter = stallId.HasValue ? "AND p.stall_id = @stallId" : string.Empty;
-    command.CommandText = $"{SelectSql} WHERE p.status = 'ACTIVE' {filter} ORDER BY p.sort_order, p.created_at";
-    if (stallId.HasValue) command.AddParameter("@stallId", stallId.Value);
+    var filters = new List<string> { "p.status = 'ACTIVE'" };
+    if (stallId.HasValue)
+    {
+      filters.Add("p.stall_id = @stallId");
+      command.AddParameter("@stallId", stallId.Value);
+    }
+    if (tourId.HasValue)
+    {
+      filters.Add("p.tour_id = @tourId");
+      command.AddParameter("@tourId", tourId.Value);
+    }
+    if (!string.IsNullOrEmpty(tourSlug))
+    {
+      filters.Add("t.slug = @tourSlug");
+      command.AddParameter("@tourSlug", tourSlug);
+    }
+    var whereClause = "WHERE " + string.Join(" AND ", filters);
+    command.CommandText = $"{SelectSql} {whereClause} ORDER BY p.sort_order, p.created_at";
+    
     await using var reader = await command.ExecuteReaderAsync();
     var results = new List<PoiResponseDto>();
     while (await reader.ReadAsync()) results.Add(Map(reader));
@@ -141,9 +157,9 @@ public sealed class DatabasePoiService : IPoiService
     return Map(reader);
   }
 
-  public async Task<IReadOnlyList<PoiResponseDto>> GetNearbyAsync(decimal latitude, decimal longitude, int radiusMeters)
+  public async Task<IReadOnlyList<PoiResponseDto>> GetNearbyAsync(decimal latitude, decimal longitude, int radiusMeters, ulong? tourId = null, string? tourSlug = null)
   {
-    var pois = await GetPoisAsync();
+    var pois = await GetPoisAsync(stallId: null, tourId: tourId, tourSlug: tourSlug);
     return pois.Select(poi =>
       {
         var distance = _geofence.EstimateDistanceMeters(latitude, longitude, poi.Latitude, poi.Longitude);

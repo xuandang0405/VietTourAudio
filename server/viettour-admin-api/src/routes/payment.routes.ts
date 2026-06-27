@@ -14,5 +14,20 @@ router.get(
   asyncHandler(controller.getPremiumQr)
 );
 
+router.post(
+  '/create-request',
+  asyncHandler(controller.createRequest)
+);
+
+router.post(
+  '/sepay-webhook',
+  asyncHandler(controller.sepayWebhook)
+);
+
+router.get(
+  '/status',
+  asyncHandler(controller.getStatus)
+);
+
 export default router;
 

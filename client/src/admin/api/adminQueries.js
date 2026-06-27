@@ -30,6 +30,9 @@ import {
   createAdminPoi,
   updateAdminPoi,
   deleteAdminPoi,
+  fetchAdminApprovals,
+  approveAdminPoi,
+  rejectAdminPoi,
   fetchGeofenceAllData,
   fetchAuditLogs,
   fetchToursList,
@@ -216,6 +219,35 @@ export function useAdminPois() {
   return useQuery({
     queryKey: adminQueryKeys.pois,
     queryFn: fetchAdminPois
+  });
+}
+
+export function useAdminApprovals() {
+  return useQuery({
+    queryKey: ['admin', 'approvals'],
+    queryFn: fetchAdminApprovals
+  });
+}
+
+export function useApprovePoi() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: approveAdminPoi,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'approvals'] });
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.pois });
+    }
+  });
+}
+
+export function useRejectPoi() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: rejectAdminPoi,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'approvals'] });
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.pois });
+    }
   });
 }
 

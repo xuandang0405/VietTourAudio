@@ -174,36 +174,15 @@
     "loading_stall": "店舗情報をロード中..."
   },
   "status": {
+    "draft": "下書き",
+    "active": "有効",
+    "inactive": "無効",
+    "archived": "アーカイブ済み",
+    "published": "公開済み",
     "pending": "保留中",
     "approved": "承認済み",
-    "active": "Active",
-    "rejected": "拒否済み",
-    "suspended": "一時停止中",
-    "cancelled": "Cancelled",
-    "overdue": "Overdue",
-    "trial": "Trial",
-    "draft": "Draft",
-    "hidden": "非表示",
-    "force_cancelled": "Force Cancelled",
-    "pending_review": "Pending Review",
-    "paid": "Paid",
-    "failed": "Failed",
-    "refunded": "Refunded",
-    "image": "Image",
-    "video": "Video",
-    "audio": "Audio",
-    "document": "Document",
-    "top_up": "Top Up",
-    "subscription_fee": "Subscription Fee",
-    "refund": "Refund",
-    "manual_debit": "Manual Debit",
-    "manual_credit": "Manual Credit",
-    "momo": "MoMo",
-    "vnpay": "VNPay",
-    "stripe": "Stripe",
-    "bank_qr": "Bank QR",
-    "cash": "Cash",
-    "manual": "Manual"
+    "rejected": "却下済み",
+    "suspended": "一時停止"
   },
   "dashboard": {
     "title": "運用ダッシュボード",
@@ -435,7 +414,8 @@
     "demoGpsEnabled": "ジオフェンス検証用のGPSシミュレーションモードが有効になりました。",
     "demoMoved": "シミュレーション位置が更新されました",
     "favorites": "お気に入り",
-    "no_favorites": "お気に入りの屋台はまだありません"
+    "no_favorites": "お気に入りの屋台はまだありません",
+    "resume": "再開"
   },
   "map": {
     "no_gps": "GPSがありません"
@@ -470,7 +450,38 @@
     "premium_active": "✨ プレミアムがアクティブです – 無制限アクセスをお楽しみください",
     "enter_map": "エリアマップに入る",
     "unlock_cta": "🔓 すべてのオーディオのロックを解除 – 30,000 VND / 24時間",
-    "redirecting": "自動的にリダイレクトしています…"
+    "redirecting": "自動的にリダイレクトしています…",
+    "title": "フェスティバルエリア一覧",
+    "description": "フェスティバルエリアとその中心座標を管理します。",
+    "add": "エリアを追加",
+    "edit": "編集",
+    "delete": "削除",
+    "subtitle": "情報管理",
+    "error_name_empty": "エリア名は必須です",
+    "error_lat_invalid": "無効な緯度 (-90 〜 90)",
+    "error_lng_invalid": "無効な経度 (-180 〜 180)",
+    "error_save": "エリア情報の保存中にエラーが発生しました。",
+    "error_load": "エリア一覧を読み込めません。",
+    "search_placeholder": "エリアを検索...",
+    "no_matching": "該当するエリアが見つかりません。",
+    "add_title": "新規エリア追加",
+    "edit_title": "エリアの編集",
+    "form_description": "このフェスティバルエリアの詳細情報を入力してください。",
+    "form_name": "エリア名",
+    "form_code": "エリアコード (Slug)",
+    "form_cover_url": "カバー画像 (URL)",
+    "coordinates_section": "中心座標",
+    "form_vendor": "屋台ベンダー",
+    "is_premium": "プレミアムエリア",
+    "delete_title": "エリア削除の確認",
+    "delete_desc": "エリアはアーカイブされます。POIはアクティブなままです。続行してもよろしいですか？",
+    "table": {
+      "id": "コード",
+      "name": "エリア",
+      "coordinates": "中心座標",
+      "pois": "POI数"
+    },
+    "waiting_payment": "支払いを待っています..."
   },
   "admin_topup": {
     "management_subtitle": "トップアップ管理",
@@ -640,7 +651,8 @@
     "enable_gps": "ルートを検索するにはGPSを有効にしてください。",
     "clear": "ルート消去",
     "recalculating_alert": "ルートから外れました。再検索しています...",
-    "arrived": "目的地に到着しました！"
+    "arrived": "目的地に到着しました！",
+    "clear_directions": "ルート案内をキャンセル"
   },
   "admin": {
     "scanner": {
@@ -678,7 +690,9 @@
         "SUSPENDED": "一時停止中",
         "REJECTED": "却下"
       },
-      "confirm_suspend": "このアカウントを直ちに停止してもよろしいですか？この出店者のすべてのアクティブなログインセッションが終了します。"
+      "confirm_suspend": "このアカウントを直ちに停止してもよろしいですか？この出店者のすべてのアクティブなログインセッションが終了します。",
+      "unassigned": "活動エリア未割り当て",
+      "unassigned_desc": "ベンダーはいかなる活動エリアにも関連付けられていません。"
     },
     "analytics": {
       "realtime_title": "リアルタイムトラフィック（過去5分間）",
@@ -688,18 +702,20 @@
       "last_update": "最終更新：{{time}}"
     }
   },
-  "status": {
-    "draft": "下書き",
-    "active": "有効",
-    "inactive": "無効",
-    "archived": "アーカイブ済み",
-    "published": "公開済み",
-    "pending": "保留中",
-    "approved": "承認済み",
-    "rejected": "却下済み",
-    "suspended": "一時停止"
-  },
   "favorites": "お気に入り",
   "favorites_add": "お気に入りに追加",
-  "favorites_remove": "お気に入りから削除"
+  "favorites_remove": "お気に入りから削除",
+  "navigation": {
+    "discover": "探索",
+    "map": "地図"
+  },
+  "discovery": {
+    "title": "エリアを探索",
+    "subtitle": "フェスティバルエリア",
+    "poi_count_label": "スポット",
+    "poi_default_type": "観光スポット",
+    "no_pois": "まだスポットがありません。入口でQRをスキャンしてください。",
+    "go_to_zone": "エリアへ行く",
+    "footer": "エリアをタップしてスポットを表示"
+  }
 }

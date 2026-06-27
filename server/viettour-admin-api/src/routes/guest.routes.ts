@@ -85,7 +85,8 @@ router.get(
       // Strategy 1: Find Tour via QR code table
       const qrRows = await query<any[]>(
         `SELECT qr.id AS qr_id, qr.tour_id, qr.vendor_id, qr.code AS qr_code,
-                t.id AS t_id, t.name, t.slug, t.description, t.status, t.vendor_id AS t_vendor_id
+                t.id AS t_id, t.name, t.slug, t.description, t.status, t.vendor_id AS t_vendor_id,
+                t.is_premium AS t_is_premium, t.price AS t_price
          FROM qr_codes qr
          JOIN tours t ON t.id = qr.tour_id
          WHERE REPLACE(qr.code, '-', '') = REPLACE(?, '-', '') AND qr.qr_type = 'TOUR' AND qr.is_active = 1
@@ -104,6 +105,8 @@ router.get(
           status: row.status,
           vendor_id: row.t_vendor_id,
           zone_code: row.qr_code,
+          is_premium: row.t_is_premium,
+          price: row.t_price
         };
       }
 
@@ -113,6 +116,7 @@ router.get(
         if (isNumeric) {
           slugRows = await query<any[]>(
             `SELECT t.id, t.name, t.slug, t.description, t.status, t.vendor_id,
+                    t.is_premium, t.price,
                     (SELECT qr.code FROM qr_codes qr WHERE qr.tour_id = t.id AND qr.qr_type = 'TOUR' AND qr.is_active = 1 LIMIT 1) AS qr_code
              FROM tours t
              WHERE t.id = ? AND t.status = 'PUBLISHED'
@@ -122,6 +126,7 @@ router.get(
         } else {
           slugRows = await query<any[]>(
             `SELECT t.id, t.name, t.slug, t.description, t.status, t.vendor_id,
+                    t.is_premium, t.price,
                     (SELECT qr.code FROM qr_codes qr WHERE qr.tour_id = t.id AND qr.qr_type = 'TOUR' AND qr.is_active = 1 LIMIT 1) AS qr_code
              FROM tours t
              WHERE t.slug = ? AND t.status = 'PUBLISHED'
@@ -139,6 +144,8 @@ router.get(
             status: row.status,
             vendor_id: row.vendor_id,
             zone_code: row.qr_code || row.slug,
+            is_premium: row.is_premium,
+            price: row.price
           };
         }
       }
@@ -180,9 +187,9 @@ router.get(
              JOIN vendors v ON v.id = s.vendor_id
              LEFT JOIN stall_contents sc_lang ON sc_lang.stall_id = s.id AND sc_lang.lang = ?
              LEFT JOIN stall_contents sc_vi ON sc_vi.stall_id = s.id AND sc_vi.lang = 'vi'
-             WHERE REPLACE(s.zone_code, '-', '') = REPLACE(?, '-', '')
+             WHERE (REPLACE(s.zone_code, '-', '') = REPLACE(?, '-', '') OR s.slug = ?)
              LIMIT 1`,
-            [lang, code.toUpperCase()]
+            [lang, code.toUpperCase(), code.toLowerCase()]
           );
         }
 
@@ -357,7 +364,9 @@ router.get(
             vendorName: null,
             isTour: true,
             tourId: Number(tour.id),
-            tourSlug: tour.slug
+            tourSlug: tour.slug,
+            isPremium: Boolean(tour.is_premium),
+            price: Number(tour.price)
           },
           pois: zoneRows.map((z) => ({
             id: String(z.id),
@@ -390,4 +399,198 @@ router.get(
   })
 );
 
+// ──────────────────────────────────────────────
+// GET /favorites/:guestId — Public, no auth
+// Retrieve guest's favorited stall IDs mapped from pois
+// ──────────────────────────────────────────────
+router.get(
+  '/favorites/:guestId',
+  asyncHandler(async (req, res) => {
+    const guestId = String(req.params.guestId);
+    const rows = await query<any[]>(
+      `SELECT DISTINCT p.stall_id
+       FROM favorites f
+       JOIN pois p ON p.id = f.poi_id
+       WHERE f.guest_id = ?`,
+      [guestId]
+    );
+    res.json(ok({ favorites: rows.map((r) => Number(r.stall_id)) }));
+  })
+);
+
+// ──────────────────────────────────────────────
+// POST /favorites/sync — Public, no auth
+// Sync guest's offline favorite operations
+// ──────────────────────────────────────────────
+router.post(
+  '/favorites/sync',
+  asyncHandler(async (req, res) => {
+    const { guestId, ops } = req.body;
+    if (!guestId || !Array.isArray(ops)) {
+      res.status(400).json({ success: false, error: 'guestId and ops are required' });
+      return;
+    }
+
+    for (const op of ops) {
+      const stallId = Number(op.stallId);
+      if (!stallId) continue;
+
+      // Find the corresponding POI for this stall
+      const poiRows = await query<any[]>(
+        `SELECT id FROM pois WHERE stall_id = ? LIMIT 1`,
+        [stallId]
+      );
+      if (poiRows.length === 0) continue;
+      const poiId = poiRows[0].id;
+
+      if (op.action === 'add') {
+        await query(
+          `INSERT INTO favorites (guest_id, poi_id, added_at)
+           VALUES (?, ?, NOW())
+           ON DUPLICATE KEY UPDATE added_at = NOW()`,
+          [guestId, String(poiId)]
+        );
+      } else if (op.action === 'remove') {
+        await query(
+          `DELETE FROM favorites WHERE guest_id = ? AND poi_id = ?`,
+          [guestId, String(poiId)]
+        );
+      }
+    }
+
+    const rows = await query<any[]>(
+      `SELECT DISTINCT p.stall_id
+       FROM favorites f
+       JOIN pois p ON p.id = f.poi_id
+       WHERE f.guest_id = ?`,
+      [guestId]
+    );
+    res.json(ok({ favorites: rows.map((r) => Number(r.stall_id)) }));
+  })
+);
+
+// ──────────────────────────────────────────────
+// GET /tours/:id/unlocked-status — Public, no auth
+// Checks if the tour is unlocked for a guest, or if it is free (price = 0)
+// ──────────────────────────────────────────────
+router.get(
+  '/tours/:id/unlocked-status',
+  asyncHandler(async (req, res) => {
+    const tourId = Number(req.params.id);
+    const guestId = String(req.query.guestId || '');
+
+    if (!tourId) {
+      res.status(400).json({ success: false, error: 'tourId is required' });
+      return;
+    }
+
+    // 1. Fetch tour details (price, is_premium)
+    const tourRows = await query<any[]>(
+      'SELECT is_premium, price FROM tours WHERE id = ? LIMIT 1',
+      [tourId]
+    );
+
+    if (tourRows.length === 0) {
+      res.status(404).json({ success: false, error: 'Tour not found' });
+      return;
+    }
+
+    const tour = tourRows[0];
+    const isPremium = Boolean(tour.is_premium);
+    const price = Number(tour.price);
+
+    // If it's free or not premium, it is unlocked
+    if (!isPremium || price === 0) {
+      res.json(ok({ unlocked: true, price: 0 }));
+      return;
+    }
+
+    if (!guestId) {
+      res.json(ok({ unlocked: false, price }));
+      return;
+    }
+
+    // 2. Check if the guest has unlocked it in the database
+    const unlockRows = await query<any[]>(
+      'SELECT id FROM unlocked_tours WHERE guest_id = ? AND tour_id = ? LIMIT 1',
+      [guestId, tourId]
+    );
+
+    res.json(
+      ok({
+        unlocked: unlockRows.length > 0,
+        price
+      })
+    );
+  })
+);
+
+// ──────────────────────────────────────────────
+// GET /routing — Proxy routing via OpenRouteService or fallback OSRM
+// ──────────────────────────────────────────────
+router.get(
+  '/routing',
+  asyncHandler(async (req, res) => {
+    const startLng = String(req.query.startLng || '');
+    const startLat = String(req.query.startLat || '');
+    const endLng = String(req.query.endLng || '');
+    const endLat = String(req.query.endLat || '');
+
+    if (!startLng || !startLat || !endLng || !endLat) {
+      res.status(400).json({ success: false, error: 'Missing coordinates' });
+      return;
+    }
+
+    const orsKey = process.env.ORS_API_KEY || '5b3ce3597851110001cf62483861fb85ea4f4d22bb42c55452eb8c15';
+
+    try {
+      const orsUrl = `https://api.openrouteservice.org/v2/directions/foot-walking?api_key=${orsKey}&start=${startLng},${startLat}&end=${endLng},${endLat}`;
+      const orsRes = await fetch(orsUrl);
+      if (orsRes.ok) {
+        const data = await orsRes.json() as any;
+        const feature = data.features?.[0];
+        if (feature) {
+          res.json(
+            ok({
+              source: 'ors',
+              routes: [
+                {
+                  geometry: feature.geometry,
+                  distance: feature.properties?.summary?.distance ?? 0,
+                  duration: feature.properties?.summary?.duration ?? 0
+                }
+              ]
+            })
+          );
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('OpenRouteService routing error, trying fallback:', err);
+    }
+
+    try {
+      const osrmUrl = `https://router.project-osrm.org/route/v1/foot/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+      const osrmRes = await fetch(osrmUrl);
+      if (osrmRes.ok) {
+        const data = await osrmRes.json() as any;
+        if (data.code === 'Ok' && Array.isArray(data.routes) && data.routes.length > 0) {
+          res.json(
+            ok({
+              source: 'osrm',
+              routes: data.routes
+            })
+          );
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('OSRM fallback routing error:', err);
+    }
+
+    res.status(502).json({ success: false, error: 'Both routing services failed' });
+  })
+);
+
 export default router;
+

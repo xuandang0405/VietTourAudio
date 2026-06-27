@@ -1,4 +1,4 @@
-import { ChevronRight, Download, Edit3, Map, MapPin, Plus, QrCode, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { ChevronRight, Download, Edit3, Map, MapPin, Plus, QrCode, RefreshCw, Search, Trash2, X, Clock, Check, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AdminBadge } from '../../../admin/components/AdminBadge';
@@ -19,7 +19,10 @@ import {
   useCreateTour,
   useUpdateTour,
   useDeleteTour,
-  useResetTourQr
+  useResetTourQr,
+  useAdminApprovals,
+  useApprovePoi,
+  useRejectPoi
 } from '../../../admin/api/adminQueries';
 
 export function AdminPois() {
@@ -85,6 +88,10 @@ export function AdminPois() {
   const deleteTourMutation = useDeleteTour();
   const resetQrMutation = useResetTourQr();
   const distanceQuery = usePoiDistance(distancePoiA, distancePoiB);
+  
+  const { data: approvals = [] } = useAdminApprovals();
+  const approveMutation = useApprovePoi();
+  const rejectMutation = useRejectPoi();
 
   const { data: tourDetail, isLoading: tourDetailLoading } = useTour(selectedTourId);
   const selectedTour = useMemo(() => {
@@ -510,6 +517,23 @@ export function AdminPois() {
                 );
               })}
             </div>
+            <div className="border-t border-slate-100 p-2 bg-slate-50 rounded-b-2xl">
+              <button
+                type="button"
+                onClick={() => setSelectedTourId('approvals')}
+                className={`flex w-full items-center gap-3 px-3 py-2.5 rounded-xl transition ${
+                  selectedTourId === 'approvals' ? 'bg-amber-500 text-white font-bold' : 'hover:bg-slate-100 text-slate-700'
+                }`}
+              >
+                <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${selectedTourId === 'approvals' ? 'bg-amber-600 text-white' : 'bg-amber-100 text-amber-600'}`}>
+                  <Clock size={16} />
+                </div>
+                <div className="min-w-0 flex-1 text-left">
+                  <p className="truncate text-xs font-bold uppercase tracking-wider">{t('poi.pending_approvals_tab', { defaultValue: 'Yêu cầu duyệt' })}</p>
+                  <p className="text-[10px] opacity-80">{t('poi.pending_approvals_count', { count: approvals.length, defaultValue: `${approvals.length} yêu cầu` })}</p>
+                </div>
+              </button>
+            </div>
           </div>
         </aside>
 
@@ -618,6 +642,95 @@ export function AdminPois() {
                 />
               )}
             </>
+          ) : selectedTourId === 'approvals' ? (
+            <section className="space-y-6">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="text-lg font-black text-slate-950 flex items-center gap-2">
+                  <Clock className="text-amber-500" size={20} />
+                  {t('poi.approvals_panel_title', { defaultValue: 'Yêu cầu duyệt chỉnh sửa POI từ Vendor' })}
+                </h2>
+                <p className="text-sm font-semibold text-slate-500 mt-1">
+                  {t('poi.approvals_panel_desc', { defaultValue: 'Xem xét và phê duyệt các yêu cầu thay đổi tên, ảnh, mô tả từ phía Vendor quản lý POI.' })}
+                </p>
+              </div>
+
+              {approvals.length === 0 ? (
+                <div className="flex h-64 items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50">
+                  <div className="text-center">
+                    <CheckCircle className="mx-auto mb-3 text-green-500" size={40} />
+                    <p className="text-sm font-black text-slate-600">{t('poi.no_pending_approvals', { defaultValue: 'Không có yêu cầu nào đang chờ duyệt' })}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-400">{t('poi.no_pending_approvals_desc', { defaultValue: 'Tất cả các điểm thuyết minh đang ở trạng thái đồng bộ công khai.' })}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-6">
+                  {approvals.map((req) => (
+                    <div key={req.id} className="bg-white rounded-3xl shadow-md border border-slate-200 overflow-hidden grid grid-cols-1 md:grid-cols-2">
+                      {/* Left: Current Info */}
+                      <div className="p-6 border-r border-slate-100 bg-slate-50/40">
+                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                          {t('poi.current_live_info', { defaultValue: 'Thông tin hiện tại (Đang công khai)' })}
+                        </span>
+                        <div className="mt-3 flex gap-3">
+                          {req.imageUrl ? (
+                            <img src={req.imageUrl} alt={req.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                          ) : (
+                            <div className="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center text-slate-400 text-xs shrink-0 font-bold">No Image</div>
+                          )}
+                          <div>
+                            <p className="text-xs font-bold text-teal-600">{req.vendorName} ({req.stallName})</p>
+                            <h3 className="font-extrabold text-slate-900 text-sm mt-1">#{req.id}: {req.name}</h3>
+                            <p className="text-xs text-slate-500 mt-2 line-clamp-3 leading-relaxed">{req.description}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Pending Info + Action buttons */}
+                      <div className="p-6 flex flex-col justify-between">
+                        <div>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-amber-600 tracking-wider bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                            <AlertTriangle size={10} />
+                            {t('poi.pending_changes_request', { defaultValue: 'Thông tin đề xuất chỉnh sửa' })}
+                          </span>
+                          <div className="mt-3 flex gap-3">
+                            {req.pendingCoverImageUrl ? (
+                              <img src={req.pendingCoverImageUrl} alt={req.pendingName} className="w-16 h-16 rounded-xl object-cover shrink-0 border-2 border-amber-400" />
+                            ) : req.imageUrl ? (
+                              <img src={req.imageUrl} alt={req.pendingName} className="w-16 h-16 rounded-xl object-cover shrink-0 opacity-70" />
+                            ) : (
+                              <div className="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center text-slate-400 text-xs shrink-0 font-bold">No Image</div>
+                            )}
+                            <div>
+                              <h3 className="font-extrabold text-slate-900 text-sm mt-1">{req.pendingName}</h3>
+                              <p className="text-xs text-slate-600 mt-2 line-clamp-3 leading-relaxed">{req.pendingDescription || req.description}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 pt-4 border-t border-slate-100 flex gap-3 justify-end">
+                          <button
+                            type="button"
+                            onClick={() => rejectMutation.mutate(req.id)}
+                            disabled={rejectMutation.isPending || approveMutation.isPending}
+                            className="px-4 py-2 border border-red-200 hover:bg-red-50 text-red-700 text-xs font-bold rounded-xl transition disabled:opacity-50"
+                          >
+                            {rejectMutation.isPending ? t('common.processing', { defaultValue: 'Đang xử lý...' }) : t('common.reject', { defaultValue: 'Từ chối' })}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => approveMutation.mutate(req.id)}
+                            disabled={approveMutation.isPending || rejectMutation.isPending}
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl transition shadow-sm active:scale-[0.98] disabled:opacity-50"
+                          >
+                            {approveMutation.isPending ? t('common.processing', { defaultValue: 'Đang xử lý...' }) : t('common.approve', { defaultValue: 'Duyệt áp dụng' })}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           ) : (
             <div className="flex h-[400px] items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50">
               <div className="text-center">

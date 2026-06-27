@@ -3,6 +3,8 @@ import { UserRole } from '../types/domain';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { PoiController, TourController } from '../controllers/poi.controller';
 import { asyncHandler } from '../utils/asyncHandler';
+import { query } from '../lib/db';
+import { ok } from '../types/api.types';
 
 export const router = Router();
 const controller = new PoiController();
@@ -77,6 +79,112 @@ router.delete(
 router.post(
   '/tours/:id/qr/reset',
   asyncHandler(tourController.resetTourQr)
+);
+
+// ── POI Update Approval routes ──
+router.get(
+  '/approvals',
+  asyncHandler(async (req, res) => {
+    const rows = await query<any[]>(
+      `SELECT p.id, p.name, p.description, p.pending_name, p.pending_description, p.pending_cover_image_url, p.approval_status,
+              s.name AS stall_name, v.trade_name AS vendor_name,
+              (SELECT mf.public_url FROM media_files mf WHERE mf.poi_id = p.id AND mf.file_type = 'IMAGE' ORDER BY mf.id ASC LIMIT 1) AS image_url
+       FROM zones p
+       JOIN stalls s ON s.id = p.stall_id
+       JOIN vendors v ON v.id = s.vendor_id
+       WHERE p.approval_status = 'PENDING'
+       ORDER BY p.updated_at DESC`
+    );
+    res.json(ok(rows.map(row => ({
+      id: String(row.id),
+      name: row.name,
+      description: row.description,
+      pendingName: row.pending_name,
+      pendingDescription: row.pending_description,
+      pendingCoverImageUrl: row.pending_cover_image_url,
+      approvalStatus: row.approval_status,
+      stallName: row.stall_name,
+      vendorName: row.vendor_name,
+      imageUrl: row.image_url
+    }))));
+  })
+);
+
+router.post(
+  '/:id/approve',
+  asyncHandler(async (req, res) => {
+    const poiId = req.params.id;
+    
+    // Fetch the pending data
+    const rows = await query<any[]>(
+      `SELECT pending_name, pending_description, pending_cover_image_url FROM zones WHERE id = ? LIMIT 1`,
+      [poiId]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'POI not found' });
+    }
+    const { pending_name, pending_description, pending_cover_image_url } = rows[0];
+    
+    if (!pending_name) {
+      return res.status(400).json({ error: 'No pending changes to approve' });
+    }
+    
+    // Update main fields with pending fields
+    await query(
+      `UPDATE pois SET name = ?, description = ?, pending_name = NULL, pending_description = NULL, pending_cover_image_url = NULL, approval_status = 'APPROVED', updated_at = NOW() WHERE id = ?`,
+      [pending_name, pending_description, poiId]
+    );
+    await query(
+      `UPDATE zones SET name = ?, description = ?, pending_name = NULL, pending_description = NULL, pending_cover_image_url = NULL, approval_status = 'APPROVED', updated_at = NOW() WHERE id = ?`,
+      [pending_name, pending_description, poiId]
+    );
+    
+    // Update or insert media files
+    if (pending_cover_image_url) {
+      const meta = await query<any[]>(
+        `SELECT stall_id, (SELECT vendor_id FROM stalls WHERE id = stall_id) AS vendor_id FROM zones WHERE id = ? LIMIT 1`,
+        [poiId]
+      );
+      const vendorId = meta[0]?.vendor_id ? String(meta[0].vendor_id) : null;
+      const stallId = meta[0]?.stall_id ? String(meta[0].stall_id) : null;
+      
+      const media = await query<any[]>(
+        `SELECT id FROM media_files WHERE poi_id = ? AND file_type = 'IMAGE' ORDER BY id ASC LIMIT 1`,
+        [poiId]
+      );
+      if (media.length > 0) {
+        await query(
+          `UPDATE media_files SET public_url = ?, moderation_status = 'APPROVED', updated_at = NOW() WHERE id = ?`,
+          [pending_cover_image_url, media[0].id]
+        );
+      } else if (vendorId) {
+        await query(
+          `INSERT INTO media_files (vendor_id, stall_id, poi_id, file_type, storage_provider, file_name, file_path, public_url, mime_type, file_size, moderation_status)
+           VALUES (?, ?, ?, 'IMAGE', 'LOCAL', 'cover.jpg', '', ?, 'image/jpeg', 0, 'APPROVED')`,
+          [vendorId, stallId, poiId, pending_cover_image_url]
+        );
+      }
+    }
+    
+    res.json(ok({ success: true, message: 'Duyệt chỉnh sửa thành công' }));
+  })
+);
+
+router.post(
+  '/:id/reject',
+  asyncHandler(async (req, res) => {
+    const poiId = req.params.id;
+    // Discard pending changes
+    await query(
+      `UPDATE pois SET pending_name = NULL, pending_description = NULL, pending_cover_image_url = NULL, approval_status = 'APPROVED', updated_at = NOW() WHERE id = ?`,
+      [poiId]
+    );
+    await query(
+      `UPDATE zones SET pending_name = NULL, pending_description = NULL, pending_cover_image_url = NULL, approval_status = 'APPROVED', updated_at = NOW() WHERE id = ?`,
+      [poiId]
+    );
+    res.json(ok({ success: true, message: 'Từ chối chỉnh sửa thành công' }));
+  })
 );
 
 export default router;

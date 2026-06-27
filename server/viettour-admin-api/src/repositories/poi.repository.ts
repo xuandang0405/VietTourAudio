@@ -318,8 +318,34 @@ export class PoiRepository {
     return rows;
   }
 
-  async getGuestPoisByZoneCode(zoneCode: string, lang: string): Promise<any[]> {
+  async getGuestPoisByZoneCode(zoneCode: string, lang: string, activeTourId?: string): Promise<any[]> {
     const isNumeric = /^\d+$/.test(zoneCode);
+    let whereClause = `(
+        p.zone_code = ? OR
+        s.zone_code = ? OR
+        s.slug = ? OR
+        t.slug = ?
+        ${isNumeric ? 'OR t.id = ? OR s.id = ?' : ''}
+      ) AND p.status = 'ACTIVE'`;
+
+    const params: any[] = [
+      lang,
+      lang,
+      zoneCode,
+      zoneCode,
+      zoneCode,
+      zoneCode
+    ];
+
+    if (isNumeric) {
+      params.push(zoneCode, zoneCode);
+    }
+
+    if (activeTourId) {
+      whereClause += ` AND z.tour_id = ?`;
+      params.push(activeTourId);
+    }
+
     const queryStr = `
       SELECT
         p.id,
@@ -339,35 +365,17 @@ export class PoiRepository {
         t.slug AS tour_slug,
         (SELECT COUNT(DISTINCT pc.lang) FROM poi_contents pc WHERE pc.poi_id = p.id) AS language_count,
         (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = p.id AND pc.lang = ? LIMIT 1) AS audio_url,
-        (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = p.id AND pc.lang = 'vi' LIMIT 1) AS audio_url_vi
+        (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = p.id AND pc.lang = 'vi' LIMIT 1) AS audio_url_vi,
+        (SELECT mf.public_url FROM media_files mf WHERE mf.poi_id = p.id AND mf.file_type = 'IMAGE' ORDER BY mf.id ASC LIMIT 1) AS imageUrl
       FROM pois p
       LEFT JOIN stalls s ON s.id = p.stall_id
       LEFT JOIN zones z ON z.id = p.id
       LEFT JOIN tours t ON t.id = z.tour_id
       LEFT JOIN poi_contents pc_lang ON pc_lang.poi_id = p.id AND pc_lang.lang = ?
       LEFT JOIN poi_contents pc_vi ON pc_vi.poi_id = p.id AND pc_vi.lang = 'vi'
-      WHERE (
-        p.zone_code = ? OR
-        s.zone_code = ? OR
-        s.slug = ? OR
-        t.slug = ?
-        ${isNumeric ? 'OR t.id = ? OR s.id = ?' : ''}
-      ) AND p.status = 'ACTIVE'
+      WHERE ${whereClause}
       ORDER BY p.sort_order ASC, p.id ASC
     `;
-
-    const params: any[] = [
-      lang,
-      lang,
-      zoneCode,
-      zoneCode,
-      zoneCode,
-      zoneCode
-    ];
-
-    if (isNumeric) {
-      params.push(zoneCode, zoneCode);
-    }
 
     const rows = await query<any[]>(queryStr, params);
     return rows;

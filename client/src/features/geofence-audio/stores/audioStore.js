@@ -4,8 +4,43 @@ import { speakText, stopSpeech } from '../../../utils/ttsPlayer';
 import { useAudioQueueStore } from './audioQueueStore';
 import { visitorTrackingService } from '../services/visitorTrackingService';
 import { usePremiumStore } from '../../vendor-wallet/stores/premiumStore';
+import { appConfig } from '../../../config/appConfig';
 
 const DEFAULT_COOLDOWN_MS = 10 * 60 * 1000;
+let globalAudio = null;
+
+function getAudioElement(store) {
+  if (typeof window === 'undefined') return null;
+  if (!globalAudio) {
+    globalAudio = new window.Audio();
+    
+    globalAudio.addEventListener('timeupdate', () => {
+      const state = store.getState();
+      const current = globalAudio.currentTime;
+      const dur = globalAudio.duration || 0;
+      state.updateProgress(current, dur);
+    });
+
+    globalAudio.addEventListener('durationchange', () => {
+      const state = store.getState();
+      const current = globalAudio.currentTime;
+      const dur = globalAudio.duration || 0;
+      state.updateProgress(current, dur);
+    });
+
+    globalAudio.addEventListener('ended', () => {
+      const state = store.getState();
+      state.handleAudioEnded();
+    });
+
+    globalAudio.addEventListener('error', (e) => {
+      console.error('HTML5 Audio error, falling back to TTS:', e);
+      const state = store.getState();
+      state.handleAudioError();
+    });
+  }
+  return globalAudio;
+}
 
 export const useAudioStore = create(
   persist(
@@ -14,6 +49,13 @@ export const useAudioStore = create(
       isPlaying: false,
       lastPlayedAtByPoi: {},
       lastError: '',
+      
+      // Progress states for HTML5 audio
+      currentTime: 0,
+      duration: 0,
+      progress: 0,
+      isHtml5: false,
+      activeOnFinished: null,
 
       canAutoPlay: (poiId, cooldownMs = DEFAULT_COOLDOWN_MS) => {
         if (!poiId) return false;
@@ -51,12 +93,65 @@ export const useAudioStore = create(
         const premiumState = usePremiumStore.getState();
         if (!premiumState.canListen()) {
           set({ isPlaying: false, lastError: 'Đã hết lượt nghe miễn phí. Vui lòng mở khóa Premium.' });
-          // Phát sự kiện để mở modal thanh toán
           window.dispatchEvent(new CustomEvent('open-checkout'));
           return false;
         }
 
+        // Stop any current audio
+        get().stop();
+        set({ activeOnFinished: options.onFinished || null });
+
         const text = poi.narration?.[languageMeta?.code] ?? poi.description ?? '';
+        const audioUrl = poi.audioUrl;
+
+        if (audioUrl) {
+          const audio = getAudioElement({ getState: () => get(), setState: set });
+          if (audio) {
+            try {
+              let resolvedUrl = audioUrl;
+              if (audioUrl.startsWith('/uploads')) {
+                const origin = appConfig.apiBaseUrl.replace('/api', '');
+                resolvedUrl = `${origin}${audioUrl}`;
+              } else if (!audioUrl.startsWith('http')) {
+                const origin = appConfig.apiBaseUrl.replace('/api', '');
+                resolvedUrl = `${origin}/uploads/${audioUrl}`;
+              }
+
+              audio.src = resolvedUrl;
+              audio.load();
+
+              set({
+                currentPoiId: poi.id,
+                isPlaying: true,
+                isHtml5: true,
+                currentTime: 0,
+                duration: 0,
+                progress: 0,
+                lastError: '',
+                lastPlayedAtByPoi: {
+                  ...get().lastPlayedAtByPoi,
+                  [poi.id]: Date.now()
+                }
+              });
+
+              audio.play().catch((err) => {
+                console.warn('HTML5 Audio play blocked or failed, falling back to TTS:', err);
+                get().playTtsFallback(text, languageMeta, poi, premiumState, options);
+              });
+
+              premiumState.decrementFreeListens();
+              visitorTrackingService.trackAudioPlay(poi, languageMeta.code);
+              return true;
+            } catch (err) {
+              console.error('HTML5 audio setup exception, trying TTS fallback:', err);
+            }
+          }
+        }
+
+        return get().playTtsFallback(text, languageMeta, poi, premiumState, options);
+      },
+
+      playTtsFallback: (text, languageMeta, poi, premiumState, options) => {
         if (!text.trim()) {
           set({ currentPoiId: poi.id, isPlaying: false, lastError: 'Chưa có nội dung thuyết minh.' });
           return false;
@@ -66,6 +161,8 @@ export const useAudioStore = create(
           onEnd: () => {
             set({ isPlaying: false });
             options.onFinished?.();
+            const cb = get().activeOnFinished;
+            if (cb) cb();
           },
           onError: () => {
             set({
@@ -73,6 +170,8 @@ export const useAudioStore = create(
               lastError: 'Không thể phát giọng đọc.'
             });
             options.onFinished?.();
+            const cb = get().activeOnFinished;
+            if (cb) cb();
           }
         });
 
@@ -80,17 +179,21 @@ export const useAudioStore = create(
           set({
             currentPoiId: poi.id,
             isPlaying: false,
+            isHtml5: false,
             lastError: 'Trình duyệt chưa hỗ trợ Web Speech API.'
           });
           return false;
         }
 
-        // Trừ lượt nghe nếu đang ở Free tier
         premiumState.decrementFreeListens();
 
         set((state) => ({
           currentPoiId: poi.id,
           isPlaying: true,
+          isHtml5: false,
+          currentTime: 0,
+          duration: 0,
+          progress: 0,
           lastError: '',
           lastPlayedAtByPoi: {
             ...state.lastPlayedAtByPoi,
@@ -99,7 +202,6 @@ export const useAudioStore = create(
         }));
 
         visitorTrackingService.trackAudioPlay(poi, languageMeta.code);
-
         return true;
       },
 
@@ -119,22 +221,72 @@ export const useAudioStore = create(
       },
 
       pauseAudio: () => {
-        if (typeof window !== 'undefined' && window.speechSynthesis?.speaking) {
-          window.speechSynthesis.pause();
+        if (get().isHtml5) {
+          const audio = getAudioElement({ getState: () => get(), setState: set });
+          if (audio) audio.pause();
+        } else {
+          if (typeof window !== 'undefined' && window.speechSynthesis?.speaking) {
+            window.speechSynthesis.pause();
+          }
         }
         set({ isPlaying: false });
       },
 
       resumeAudio: () => {
-        if (typeof window !== 'undefined' && window.speechSynthesis?.paused) {
-          window.speechSynthesis.resume();
-          set({ isPlaying: true });
+        if (get().isHtml5) {
+          const audio = getAudioElement({ getState: () => get(), setState: set });
+          if (audio) {
+            audio.play().catch((err) => console.error('Audio resume play failed:', err));
+            set({ isPlaying: true });
+          }
+        } else {
+          if (typeof window !== 'undefined' && window.speechSynthesis?.paused) {
+            window.speechSynthesis.resume();
+            set({ isPlaying: true });
+          }
         }
       },
 
       stop: () => {
+        const audio = getAudioElement({ getState: () => get(), setState: set });
+        if (audio) {
+          audio.pause();
+          audio.src = '';
+        }
         stopSpeech();
+        set({ isPlaying: false, isHtml5: false, currentTime: 0, duration: 0, progress: 0 });
+      },
+
+      seek: (time) => {
+        if (get().isHtml5) {
+          const audio = getAudioElement({ getState: () => get(), setState: set });
+          if (audio) {
+            audio.currentTime = time;
+            set({ currentTime: time });
+          }
+        }
+      },
+
+      updateProgress: (current, dur) => {
+        set({
+          currentTime: current,
+          duration: dur,
+          progress: dur > 0 ? (current / dur) * 100 : 0
+        });
+      },
+
+      handleAudioEnded: () => {
         set({ isPlaying: false });
+        const cb = get().activeOnFinished;
+        if (cb) cb();
+      },
+
+      handleAudioError: () => {
+        set({
+          isPlaying: false,
+          isHtml5: false,
+          lastError: 'Lỗi phát file âm thanh. Đang chuyển sang thuyết minh giọng đọc AI...'
+        });
       }
     }),
     {

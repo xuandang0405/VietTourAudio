@@ -188,36 +188,15 @@
     "loading_stall": "Đang tải thông tin sạp..."
   },
   "status": {
+    "draft": "Bản nháp",
+    "active": "Hoạt động",
+    "inactive": "Ngưng hoạt động",
+    "archived": "Lưu trữ",
+    "published": "Đã xuất bản",
     "pending": "Chờ duyệt",
     "approved": "Đã duyệt",
-    "active": "Đang hoạt động",
     "rejected": "Từ chối",
-    "suspended": "Tạm dừng",
-    "cancelled": "Đã hủy",
-    "overdue": "Quá hạn",
-    "trial": "Dùng thử",
-    "draft": "Bản nháp",
-    "hidden": "Đã ẩn",
-    "force_cancelled": "Bắt buộc hủy",
-    "pending_review": "Chờ review",
-    "paid": "Đã thanh toán",
-    "failed": "Thất bại",
-    "refunded": "Hoàn tiền",
-    "image": "Hình ảnh",
-    "video": "Video",
-    "audio": "Audio",
-    "document": "Tài liệu",
-    "top_up": "Nạp ví",
-    "subscription_fee": "Phí subscription",
-    "refund": "Hoàn tiền",
-    "manual_debit": "Trừ thủ công",
-    "manual_credit": "Cộng thủ công",
-    "momo": "MoMo",
-    "vnpay": "VNPay",
-    "stripe": "Stripe",
-    "bank_qr": "Bank QR",
-    "cash": "Tiền mặt",
-    "manual": "Thủ công"
+    "suspended": "Bị khóa"
   },
   "dashboard": {
     "title": "Dashboard Vận Hành",
@@ -463,7 +442,12 @@
     "demoGpsEnabled": "Chế độ giả lập GPS đã được bật để kiểm thử vùng kích hoạt.",
     "demoMoved": "Vị trí giả lập đã thay đổi",
     "favorites": "Yêu thích",
-    "no_favorites": "Chưa có sạp yêu thích"
+    "no_favorites": "Chưa có sạp yêu thích",
+    "camera_lock_on": "Khóa camera",
+    "camera_lock_off": "Tự do",
+    "camera_lock_enable": "Bật khóa camera",
+    "camera_lock_disable": "Tắt khóa camera",
+    "resume": "Tiếp tục"
   },
   "geofence": {
     "title": "Bản đồ vùng kích hoạt",
@@ -560,7 +544,38 @@
     "premium_active": "✨ Premium đang hoạt động – thưởng thức không giới hạn",
     "enter_map": "Vào bản đồ khu vực",
     "unlock_cta": "🔓 Mở khóa toàn bộ Audio – 30.000 VND / 24h",
-    "redirecting": "Đang chuyển hướng tự động…"
+    "redirecting": "Đang chuyển hướng tự động…",
+    "title": "Danh sách Khu vực Lễ hội",
+    "description": "Quản lý các khu vực lễ hội và tọa độ trung tâm của chúng.",
+    "add": "Thêm Khu vực",
+    "edit": "Sửa",
+    "delete": "Xóa",
+    "subtitle": "Quản lý thông tin",
+    "error_name_empty": "Tên khu vực không được để trống",
+    "error_lat_invalid": "Vĩ độ không hợp lệ (-90 đến 90)",
+    "error_lng_invalid": "Kinh độ không hợp lệ (-180 đến 180)",
+    "error_save": "Lỗi khi lưu thông tin khu vực.",
+    "error_load": "Không thể tải danh sách khu vực.",
+    "search_placeholder": "Tìm kiếm khu vực...",
+    "no_matching": "Không tìm thấy khu vực nào.",
+    "add_title": "Thêm Khu vực mới",
+    "edit_title": "Chỉnh sửa Khu vực",
+    "form_description": "Vui lòng cung cấp chi tiết đầy đủ cho khu vực lễ hội này.",
+    "form_name": "Tên khu vực",
+    "form_code": "Mã khu vực (Slug)",
+    "form_cover_url": "Ảnh bìa (URL)",
+    "coordinates_section": "Tọa độ trung tâm",
+    "form_vendor": "Nhà cung cấp sở hữu sạp",
+    "is_premium": "Khu vực Premium",
+    "delete_title": "Xác nhận xóa Khu vực",
+    "delete_desc": "Khu vực sẽ bị chuyển trạng thái thành lưu trữ (ARCHIVED). Các POIs vẫn hoạt động. Bạn có chắc chắn muốn tiếp tục?",
+    "table": {
+      "id": "Mã",
+      "name": "Khu vực",
+      "coordinates": "Tọa độ tâm",
+      "pois": "Điểm POI"
+    },
+    "waiting_payment": "Đang chờ thanh toán..."
   },
   "admin_topup": {
     "management_subtitle": "Quản lý Nạp Tiền",
@@ -685,7 +700,8 @@
     "enable_gps": "Vui lòng bật GPS để tìm đường.",
     "clear": "Xóa",
     "recalculating_alert": "Bạn đã đi chệch hướng, đang tính toán lại đường đi...",
-    "arrived": "Đã đến điểm hẹn!"
+    "arrived": "Đã đến điểm hẹn!",
+    "clear_directions": "Hủy chỉ đường"
   },
   "admin": {
     "scanner": {
@@ -723,7 +739,9 @@
         "SUSPENDED": "Đã khóa tài khoản",
         "REJECTED": "Từ chối"
       },
-      "confirm_suspend": "Bạn có chắc chắn muốn khóa tài khoản này lập tức? Tất cả các phiên đăng nhập của Vendor này sẽ bị chấm dứt ngay."
+      "confirm_suspend": "Bạn có chắc chắn muốn khóa tài khoản này lập tức? Tất cả các phiên đăng nhập của Vendor này sẽ bị chấm dứt ngay.",
+      "unassigned": "Chưa gán khu vực hoạt động",
+      "unassigned_desc": "Nhà cung cấp chưa được liên kết với khu vực hoạt động nào."
     },
     "analytics": {
       "realtime_title": "Theo dõi thời gian thực (5 phút qua)",
@@ -733,18 +751,20 @@
       "last_update": "Cập nhật lúc: {{time}}"
     }
   },
-  "status": {
-    "draft": "Bản nháp",
-    "active": "Hoạt động",
-    "inactive": "Ngưng hoạt động",
-    "archived": "Lưu trữ",
-    "published": "Đã xuất bản",
-    "pending": "Chờ duyệt",
-    "approved": "Đã duyệt",
-    "rejected": "Từ chối",
-    "suspended": "Bị khóa"
-  },
   "favorites": "Yêu thích",
   "favorites_add": "Thêm vào yêu thích",
-  "favorites_remove": "Xóa khỏi yêu thích"
+  "favorites_remove": "Xóa khỏi yêu thích",
+  "navigation": {
+    "discover": "Khám phá",
+    "map": "Bản đồ"
+  },
+  "discovery": {
+    "title": "Khám phá Khu vực",
+    "subtitle": "Các khu vực lễ hội",
+    "poi_count_label": "điểm",
+    "poi_default_type": "Điểm tham quan",
+    "no_pois": "Chưa có điểm tham quan. Quét QR tại cổng để khám phá.",
+    "go_to_zone": "Đi tới khu vực",
+    "footer": "Chạm vào khu vực để xem các điểm tham quan"
+  }
 }

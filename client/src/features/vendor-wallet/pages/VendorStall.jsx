@@ -105,6 +105,8 @@ export function VendorStall() {
           <MapContainer
             center={mapCenter}
             zoom={19}
+            minZoom={3}
+            maxZoom={20}
             style={{ height: '100%', minHeight: '500px', width: '100%' }}
             scrollWheelZoom
             zoomControl
@@ -112,6 +114,8 @@ export function VendorStall() {
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              maxZoom={20}
+              maxNativeZoom={19}
             />
             <DraggableMarkerEvents position={mapCenter} onMove={handleMarkerMove} />
             <Marker

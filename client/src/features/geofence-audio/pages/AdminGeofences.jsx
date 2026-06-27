@@ -100,8 +100,8 @@ export function AdminGeofences() {
             <div className="absolute top-3 left-3 z-[1000] bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-black text-slate-700 shadow-sm">
               {t('geofence.zoom_level', { zoom, type: zoom < 15 ? t('geofence.zoom_macro') : t('geofence.zoom_micro') })}
             </div>
-            <MapContainer center={center} zoom={zoom} className="h-full w-full" zoomControl={true}>
-              <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <MapContainer center={center} zoom={zoom} minZoom={3} maxZoom={20} className="h-full w-full" zoomControl={true}>
+              <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={20} maxNativeZoom={19} />
               <MapZoomTracker onZoomChange={setZoom} />
 
               {/* Zoom Level Xa: Draw Tours */}

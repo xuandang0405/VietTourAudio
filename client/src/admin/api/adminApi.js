@@ -238,6 +238,18 @@ export async function deleteAdminPoi(arg) {
   return unwrap(await adminApiClient.delete(`/admin/pois/${id}`, { params: reason ? { reason } : undefined }));
 }
 
+export async function fetchAdminApprovals() {
+  return unwrap(await adminApiClient.get('/admin/pois/approvals'));
+}
+
+export async function approveAdminPoi(id) {
+  return unwrap(await adminApiClient.post(`/admin/pois/${id}/approve`));
+}
+
+export async function rejectAdminPoi(id) {
+  return unwrap(await adminApiClient.post(`/admin/pois/${id}/reject`));
+}
+
 export async function fetchGeofenceAllData() {
   return unwrap(await adminApiClient.get('/admin/geofences/all-data'));
 }

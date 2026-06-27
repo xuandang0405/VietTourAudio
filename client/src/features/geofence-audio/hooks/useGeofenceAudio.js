@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { appConfig } from '../../../config/appConfig';
 import { poiService } from '../../poi/services/poiService';
 import { stallService } from '../../vendor-wallet/services/stallService';
 import { useAudioStore } from '../stores/audioStore';
@@ -38,6 +39,17 @@ export function useGeofenceAudio({ onToast }) {
   const simulateNearPoi = useLocationStore((state) => state.simulateNearPoi);
   const isFakeMode = useLocationStore((state) => state.isFakeMode);
 
+  const navigationTargetPoi = useLocationStore((state) => state.navigationTargetPoi);
+
+  useEffect(() => {
+    if (!navigationTargetPoi) {
+      setRoutingCoordinates([]);
+      setRoutingInfo(null);
+      lastRoutedPositionRef.current = null;
+      hasArrivedRef.current = false;
+    }
+  }, [navigationTargetPoi]);
+
   const isPremium = usePremiumStore((state) => state.isPremium);
   const canAutoPlay = useAudioStore((state) => state.canAutoPlay);
   const enqueuePoi = useAudioStore((state) => state.enqueuePoi);
@@ -65,10 +77,45 @@ export function useGeofenceAudio({ onToast }) {
     );
   }, [currentLanguage, enrichedPois, searchQuery]);
 
-  const selectedPoi = useMemo(
-    () => enrichedPois.find((poi) => poi.slug === selectedPoiId || String(poi.id) === String(selectedPoiId) || String(poi.apiId) === String(selectedPoiId)) ?? null,
-    [enrichedPois, selectedPoiId]
-  );
+  const activePoiFromStore = useLocationStore((state) => state.activePoi);
+  const [currentPoi, setCurrentPoi] = useState(null);
+
+  useEffect(() => {
+    if (!selectedPoiId) {
+      setCurrentPoi(null);
+      return;
+    }
+    const found = enrichedPois.find(
+      (poi) =>
+        poi.slug === selectedPoiId ||
+        String(poi.id) === String(selectedPoiId) ||
+        String(poi.apiId) === String(selectedPoiId)
+    );
+    if (found) {
+      setCurrentPoi(found);
+      const activePoiState = useLocationStore.getState().activePoi;
+      if (!activePoiState || String(activePoiState.id) !== String(found.id)) {
+        useLocationStore.getState().selectAndFocusPoi(found);
+      }
+    } else {
+      const foundInRaw = pois.find(
+        (poi) =>
+          poi.slug === selectedPoiId ||
+          String(poi.id) === String(selectedPoiId) ||
+          String(poi.apiId) === String(selectedPoiId)
+      );
+      if (foundInRaw) {
+        const localized = localizePoi(foundInRaw, currentLanguage);
+        setCurrentPoi(localized);
+        const activePoiState = useLocationStore.getState().activePoi;
+        if (!activePoiState || String(activePoiState.id) !== String(localized.id)) {
+          useLocationStore.getState().selectAndFocusPoi(localized);
+        }
+      }
+    }
+  }, [selectedPoiId, enrichedPois, pois, currentLanguage]);
+
+  const selectedPoi = currentPoi;
   const activeAutoPoi = useMemo(() => enrichedPois.find((poi) => poi.isInsideRadius) ?? null, [enrichedPois]);
 
   // Sync selectedPoiId with URL search params changes
@@ -78,21 +125,6 @@ export function useGeofenceAudio({ onToast }) {
       setSelectedPoiId(urlPoi);
     }
   }, [searchParams, selectedPoiId]);
-
-  // Automatically select and focus POI from URL parameter on initial load or change
-  useEffect(() => {
-    if (selectedPoiId && enrichedPois.length > 0) {
-      const activePoiState = useLocationStore.getState().activePoi;
-      if (!activePoiState || (activePoiState.slug !== selectedPoiId && String(activePoiState.id) !== String(selectedPoiId))) {
-        const matchedPoi = enrichedPois.find(
-          (p) => p.slug === selectedPoiId || String(p.id) === String(selectedPoiId) || String(p.apiId) === String(selectedPoiId)
-        );
-        if (matchedPoi) {
-          useLocationStore.getState().selectAndFocusPoi(matchedPoi);
-        }
-      }
-    }
-  }, [selectedPoiId, enrichedPois]);
 
   // Handle locked zone synchronization and scan logging
   useEffect(() => {
@@ -248,7 +280,7 @@ export function useGeofenceAudio({ onToast }) {
     return () => {
       active = false;
     };
-  }, [isFakeMode, simulateNearPoi, searchParams, searchParams.get('zone'), searchParams.get('poi'), i18n.language]);
+  }, [isFakeMode, simulateNearPoi, searchParams.get('zone'), i18n.language]);
 
   // Handle simulation mode GPS tracking safely in a controlled side effect
   useEffect(() => {
@@ -342,34 +374,46 @@ export function useGeofenceAudio({ onToast }) {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('poi', poi.id);
     setSearchParams(nextParams);
-    setRoutingCoordinates([]);
-    setRoutingInfo(null);
-    lastRoutedPositionRef.current = null;
-    hasArrivedRef.current = false;
+
+    // Auto lock camera on selecting a POI
+    useLocationStore.getState().setIsCameraLocked(true);
+
+    const currentNavTarget = useLocationStore.getState().navigationTargetPoi;
+    if (currentNavTarget && (String(currentNavTarget.id) === String(poi.id) || String(currentNavTarget.slug) === String(poi.slug))) {
+      // Same target selected: do not trigger directions refetch, keep active route
+      return;
+    }
+
+    // New target selected: set navigationTargetPoi and call directions API
+    useLocationStore.getState().startNavigation(poi);
+    handleGetDirections(poi);
   }
 
   function handleClosePoi() {
+    // Only close information sheet, do NOT modify navigationTargetPoi or clear route polyline
     useLocationStore.setState({ activePoi: null, selectedStallId: null, isPoiSheetOpen: false });
     setSelectedPoiId(null);
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete('poi');
     setSearchParams(nextParams);
-    setRoutingCoordinates([]);
-    setRoutingInfo(null);
-    lastRoutedPositionRef.current = null;
-    hasArrivedRef.current = false;
   }
 
   async function handleLocate() {
     const allowed = await requestLocation();
     if (allowed) {
       onToast?.(t('locationUpdated'));
-      useLocationStore.getState().setAutoPanEnabled(true);
+      const setIsCameraLocked = useLocationStore.getState().setIsCameraLocked;
+      if (typeof setIsCameraLocked === 'function') {
+        setIsCameraLocked(true);
+      }
       return;
     }
     useDemoLocation();
     onToast?.(t('demoGpsEnabled'));
-    useLocationStore.getState().setAutoPanEnabled(true);
+    const setIsCameraLocked = useLocationStore.getState().setIsCameraLocked;
+    if (typeof setIsCameraLocked === 'function') {
+      setIsCameraLocked(true);
+    }
   }
 
   async function handleGetDirections(targetPoi) {
@@ -382,11 +426,12 @@ export function useGeofenceAudio({ onToast }) {
     try {
       setRoutingInfo({ status: 'calculating' });
       const response = await fetch(
-        `https://router.project-osrm.org/route/v1/foot/${position.lng},${position.lat};${targetPoi.longitude},${targetPoi.latitude}?overview=full&geometries=geojson`
+        `${appConfig.guestApiBaseUrl}/routing?startLng=${position.lng}&startLat=${position.lat}&endLng=${targetPoi.longitude}&endLat=${targetPoi.latitude}`
       );
-      if (!response.ok) throw new Error('OSRM API error');
-      const data = await response.json();
-      if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+      if (!response.ok) throw new Error('Routing API error');
+      const resJson = await response.json();
+      const data = resJson.data ?? resJson;
+      if (!data.routes || data.routes.length === 0) {
         throw new Error('No route found');
       }
 
@@ -400,8 +445,10 @@ export function useGeofenceAudio({ onToast }) {
       });
       lastRoutedPositionRef.current = { lat: position.lat, lng: position.lng };
       hasArrivedRef.current = false;
+      // Sync with locationStore
+      useLocationStore.getState().startNavigation(targetPoi);
     } catch (err) {
-      console.error('OSRM Routing error:', err);
+      console.error('Routing error:', err);
       setRoutingInfo({ status: 'error' });
       onToast?.(tRoot('routing.error', { defaultValue: 'Không thể tìm đường.' }));
     }
@@ -411,11 +458,12 @@ export function useGeofenceAudio({ onToast }) {
     if (!currentPosition || !targetPoi) return;
     try {
       const response = await fetch(
-        `https://router.project-osrm.org/route/v1/foot/${currentPosition.lng},${currentPosition.lat};${targetPoi.longitude},${targetPoi.latitude}?overview=full&geometries=geojson`
+        `${appConfig.guestApiBaseUrl}/routing?startLng=${currentPosition.lng}&startLat=${currentPosition.lat}&endLng=${targetPoi.longitude}&endLat=${targetPoi.latitude}`
       );
-      if (!response.ok) throw new Error('OSRM API error');
-      const data = await response.json();
-      if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+      if (!response.ok) throw new Error('Routing API error');
+      const resJson = await response.json();
+      const data = resJson.data ?? resJson;
+      if (!data.routes || data.routes.length === 0) {
         throw new Error('No route found');
       }
 
@@ -429,7 +477,7 @@ export function useGeofenceAudio({ onToast }) {
       });
       lastRoutedPositionRef.current = { lat: currentPosition.lat, lng: currentPosition.lng };
     } catch (err) {
-      console.error('Background OSRM Routing error:', err);
+      console.error('Background Routing error:', err);
     }
   }
 
@@ -446,17 +494,6 @@ export function useGeofenceAudio({ onToast }) {
     if (distanceToPoi <= 8 && !hasArrivedRef.current) {
       hasArrivedRef.current = true;
       onToast?.(tRoot('routing.arrived', { defaultValue: 'Đã đến điểm hẹn!' }));
-    }
-
-    if (!lastRoutedPositionRef.current) {
-      lastRoutedPositionRef.current = { lat: position.lat, lng: position.lng };
-      return;
-    }
-
-    const displacement = getDistanceMeters(position, lastRoutedPositionRef.current);
-    if (displacement >= 5) {
-      onToast?.(tRoot('routing.recalculating_alert', { defaultValue: 'Bạn đã đi chệch hướng, đang tính toán lại đường đi...' }));
-      recalculateRoute(selectedPoi, position);
     }
   }, [position, selectedPoi, routingCoordinates.length, onToast, tRoot]);
 

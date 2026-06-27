@@ -86,6 +86,8 @@ export class PoiController {
     const zoneCode = (typeof rawZoneCode === 'string' ? rawZoneCode : '').trim();
     const rawLang = req.query.lang;
     const lang = (typeof rawLang === 'string' ? rawLang : 'vi').trim();
+    const rawActiveTourId = req.query.activeTourId || req.query.tourId;
+    const activeTourId = typeof rawActiveTourId === 'string' ? rawActiveTourId.trim() : undefined;
 
     const normalizedLang = ['vi', 'en', 'ja', 'ko', 'zh'].includes(lang) ? lang : 'vi';
 
@@ -132,7 +134,7 @@ export class PoiController {
     }
 
     try {
-      const pois = await this.poiService.getGuestPois(zoneCode, normalizedLang);
+      const pois = await this.poiService.getGuestPois(zoneCode, normalizedLang, activeTourId);
       if (pois.length === 0) {
         console.log(t('error.no_pois_found'));
       }

@@ -7,15 +7,21 @@ export const useLocationStore = create((set, get) => ({
   lastError: '',
   isFakeMode: false,
   watchId: null,
-  isAutoPanEnabled: true,
+  isCameraLocked: true,
 
   activePoi: null,
   selectedStallId: null,
   isPoiSheetOpen: false,
   mapInstance: null,
 
+  navigationTargetPoi: null,
+  startNavigation: (poi) => set({ navigationTargetPoi: poi }),
+  stopNavigation: () => set({ navigationTargetPoi: null }),
+
   setMapInstance: (mapInstance) => set({ mapInstance }),
-  setAutoPanEnabled: (isAutoPanEnabled) => set({ isAutoPanEnabled }),
+  setIsCameraLocked: (isCameraLocked) => set({ isCameraLocked }),
+  isDiscoveryOpen: false,
+  setIsDiscoveryOpen: (isDiscoveryOpen) => set({ isDiscoveryOpen }),
 
   selectAndFocusPoi: (poi, mapInstance) => {
     set({

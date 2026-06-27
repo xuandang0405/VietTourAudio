@@ -61,6 +61,13 @@ function AppRoutes() {
   }, [checkExpiry]);
 
   useEffect(() => {
+    import('./stores/favoritesStore').then(({ useFavoritesStore }) => {
+      useFavoritesStore.getState().fetchFavorites();
+      useFavoritesStore.getState().syncOfflineOps();
+    }).catch(err => console.error(err));
+  }, []);
+
+  useEffect(() => {
     const handleOpenCheckout = () => setCheckoutOpen(true);
     window.addEventListener('open-checkout', handleOpenCheckout);
     return () => window.removeEventListener('open-checkout', handleOpenCheckout);

@@ -17,16 +17,16 @@ public class PoiController : ControllerBase
   }
 
   [HttpGet]
-  public async Task<IActionResult> GetAll([FromQuery] ulong? stallId)
+  public async Task<IActionResult> GetAll([FromQuery] ulong? stallId, [FromQuery] ulong? tourId, [FromQuery] string? tourSlug)
   {
-    var result = await _poiService.GetPoisAsync(stallId);
+    var result = await _poiService.GetPoisAsync(stallId, tourId, tourSlug);
     return Ok(ApiResponseFactory.Ok(result, "Danh sách POI."));
   }
 
   [HttpGet("nearby")]
-  public async Task<IActionResult> GetNearby([FromQuery] decimal latitude, [FromQuery] decimal longitude, [FromQuery] int radiusMeters = 100)
+  public async Task<IActionResult> GetNearby([FromQuery] decimal latitude, [FromQuery] decimal longitude, [FromQuery] int radiusMeters = 100, [FromQuery] ulong? tourId = null, [FromQuery] string? tourSlug = null)
   {
-    var result = await _poiService.GetNearbyAsync(latitude, longitude, radiusMeters);
+    var result = await _poiService.GetNearbyAsync(latitude, longitude, radiusMeters, tourId, tourSlug);
     return Ok(ApiResponseFactory.Ok(result, "Danh sách POI gần vị trí GPS."));
   }
 

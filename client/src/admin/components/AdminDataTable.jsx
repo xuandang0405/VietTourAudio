@@ -20,15 +20,22 @@ export function AdminDataTable({ columns, rows, emptyText = 'Chưa có dữ li�
                 </td>
               </tr>
             ) : (
-              rows.map((row) => (
-                <tr key={row[rowKey]} className="transition duration-200 ease-out hover:bg-slate-50">
-                  {columns.map((column) => (
-                    <td key={column.key} className={column.cellClassName ?? 'px-4 py-3 align-middle'}>
-                      {column.render ? column.render(row) : row[column.key]}
-                    </td>
-                  ))}
-                </tr>
-              ))
+              rows.map((row, index) => {
+                let key = row[rowKey] ?? row.id ?? row.uuid ?? row._id;
+                if (key === undefined || key === null) {
+                  console.warn(`AdminDataTable: Row at index ${index} is missing a unique key (${rowKey}, id, uuid, _id). Using index as fallback key. Row data:`, row);
+                  key = index;
+                }
+                return (
+                  <tr key={key} className="transition duration-200 ease-out hover:bg-slate-50">
+                    {columns.map((column) => (
+                      <td key={column.key} className={column.cellClassName ?? 'px-4 py-3 align-middle'}>
+                        {column.render ? column.render(row) : row[column.key]}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

@@ -188,36 +188,15 @@
     "loading_stall": "Loading stall info..."
   },
   "status": {
+    "draft": "Draft",
+    "active": "Active",
+    "inactive": "Inactive",
+    "archived": "Archived",
+    "published": "Published",
     "pending": "Pending",
     "approved": "Approved",
-    "active": "Active",
     "rejected": "Rejected",
-    "suspended": "Suspended",
-    "cancelled": "Cancelled",
-    "overdue": "Overdue",
-    "trial": "Trial",
-    "draft": "Draft",
-    "hidden": "Hidden",
-    "force_cancelled": "Force Cancelled",
-    "pending_review": "Pending Review",
-    "paid": "Paid",
-    "failed": "Failed",
-    "refunded": "Refunded",
-    "image": "Image",
-    "video": "Video",
-    "audio": "Audio",
-    "document": "Document",
-    "top_up": "Top Up",
-    "subscription_fee": "Subscription Fee",
-    "refund": "Refund",
-    "manual_debit": "Manual Debit",
-    "manual_credit": "Manual Credit",
-    "momo": "MoMo",
-    "vnpay": "VNPay",
-    "stripe": "Stripe",
-    "bank_qr": "Bank QR",
-    "cash": "Cash",
-    "manual": "Manual"
+    "suspended": "Suspended"
   },
   "dashboard": {
     "title": "Operational Dashboard",
@@ -463,7 +442,12 @@
     "demoGpsEnabled": "GPS Simulation mode enabled for geofence testing.",
     "demoMoved": "Simulation position updated",
     "favorites": "Favorites",
-    "no_favorites": "No favorite stalls yet"
+    "no_favorites": "No favorite stalls yet",
+    "camera_lock_on": "Lock camera",
+    "camera_lock_off": "Free camera",
+    "camera_lock_enable": "Enable camera lock",
+    "camera_lock_disable": "Disable camera lock",
+    "resume": "Resume"
   },
   "geofence": {
     "title": "Geofence Map",
@@ -560,7 +544,38 @@
     "premium_active": "✨ Premium is active – enjoy unlimited access",
     "enter_map": "Enter Zone Map",
     "unlock_cta": "🔓 Unlock All Audio – 30,000 VND / 24h",
-    "redirecting": "Redirecting automatically…"
+    "redirecting": "Redirecting automatically…",
+    "title": "Festival Zone List",
+    "description": "Manage festival zones and their center coordinates.",
+    "add": "Add Zone",
+    "edit": "Edit",
+    "delete": "Delete",
+    "subtitle": "Information Management",
+    "error_name_empty": "Zone name cannot be empty",
+    "error_lat_invalid": "Invalid latitude (-90 to 90)",
+    "error_lng_invalid": "Invalid longitude (-180 to 180)",
+    "error_save": "Error saving zone information.",
+    "error_load": "Unable to load zone list.",
+    "search_placeholder": "Search zone...",
+    "no_matching": "No matching zones found.",
+    "add_title": "Add New Zone",
+    "edit_title": "Edit Zone",
+    "form_description": "Please provide complete details for this festival zone.",
+    "form_name": "Zone Name",
+    "form_code": "Zone Code (Slug)",
+    "form_cover_url": "Cover Image (URL)",
+    "coordinates_section": "Center Coordinates",
+    "form_vendor": "Stall Vendor",
+    "is_premium": "Premium Zone",
+    "delete_title": "Confirm Delete Zone",
+    "delete_desc": "The zone will be archived. All POIs will remain active. Are you sure you want to proceed?",
+    "table": {
+      "id": "Code",
+      "name": "Zone",
+      "coordinates": "Center Coordinates",
+      "pois": "POI count"
+    },
+    "waiting_payment": "Waiting for payment..."
   },
   "admin_topup": {
     "management_subtitle": "Top-Up Management",
@@ -685,7 +700,8 @@
     "enable_gps": "Please enable GPS to get directions.",
     "clear": "Clear",
     "recalculating_alert": "You are off-route. Recalculating directions...",
-    "arrived": "Arrived at the destination!"
+    "arrived": "Arrived at the destination!",
+    "clear_directions": "Cancel directions"
   },
   "admin": {
     "scanner": {
@@ -723,7 +739,9 @@
         "SUSPENDED": "Suspended",
         "REJECTED": "Rejected"
       },
-      "confirm_suspend": "Are you sure you want to suspend this account immediately? All active login sessions for this Vendor will be terminated."
+      "confirm_suspend": "Are you sure you want to suspend this account immediately? All active login sessions for this Vendor will be terminated.",
+      "unassigned": "Unassigned operating zone",
+      "unassigned_desc": "Vendor has not been associated with any operating zone."
     },
     "analytics": {
       "realtime_title": "Real-time Traffic (Last 5 mins)",
@@ -733,18 +751,20 @@
       "last_update": "Last updated: {{time}}"
     }
   },
-  "status": {
-    "draft": "Draft",
-    "active": "Active",
-    "inactive": "Inactive",
-    "archived": "Archived",
-    "published": "Published",
-    "pending": "Pending",
-    "approved": "Approved",
-    "rejected": "Rejected",
-    "suspended": "Suspended"
-  },
   "favorites": "Favorites",
   "favorites_add": "Add to favorites",
-  "favorites_remove": "Remove from favorites"
+  "favorites_remove": "Remove from favorites",
+  "navigation": {
+    "discover": "Discover",
+    "map": "Map"
+  },
+  "discovery": {
+    "title": "Explore Zones",
+    "subtitle": "Festival zones",
+    "poi_count_label": "spots",
+    "poi_default_type": "Point of interest",
+    "no_pois": "No POIs yet. Scan QR at the entrance to explore.",
+    "go_to_zone": "Go to zone",
+    "footer": "Tap a zone to view its points of interest"
+  }
 }

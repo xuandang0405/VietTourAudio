@@ -70,7 +70,7 @@ export function PoiBottomSheet({
           <motion.button
             type="button"
             aria-label={t('landing.close')}
-            className="absolute inset-0 z-48 pointer-events-auto bg-slate-900/40 backdrop-blur-[2px]"
+            className="fixed inset-0 z-20 pointer-events-auto bg-slate-900/40 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -82,13 +82,14 @@ export function PoiBottomSheet({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+            style={{ zIndex: 30 }}
             drag="y"
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0, bottom: 0.22 }}
             onDragEnd={(_, info) => {
               if (info.offset.y > 120 || info.velocity.y > 650) onClose();
             }}
-            className="absolute bottom-0 left-0 right-0 z-50 max-h-[84%] pointer-events-auto overflow-hidden rounded-t-3xl border-t border-slate-200 bg-white text-slate-900 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] pc:left-[calc(50%-260px)] pc:right-auto pc:w-[520px]"
+            className="fixed bottom-0 left-0 right-0 z-30 max-h-[84%] pointer-events-auto overflow-hidden rounded-t-3xl border-t border-slate-200 bg-white text-slate-900 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] pc:left-[calc(50%-260px)] pc:right-auto pc:w-[520px]"
           >
             <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-slate-300" />
             <div className="max-h-[calc(84vh-1rem)] overflow-y-auto px-4 pb-6 pt-4 hide-scrollbar">

@@ -1,4 +1,4 @@
-import { SatelliteDish, Home, Map as MapIcon, Bookmark, Globe, Crown, Headphones, Lock, Play, Pause, Volume2, MapPin, Heart, Navigation } from 'lucide-react';
+import { SatelliteDish, Home, Map as MapIcon, Bookmark, Globe, Crown, Headphones, Lock, Play, Pause, Volume2, MapPin, Heart, Navigation, X, Compass } from 'lucide-react';
 import { useEffect, useState, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +13,7 @@ import { useAudioStore } from '../../features/geofence-audio/stores/audioStore';
 import { useLocationStore } from '../../features/geofence-audio/stores/locationStore';
 import { visitorPois } from '../../data/visitorPois';
 import { motion } from 'framer-motion';
+import { DiscoveryPanel } from '../components/DiscoveryPanel';
 
 // Embedded Audio Player for Col 2
 function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
@@ -24,6 +25,12 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
   const pauseAudio = useAudioStore((state) => state.pauseAudio);
   const resumeAudio = useAudioStore((state) => state.resumeAudio);
 
+  // HTML5 Progress states
+  const currentTime = useAudioStore((state) => state.currentTime);
+  const duration = useAudioStore((state) => state.duration);
+  const isHtml5 = useAudioStore((state) => state.isHtml5);
+  const seek = useAudioStore((state) => state.seek);
+
   const currentPoi = enrichedPois.find((poi) => poi.id === currentPoiId) || visitorPois.find((poi) => poi.id === currentPoiId);
   const audioLocked = !isPremium && freeListensRemaining === 0;
   const activeStallName = currentPoi?.stall_name || selectedStall?.name || t('common.unknown_stall');
@@ -32,6 +39,13 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
   const isFavorite = useFavoritesStore((state) => state.isFavorite);
   const stallId = currentPoi?.stallId || selectedStall?.id;
   const isFav = stallId ? isFavorite(stallId) : false;
+
+  const formatTime = (secs) => {
+    if (isNaN(secs) || secs === Infinity) return '00:00';
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = Math.floor(secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   if (!currentPoi && !audioLocked) {
      return (
@@ -72,7 +86,7 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
 
   return (
     <div className="p-4 border-t border-slate-200 bg-white shadow-[0_-8px_20px_rgba(0,0,0,0.04)]">
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-3">
         <img src={currentPoi.image} alt={currentPoi.title} className="h-14 w-14 rounded-xl object-cover border border-slate-100 flex-shrink-0" />
         <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-teal-600 truncate uppercase mb-0.5">{activeStallName}</p>
@@ -98,12 +112,31 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
           </button>
         </div>
       </div>
-      <div className="flex items-center gap-3">
-         <Volume2 size={18} className="text-slate-400" />
-         <div className="h-2 flex-1 rounded-full bg-slate-100 overflow-hidden">
-           <div className={`h-full rounded-full transition-all duration-300 ${isPlaying ? 'bg-teal-500 w-full' : 'bg-slate-300 w-1/2'}`}></div>
-         </div>
-      </div>
+      
+      {isHtml5 ? (
+        <div className="flex flex-col gap-1 px-1">
+          <input
+            type="range"
+            min="0"
+            max={duration || 100}
+            value={currentTime}
+            onChange={(e) => seek(Number(e.target.value))}
+            className="w-full h-1 rounded-lg appearance-none cursor-pointer bg-slate-200 accent-teal-600 focus:outline-none"
+            aria-label="Tiến trình phát"
+          />
+          <div className="flex justify-between text-[10px] font-semibold text-slate-400 font-mono">
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <Volume2 size={18} className="text-slate-400" />
+          <div className="h-1 flex-1 rounded-full bg-slate-100 overflow-hidden">
+            <div className={`h-full rounded-full transition-all duration-300 ${isPlaying ? 'bg-teal-500 w-full' : 'bg-slate-300 w-1/2'}`}></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -130,10 +163,33 @@ export function PCLayout({
   zoneCenter
 }) {
   const { t, i18n } = useTranslation();
+  const { t: tRoot } = useTranslation();
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
   const setLanguage = useLanguageStore((state) => state.setLanguage);
-  const isAutoPanEnabled = useLocationStore((state) => state.isAutoPanEnabled);
-  const setAutoPanEnabled = useLocationStore((state) => state.setAutoPanEnabled);
+  const isCameraLocked = useLocationStore((state) => state.isCameraLocked);
+  const setIsCameraLocked = useLocationStore((state) => state.setIsCameraLocked);
+  const navigationTargetPoi = useLocationStore((state) => state.navigationTargetPoi);
+  const isDiscoveryOpen = useLocationStore((state) => state.isDiscoveryOpen);
+  const setIsDiscoveryOpen = useLocationStore((state) => state.setIsDiscoveryOpen);
+
+
+
+  const handleCameraLockToggle = () => {
+    const nextLocked = !isCameraLocked;
+    setIsCameraLocked(nextLocked);
+    if (nextLocked) {
+      const map = useLocationStore.getState().mapInstance;
+      if (map) {
+        if (position && position.lat && position.lng) {
+          map.setView([position.lat, position.lng], 17, { animate: true });
+        } else if (zoneCenter) {
+          map.setView([zoneCenter.lat, zoneCenter.lng], 15, { animate: true });
+        } else {
+          map.setView([mapCenter.lat, mapCenter.lng], 15, { animate: true });
+        }
+      }
+    }
+  };
   
   const [activeTab, setActiveTab] = useState('all');
   const favorites = useFavoritesStore((state) => state.favorites);
@@ -150,7 +206,7 @@ export function PCLayout({
   }, [isPremium, getFormattedCountdown]);
 
   return (
-    <div className="flex h-screen w-full bg-slate-50 font-body text-slate-900 overflow-hidden">
+    <div className="relative w-full h-[100dvh] overflow-hidden bg-slate-100 isolate flex font-body text-slate-900">
       {/* COLUMN 1: App Navigation (Left Sidebar - Width: 80px) */}
       <aside className="w-[80px] flex-shrink-0 flex flex-col items-center py-6 bg-white border-r border-slate-200 z-[1300] shadow-sm">
         <div className="mb-8">
@@ -158,36 +214,63 @@ export function PCLayout({
         </div>
         
         <nav className="flex flex-col gap-6 flex-1 w-full items-center">
-          <Link to="/" className="flex flex-col items-center gap-1.5 text-slate-400 hover:text-slate-700 transition">
-            <div className="p-2 rounded-xl hover:bg-slate-50">
-              <Home size={24} />
+          <Link
+            to="/"
+            className="flex flex-col items-center gap-1.5 text-slate-400 hover:text-teal-600 transition"
+            aria-label="Các khu vực lễ hội"
+          >
+            <div className="p-2 rounded-xl hover:bg-teal-50 hover:text-teal-600">
+              <Globe size={24} />
             </div>
-            <span className="text-[10px] font-bold">Trang chủ</span>
+            <span className="text-[10px] font-bold">
+              {typeof t === "function"
+                ? t("sidebar.zones", { defaultValue: "Khu vực" })
+                : "Khu vực"}
+            </span>
           </Link>
-          <div className="flex flex-col items-center gap-1.5 text-teal-600">
-            <div className="bg-teal-50 p-2 rounded-xl border border-teal-100 shadow-sm">
-              <MapIcon size={24} />
+          <button
+            type="button"
+            onClick={() => setIsDiscoveryOpen(true)}
+            aria-label="Khám phá khu vực lễ hội"
+            className={`flex flex-col items-center gap-1.5 transition duration-150 ease-out active:scale-95 cursor-pointer ${
+              isDiscoveryOpen ? 'text-teal-600' : 'text-slate-400 hover:text-teal-600'
+            }`}
+          >
+            <div className={`p-2 rounded-xl border transition ${
+              isDiscoveryOpen
+                ? 'bg-teal-50 border-teal-100 shadow-sm'
+                : 'border-transparent hover:bg-teal-50 hover:border-teal-100 hover:shadow-sm'
+            }`}>
+              <Compass size={24} />
             </div>
-            <span className="text-[10px] font-bold">Bản đồ</span>
-          </div>
-          <button className="flex flex-col items-center gap-1.5 text-slate-400 hover:text-slate-700 transition">
-            <div className="p-2 rounded-xl hover:bg-slate-50">
+            <span className="text-[10px] font-bold">
+              {t('navigation.discover', { defaultValue: 'Khám phá' })}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('favorites')}
+            className={`flex flex-col items-center gap-1.5 transition ${activeTab === 'favorites' ? 'text-teal-600' : 'text-slate-400 hover:text-slate-700'}`}
+          >
+            <div className={`p-2 rounded-xl ${activeTab === 'favorites' ? 'bg-teal-50 border border-teal-100 shadow-sm' : 'hover:bg-slate-50'}`}>
               <Bookmark size={24} />
             </div>
-            <span className="text-[10px] font-bold">Đã lưu</span>
+            <span className="text-[10px] font-bold">{t('landing.favorites', { defaultValue: 'Yêu thích' })}</span>
           </button>
         </nav>
 
         {/* GPS Status */}
         <div className="mt-auto flex flex-col items-center gap-3">
           <button
-            onClick={() => setAutoPanEnabled(!isAutoPanEnabled)}
+            type="button"
+            onClick={handleCameraLockToggle}
             className={`relative group p-2.5 rounded-full border transition active:scale-[0.98] ${
-              isAutoPanEnabled ? 'bg-teal-50 border-teal-200 text-teal-600' : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-200 text-slate-400'
+              isCameraLocked ? 'bg-teal-500 text-white border-teal-500 shadow-md' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-400 hover:border-slate-300'
             }`}
-            title={isAutoPanEnabled ? "Khóa camera" : "Tự do"}
+            title={isCameraLocked ? t('landing.camera_lock_on') : t('landing.camera_lock_off')}
+            aria-label={isCameraLocked ? t('landing.camera_lock_disable') : t('landing.camera_lock_enable')}
           >
-            <Navigation size={22} className={isAutoPanEnabled ? "rotate-45" : ""} />
+            <Navigation size={22} className={isCameraLocked ? "rotate-45 text-white" : "text-slate-400"} />
           </button>
           <button onClick={handleLocate} className="relative group p-2.5 rounded-full hover:bg-slate-50 border border-transparent hover:border-slate-200 transition" title="Định vị">
             <SatelliteDish size={22} className={position ? "text-teal-500" : "text-slate-400"} />
@@ -198,7 +281,7 @@ export function PCLayout({
       </aside>
 
       {/* COLUMN 2: POI Details & List (Middle Panel - Width: 380px) */}
-      <aside className="w-[380px] flex-shrink-0 flex flex-col bg-white border-r border-slate-200 z-[1200] relative shadow-sm">
+      <aside className="relative z-20 w-[380px] h-full flex flex-col bg-white border-r border-slate-200 flex-shrink-0 shadow-2xl">
         {/* Top Header */}
         <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white z-10">
           <div className="relative flex items-center bg-white border border-slate-200 hover:border-slate-300 transition shadow-sm rounded-lg">
@@ -242,7 +325,7 @@ export function PCLayout({
               }`}
             >
               <Heart size={12} className={activeTab === 'favorites' ? "text-red-500 fill-red-500" : ""} />
-              {t('favorites', { defaultValue: 'Yêu thích' })}
+              {t('landing.favorites', { defaultValue: 'Yêu thích' })}
             </button>
           </div>
 
@@ -292,7 +375,7 @@ export function PCLayout({
                 })
               ) : (
                 <div className="bg-white p-4 text-center text-sm font-semibold text-slate-400 rounded-xl border border-slate-100 shadow-sm">
-                  {t('no_favorites', { defaultValue: 'Chưa có sạp yêu thích' })}
+                  {t('landing.no_favorites', { defaultValue: 'Chưa có sạp yêu thích' })}
                 </div>
               )
             )}
@@ -304,7 +387,7 @@ export function PCLayout({
       </aside>
 
       {/* COLUMN 3: The Map Area */}
-      <div className="flex-1 relative bg-slate-100 z-[1000]">
+      <div className="flex-1 relative bg-slate-100 z-0">
         <LeafletMap
           selectedPoi={selectedPoi}
           enrichedPois={enrichedPois}
@@ -316,7 +399,19 @@ export function PCLayout({
         
         {(isFakeMode || searchParams.get('debug') === 'gps') && <DevGpsPanel pois={enrichedPois} onToast={onToast} />}
 
-
+        {navigationTargetPoi && !selectedPoi && (
+          <div className="absolute top-4 right-4 z-[1000] pointer-events-auto animate-fade-in">
+            <button
+              type="button"
+              onClick={() => useLocationStore.getState().stopNavigation()}
+              className="shadow-xl rounded-xl transition duration-150 ease-out active:scale-[0.98] flex items-center gap-2 px-4 h-11 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold"
+              title={tRoot('routing.clear_directions', { defaultValue: 'Hủy chỉ đường' })}
+            >
+              <X size={16} />
+              {tRoot('routing.clear_directions', { defaultValue: 'Hủy chỉ đường' })}
+            </button>
+          </div>
+        )}
 
         {!position && (
           <article className="absolute top-6 left-1/2 -translate-x-1/2 z-[1200] w-full max-w-sm bg-white rounded-2xl shadow-xl border border-slate-100 p-6 text-center">
@@ -345,11 +440,12 @@ export function PCLayout({
           routingInfo={routingInfo}
           onGetDirections={() => handleGetDirections(selectedPoi)}
           onClearDirections={() => {
-            setRoutingCoordinates([]);
-            setRoutingInfo(null);
+            useLocationStore.getState().stopNavigation();
           }}
         />
       </div>
+      {/* Discovery Explorer Panel */}
+      <DiscoveryPanel />
     </div>
   );
 }

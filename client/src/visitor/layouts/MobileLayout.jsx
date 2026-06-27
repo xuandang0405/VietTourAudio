@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Crosshair, QrCode, SatelliteDish, Search, Heart, Navigation } from 'lucide-react';
+import { Crosshair, QrCode, SatelliteDish, Search, Heart, Navigation, X } from 'lucide-react';
 import { AudioPlayerSheet } from '../../components/AudioPlayerSheet';
 import { useTranslation } from 'react-i18next';
 import { BottomNav } from '../components/BottomNav';
@@ -35,14 +35,33 @@ export function MobileLayout({
   zoneCenter
 }) {
   const { t } = useTranslation('translation', { keyPrefix: 'landing' });
+  const { t: tRoot } = useTranslation();
   const [activeTab, setActiveTab] = useState('all');
   const favorites = useFavoritesStore((state) => state.favorites);
   const favoritePois = visiblePois.filter(poi => poi.stallId && favorites.includes(poi.stallId));
-  const isAutoPanEnabled = useLocationStore((state) => state.isAutoPanEnabled);
-  const setAutoPanEnabled = useLocationStore((state) => state.setAutoPanEnabled);
+  const isCameraLocked = useLocationStore((state) => state.isCameraLocked);
+  const setIsCameraLocked = useLocationStore((state) => state.setIsCameraLocked);
+  const navigationTargetPoi = useLocationStore((state) => state.navigationTargetPoi);
+
+  const handleCameraLockToggle = () => {
+    const nextLocked = !isCameraLocked;
+    setIsCameraLocked(nextLocked);
+    if (nextLocked) {
+      const map = useLocationStore.getState().mapInstance;
+      if (map) {
+        if (position && position.lat && position.lng) {
+          map.setView([position.lat, position.lng], 17, { animate: true });
+        } else if (zoneCenter) {
+          map.setView([zoneCenter.lat, zoneCenter.lng], 15, { animate: true });
+        } else {
+          map.setView([mapCenter.lat, mapCenter.lng], 15, { animate: true });
+        }
+      }
+    }
+  };
 
   return (
-    <section className="relative w-full h-[100dvh] overflow-hidden bg-slate-50">
+    <section className="relative w-full h-[100dvh] overflow-hidden bg-slate-100 isolate">
       <div className="absolute inset-0 z-0 w-full h-full">
         <LeafletMap
           selectedPoi={selectedPoi}
@@ -66,14 +85,14 @@ export function MobileLayout({
           <div className="absolute bottom-[calc(38%+40px)] right-0 z-30 grid gap-3 pointer-events-auto">
             <button
               type="button"
-              onClick={() => setAutoPanEnabled(!isAutoPanEnabled)}
+              onClick={handleCameraLockToggle}
               className={`pointer-events-auto shadow-xl rounded-2xl transition duration-150 ease-out active:scale-[0.98] grid h-12 w-12 place-items-center border border-slate-200 ${
-                isAutoPanEnabled ? 'bg-teal-600 text-white hover:bg-teal-700' : 'bg-white/95 text-slate-600 hover:bg-white'
+                isCameraLocked ? 'bg-teal-500 text-white' : 'bg-white/95 text-slate-600 hover:bg-white'
               }`}
-              aria-label={isAutoPanEnabled ? "Tắt khóa camera" : "Bật khóa camera"}
-              title={isAutoPanEnabled ? "Khóa camera" : "Tự do"}
+              aria-label={isCameraLocked ? t('camera_lock_disable') : t('camera_lock_enable')}
+              title={isCameraLocked ? t('camera_lock_on') : t('camera_lock_off')}
             >
-              <Navigation size={21} className={isAutoPanEnabled ? "rotate-45 text-white" : "text-slate-600"} />
+              <Navigation size={21} className={isCameraLocked ? "rotate-45 text-white" : "text-slate-600"} />
             </button>
             <button
               type="button"
@@ -83,6 +102,17 @@ export function MobileLayout({
             >
               <Crosshair size={21} />
             </button>
+            {navigationTargetPoi && !selectedPoi && (
+              <button
+                type="button"
+                onClick={() => useLocationStore.getState().stopNavigation()}
+                className="pointer-events-auto shadow-xl rounded-2xl transition duration-150 ease-out active:scale-[0.98] grid h-12 w-12 place-items-center border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                aria-label={tRoot('routing.clear_directions', { defaultValue: 'Hủy chỉ đường' })}
+                title={tRoot('routing.clear_directions', { defaultValue: 'Hủy chỉ đường' })}
+              >
+                <X size={21} />
+              </button>
+            )}
           </div>
 
           {(isFakeMode || searchParams.get('debug') === 'gps') && (
@@ -212,8 +242,7 @@ export function MobileLayout({
           routingInfo={routingInfo}
           onGetDirections={() => handleGetDirections(selectedPoi)}
           onClearDirections={() => {
-            setRoutingCoordinates([]);
-            setRoutingInfo(null);
+            useLocationStore.getState().stopNavigation();
           }}
         />
       </div>

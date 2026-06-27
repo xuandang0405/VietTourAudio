@@ -174,36 +174,15 @@
     "loading_stall": "正在读取摊位信息..."
   },
   "status": {
-    "pending": "待定",
+    "draft": "草稿",
+    "active": "启用",
+    "inactive": "禁用",
+    "archived": "已存档",
+    "published": "已发布",
+    "pending": "待审核",
     "approved": "已批准",
-    "active": "Active",
     "rejected": "已拒绝",
-    "suspended": "已暂停",
-    "cancelled": "Cancelled",
-    "overdue": "Overdue",
-    "trial": "Trial",
-    "draft": "Draft",
-    "hidden": "已隐藏",
-    "force_cancelled": "Force Cancelled",
-    "pending_review": "Pending Review",
-    "paid": "Paid",
-    "failed": "Failed",
-    "refunded": "Refunded",
-    "image": "Image",
-    "video": "Video",
-    "audio": "Audio",
-    "document": "Document",
-    "top_up": "Top Up",
-    "subscription_fee": "Subscription Fee",
-    "refund": "Refund",
-    "manual_debit": "Manual Debit",
-    "manual_credit": "Manual Credit",
-    "momo": "MoMo",
-    "vnpay": "VNPay",
-    "stripe": "Stripe",
-    "bank_qr": "Bank QR",
-    "cash": "Cash",
-    "manual": "Manual"
+    "suspended": "已挂起"
   },
   "dashboard": {
     "title": "运营仪表板",
@@ -435,7 +414,8 @@
     "demoGpsEnabled": "已启用用于地理围栏测试的 GPS 模拟模式。",
     "demoMoved": "模拟位置已更新",
     "favorites": "收藏",
-    "no_favorites": "暂无收藏店铺"
+    "no_favorites": "暂无收藏店铺",
+    "resume": "继续"
   },
   "map": {
     "no_gps": "没有GPS"
@@ -470,7 +450,38 @@
     "premium_active": "✨ 高级版已激活 – 享受无限访问",
     "enter_map": "进入区域地图",
     "unlock_cta": "🔓 解锁所有音频 – 30,000 VND / 24小时",
-    "redirecting": "正在自动重定向…"
+    "redirecting": "正在自动重定向…",
+    "title": "节日区域列表",
+    "description": "管理节日区域及其中心坐标。",
+    "add": "添加区域",
+    "edit": "编辑",
+    "delete": "删除",
+    "subtitle": "信息管理",
+    "error_name_empty": "区域名称不能为空",
+    "error_lat_invalid": "无效纬度 (-90 到 90)",
+    "error_lng_invalid": "无效经度 (-180 到 180)",
+    "error_save": "保存区域信息时出错。",
+    "error_load": "无法加载区域列表。",
+    "search_placeholder": "搜索区域...",
+    "no_matching": "未找到匹配的区域。",
+    "add_title": "添加新区域",
+    "edit_title": "编辑区域",
+    "form_description": "请提供该节日区域的完整详细信息。",
+    "form_name": "区域名称",
+    "form_code": "区域代码 (Slug)",
+    "form_cover_url": "封面图片 (URL)",
+    "coordinates_section": "中心坐标",
+    "form_vendor": "摊位供应商",
+    "is_premium": "高级区域",
+    "delete_title": "确认删除区域",
+    "delete_desc": "该区域将被存档。POI 将保持活跃状态。您确定要继续吗？",
+    "table": {
+      "id": "代码",
+      "name": "区域",
+      "coordinates": "中心坐标",
+      "pois": "POI 数量"
+    },
+    "waiting_payment": "等待支付..."
   },
   "admin_topup": {
     "management_subtitle": "充值管理",
@@ -640,7 +651,8 @@
     "enable_gps": "请开启GPS以获取路线。",
     "clear": "清除",
     "recalculating_alert": "您已偏离路线。正在重新规划路线...",
-    "arrived": "已到达目的地！"
+    "arrived": "已到达目的地！",
+    "clear_directions": "取消路线指引"
   },
   "admin": {
     "scanner": {
@@ -678,7 +690,9 @@
         "SUSPENDED": "已停用",
         "REJECTED": "已拒绝"
       },
-      "confirm_suspend": "您确定要立即停用此账号吗？该商家的所有活动登录会话将被立即终止。"
+      "confirm_suspend": "您确定要立即停用此账号吗？该商家的所有活动登录会话将被立即终止。",
+      "unassigned": "未分配活动区域",
+      "unassigned_desc": "供应商尚未与任何活动区域关联。"
     },
     "analytics": {
       "realtime_title": "实时流量 (最近 5 分钟)",
@@ -688,18 +702,20 @@
       "last_update": "最近更新: {{time}}"
     }
   },
-  "status": {
-    "draft": "草稿",
-    "active": "启用",
-    "inactive": "禁用",
-    "archived": "已存档",
-    "published": "已发布",
-    "pending": "待审核",
-    "approved": "已批准",
-    "rejected": "已拒绝",
-    "suspended": "已挂起"
-  },
   "favorites": "收藏",
   "favorites_add": "添加至收藏",
-  "favorites_remove": "从收藏中移除"
+  "favorites_remove": "从收藏中移除",
+  "navigation": {
+    "discover": "探索",
+    "map": "地图"
+  },
+  "discovery": {
+    "title": "探索区域",
+    "subtitle": "节庆区域",
+    "poi_count_label": "景点",
+    "poi_default_type": "景点",
+    "no_pois": "暂无景点。请在入口处扫描二维码探索。",
+    "go_to_zone": "前往区域",
+    "footer": "点击区域查看景点"
+  }
 }

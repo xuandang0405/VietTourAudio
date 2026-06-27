@@ -26,9 +26,9 @@ public interface IStallService
 
 public interface IPoiService
 {
-  Task<IReadOnlyList<PoiResponseDto>> GetPoisAsync(ulong? stallId = null);
+  Task<IReadOnlyList<PoiResponseDto>> GetPoisAsync(ulong? stallId = null, ulong? tourId = null, string? tourSlug = null);
   Task<PoiResponseDto> GetByIdAsync(ulong id);
-  Task<IReadOnlyList<PoiResponseDto>> GetNearbyAsync(decimal latitude, decimal longitude, int radiusMeters);
+  Task<IReadOnlyList<PoiResponseDto>> GetNearbyAsync(decimal latitude, decimal longitude, int radiusMeters, ulong? tourId = null, string? tourSlug = null);
   Task<PoiResponseDto> CreateAsync(PoiRequestDto request);
 }
 

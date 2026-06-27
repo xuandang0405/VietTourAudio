@@ -134,6 +134,10 @@ export async function fetchVendorPois() {
   return unwrap(await vendorApiClient.get('/pois'));
 }
 
+export async function updateVendorPoi(poiId, data) {
+  return unwrap(await vendorApiClient.put(`/pois/${poiId}`, data));
+}
+
 // --- Revenue ---
 
 export async function fetchVendorRevenue() {

@@ -139,13 +139,21 @@ public class PoiService : IPoiService
     _geofenceService = geofenceService;
   }
 
-  public Task<IReadOnlyList<PoiResponseDto>> GetPoisAsync(ulong? stallId = null)
+  public Task<IReadOnlyList<PoiResponseDto>> GetPoisAsync(ulong? stallId = null, ulong? tourId = null, string? tourSlug = null)
   {
     IReadOnlyList<PoiResponseDto> pois = Pois;
 
     if (stallId.HasValue)
     {
       pois = pois.Where(x => x.StallId == stallId.Value).ToList();
+    }
+    if (tourId.HasValue)
+    {
+      pois = pois.Where(x => x.TourId == tourId.Value).ToList();
+    }
+    if (!string.IsNullOrEmpty(tourSlug))
+    {
+      pois = pois.Where(x => x.TourSlug == tourSlug).ToList();
     }
 
     return Task.FromResult(pois);
@@ -158,9 +166,10 @@ public class PoiService : IPoiService
     return Task.FromResult(poi);
   }
 
-  public Task<IReadOnlyList<PoiResponseDto>> GetNearbyAsync(decimal latitude, decimal longitude, int radiusMeters)
+  public Task<IReadOnlyList<PoiResponseDto>> GetNearbyAsync(decimal latitude, decimal longitude, int radiusMeters, ulong? tourId = null, string? tourSlug = null)
   {
     IReadOnlyList<PoiResponseDto> nearby = Pois
+      .Where(poi => (!tourId.HasValue || poi.TourId == tourId) && (string.IsNullOrEmpty(tourSlug) || poi.TourSlug == tourSlug))
       .Select(poi =>
       {
         var distance = _geofenceService.EstimateDistanceMeters(latitude, longitude, poi.Latitude, poi.Longitude);
