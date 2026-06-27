@@ -60,7 +60,9 @@ export function ListPage({ onUpgrade }) {
           descriptions: { vi: description },
           narration: { vi: description },
           tourSlug: apiPoi.tourSlug,
-          tourId: apiPoi.tourId ? Number(apiPoi.tourId) : null
+          tourId: apiPoi.tourId ? Number(apiPoi.tourId) : null,
+          status: apiPoi.status ?? 'ACTIVE',
+          approvalStatus: apiPoi.approvalStatus ?? 'APPROVED'
         };
       }));
     }).catch(() => {
@@ -95,9 +97,16 @@ export function ListPage({ onUpgrade }) {
 
   const pois = useMemo(() => {
     const sourcePois = databasePois ?? visitorPois;
-    const localizedPois = sourcePois.map((poi) => localizePoi(poi, currentLanguage));
+    const activePois = sourcePois.filter((poi) => (poi.status ?? 'ACTIVE') === 'ACTIVE' && (poi.approvalStatus ?? 'APPROVED') === 'APPROVED');
+    const localizedPois = activePois.map((poi) => localizePoi(poi, currentLanguage));
     const filteredPois = zoneQuery
-      ? localizedPois.filter(poi => poi.tourSlug === zoneQuery || String(poi.tourId) === String(zoneQuery))
+      ? localizedPois.filter(poi => {
+          const isNumericQuery = /^\d+$/.test(zoneQuery);
+          if (isNumericQuery) {
+            return poi.tourId !== null && Number(poi.tourId) === Number(zoneQuery);
+          }
+          return poi.tourSlug === zoneQuery;
+        })
       : localizedPois;
     return position
       ? enrichPoisWithDistance(filteredPois, position, currentLanguage)

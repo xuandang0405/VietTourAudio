@@ -47,7 +47,11 @@ import {
   updateTour,
   deleteTour,
   resetTourQr,
-  updateVendorStatus
+  updateVendorStatus,
+  unsuspendVendor,
+  fetchTickets,
+  resolveTicket,
+  toggleStallPremium
 } from './adminApi';
 
 export const adminQueryKeys = {
@@ -66,7 +70,8 @@ export const adminQueryKeys = {
   hourlyActiveUsers: ['admin', 'analytics', 'hourly-active-users'],
   dashboardAnalytics: ['admin', 'analytics', 'dashboard'],
   tours: ['admin', 'tours'],
-  tour: (id) => ['admin', 'tours', id]
+  tour: (id) => ['admin', 'tours', id],
+  tickets: ['admin', 'tickets']
 };
 
 export function useVendors(params) {
@@ -448,6 +453,47 @@ export function useResetTourQr() {
     mutationFn: (id) => resetTourQr(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminQueryKeys.tours });
+    }
+  });
+}
+
+export function useUnsuspendVendor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => unsuspendVendor(id),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(id) });
+    }
+  });
+}
+
+export function useTickets() {
+  return useQuery({
+    queryKey: adminQueryKeys.tickets,
+    queryFn: fetchTickets
+  });
+}
+
+export function useResolveTicket() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => resolveTicket(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.tickets });
+    }
+  });
+}
+
+export function useToggleStallPremium() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ stallId, isPremium }) => toggleStallPremium(stallId, isPremium),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
+      if (variables.vendorId) {
+        queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(variables.vendorId) });
+      }
     }
   });
 }

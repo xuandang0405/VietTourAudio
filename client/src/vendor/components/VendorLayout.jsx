@@ -4,12 +4,15 @@ import { useTranslation } from 'react-i18next';
 import { vendorLogout } from '../api/vendorApi';
 import { useVendorAuthStore } from '../store/vendorAuthStore';
 import { LanguageSwitcher } from '../../components/LanguageSwitcher';
+import { useVendorStall } from '../api/vendorQueries';
 
 export function VendorLayout() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const user = useVendorAuthStore((state) => state.user);
   const clearSession = useVendorAuthStore((state) => state.clearSession);
+  const { data: stallData } = useVendorStall();
+  const assignedZoneName = stallData?.stall?.assignedZoneName;
 
   async function handleLogout() {
     try {
@@ -33,7 +36,7 @@ export function VendorLayout() {
         <div className="border-b border-slate-100 p-6">
           <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-600">{t('sidebar.vendor_portal')}</p>
           <h1 className="mt-3 text-xl font-black text-slate-900">VietTour Vendor</h1>
-          <p className="mt-2 text-xs text-slate-500">{t('vendor.management_description', 'Quản lý sạp, nội dung TTS và doanh thu.')}</p>
+          <p className="mt-2 text-xs text-slate-500">{t('vendor.management_description', 'Quản lý sạp, nội dung TTS và ví tiền & thanh toán.')}</p>
         </div>
 
         <div className="border-b border-slate-100 px-6 py-5">
@@ -67,7 +70,7 @@ export function VendorLayout() {
           </NavLink>
           <NavLink to="/vendor/revenue" className={navLinkClass}>
             <DollarSign size={20} />
-            {t('sidebar.revenue')}
+            {t('vendor.wallet_title', { defaultValue: 'Ví tiền và Thanh toán' })}
           </NavLink>
         </nav>
         
@@ -98,6 +101,14 @@ export function VendorLayout() {
             </div>
           </div>
         </header>
+
+        {assignedZoneName && (
+          <div className="bg-teal-50 border-b border-teal-200 px-6 py-2.5 text-sm font-bold text-teal-800 flex items-center gap-2">
+            <span className="inline-block h-2 w-2 rounded-full bg-teal-500 animate-pulse" />
+            {t('vendor.assigned_zone_alert', { name: assignedZoneName, defaultValue: `Khu vực quản lý của bạn: ${assignedZoneName}` })}
+          </div>
+        )}
+
         <main className="flex-1 overflow-auto p-6 lg:p-8">
           <Outlet />
         </main>

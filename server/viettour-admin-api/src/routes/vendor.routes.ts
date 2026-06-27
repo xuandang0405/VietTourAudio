@@ -54,6 +54,12 @@ router.post(
 );
 
 router.post(
+  '/:id/unsuspend',
+  authorize(...vendorManagers),
+  asyncHandler(controller.unsuspendVendor)
+);
+
+router.post(
   '/:id/force-cancel',
   authorize(UserRole.SUPER_ADMIN),
   asyncHandler(controller.forceCancelVendor)

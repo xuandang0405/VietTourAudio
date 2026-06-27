@@ -63,7 +63,9 @@ function mapTransaction(tx: any) {
     id: String(tx.id),
     walletId: String(tx.wallet_id),
     type:
-      tx.transaction_type === 'FEE'
+      tx.transaction_category === 'PREMIUM_UPGRADE'
+        ? 'PREMIUM_UPGRADE'
+        : tx.transaction_category === 'WEBAPP_MONTHLY_RENT'
         ? 'SUBSCRIPTION_FEE'
         : tx.transaction_type === 'MANUAL' && tx.direction === 'DEBIT'
         ? 'MANUAL_DEBIT'
@@ -198,6 +200,7 @@ export class VendorService {
       status: stall.status,
       createdAt: stall.created_at,
       zoneCode: stall.zone_code,
+      isPremium: Boolean(stall.is_premium),
     }));
     if (vendor.wallet) {
       vendor.wallet.transactions = transactions.map(mapTransaction);
@@ -354,6 +357,27 @@ export class VendorService {
       vendorCode: data.vendorCode,
       assignedTourId: data.assignedTourId,
     });
+
+    const after = await this.vendorRepo.getVendorRow(id);
+    return {
+      before,
+      after,
+      mappedAfter: mapVendor(after),
+    };
+  }
+
+  async unsuspendVendor(id: bigint) {
+    const before = await this.vendorRepo.getVendorRow(id);
+    if (!before) {
+      throw new Error('Vendor not found');
+    }
+
+    await this.vendorRepo.updateVendorStatus(id, 'APPROVED');
+    await query('UPDATE stalls SET status = ? WHERE vendor_id = ?', ['APPROVED', id.toString()]);
+    await query(
+      `UPDATE vendor_portal_users SET status = 'ACTIVE' WHERE vendor_id = ?`,
+      [id.toString()]
+    );
 
     const after = await this.vendorRepo.getVendorRow(id);
     return {

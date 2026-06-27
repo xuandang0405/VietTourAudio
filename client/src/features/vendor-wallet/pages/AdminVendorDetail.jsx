@@ -1,7 +1,7 @@
 import { ArrowLeft, Ban, CheckCircle2, FileText, PauseCircle, Copy } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useVendor, useVendorAction, useResetStallQr } from '../../../admin/api/adminQueries';
+import { useVendor, useVendorAction, useResetStallQr, useToggleStallPremium } from '../../../admin/api/adminQueries';
 import { AdminBadge } from '../../../admin/components/AdminBadge';
 import { AdminModal } from '../../../admin/components/AdminModal';
 import { AdminPageHeader } from '../../../admin/components/AdminPageHeader';
@@ -25,6 +25,7 @@ export function AdminVendorDetail() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState('qr');
   const resetQrMutation = useResetStallQr();
+  const togglePremiumMutation = useToggleStallPremium();
   const [copiedStallCode, setCopiedStallCode] = useState(false);
 
   async function handleResetQr(stallId) {
@@ -286,11 +287,43 @@ export function AdminVendorDetail() {
 
             {/* Tab content */}
             {activeTab === 'info' && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <Info label="Tên sạp" value={selectedStall.name} />
                 <Info label="Tọa độ" value={`${selectedStall.latitude ?? '-'}, ${selectedStall.longitude ?? '-'}`} />
                 <Info label="Bán kính kích hoạt" value={`${selectedStall.activationRadius ?? 0}m`} />
                 <Info label="Trạng thái" value={selectedStall.status} />
+
+                <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-slate-950">Trạng thái Premium</p>
+                    <p className="text-xs text-slate-500">
+                      {selectedStall.isPremium ? 'Đang hoạt động (Premium)' : 'Sạp thường (Miễn phí)'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const targetPremium = !selectedStall.isPremium;
+                        await togglePremiumMutation.mutateAsync({
+                          stallId: selectedStall.id,
+                          isPremium: targetPremium,
+                          vendorId: vendor.id
+                        });
+                        setSelectedStall(prev => prev ? { ...prev, isPremium: targetPremium } : null);
+                      } catch (err) {
+                        alert('Không thể cập nhật trạng thái Premium.');
+                      }
+                    }}
+                    className={`inline-flex h-9 items-center justify-center px-4 rounded-xl text-xs font-bold transition active:scale-[0.98] ${
+                      selectedStall.isPremium
+                        ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
+                        : 'bg-teal-600 text-white hover:bg-teal-700'
+                    }`}
+                  >
+                    {selectedStall.isPremium ? 'Hủy Premium' : 'Duyệt Premium'}
+                  </button>
+                </div>
               </div>
             )}
 

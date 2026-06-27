@@ -63,6 +63,9 @@ vendorApiClient.interceptors.request.use(async (config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
 
   return config;
 });
@@ -92,12 +95,10 @@ vendorApiClient.interceptors.response.use(
 // --- Auth ---
 
 export async function vendorLogin(credentials) {
-  // Support both vendor_code and email login
-  const payload = credentials.vendorCode
-    ? { vendorCode: credentials.vendorCode, password: credentials.password }
-    : { email: credentials.email, password: credentials.password };
-
-  return unwrap(await axios.post(getAuthUrl('/login'), payload));
+  return unwrap(await axios.post(getAuthUrl('/login'), {
+    email: credentials.email,
+    password: credentials.password
+  }));
 }
 
 export async function vendorLogout() {
@@ -138,10 +139,18 @@ export async function updateVendorPoi(poiId, data) {
   return unwrap(await vendorApiClient.put(`/pois/${poiId}`, data));
 }
 
+export async function requestUpdatePoi(data) {
+  return unwrap(await vendorApiClient.post('/poi/request-update', data));
+}
+
 // --- Revenue ---
 
 export async function fetchVendorRevenue() {
   return unwrap(await vendorApiClient.get('/revenue'));
+}
+
+export async function requestPremiumUpgrade(payload) {
+  return unwrap(await vendorApiClient.post('/premium/request', payload));
 }
 
 // --- Stall Management ---
@@ -158,6 +167,10 @@ export async function updateStallInfo(data) {
   return unwrap(await vendorApiClient.put('/stall', data));
 }
 
+export async function submitVendorStallUpdate(formData) {
+  return unwrap(await vendorApiClient.put('/stall', formData));
+}
+
 // --- Content & TTS ---
 
 export async function fetchVendorContent() {
@@ -168,14 +181,38 @@ export async function submitVendorContent(ttsScript, language = 'vi') {
   return unwrap(await vendorApiClient.post('/content', { ttsScript, language }));
 }
 
+export const submitContent = submitVendorContent;
+
 // --- Subscription ---
 
 export async function mockPaySubscription() {
   return unwrap(await vendorApiClient.post('/pay-subscription'));
 }
 
+export async function submitWalletTopUp(formData) {
+  return unwrap(await vendorApiClient.post('/topups', formData));
+}
+
 // --- Stall QR ---
 
 export async function fetchVendorStallQr() {
   return unwrap(await vendorApiClient.get('/stall/qr'));
+}
+
+// --- Product Catalog ---
+
+export async function fetchPoiProducts(poiId) {
+  return unwrap(await vendorApiClient.get(`/pois/${poiId}/products`));
+}
+
+export async function createPoiProduct(poiId, data) {
+  return unwrap(await vendorApiClient.post(`/pois/${poiId}/products`, data));
+}
+
+export async function updatePoiProduct(poiId, productId, data) {
+  return unwrap(await vendorApiClient.put(`/pois/${poiId}/products/${productId}`, data));
+}
+
+export async function deletePoiProduct(poiId, productId) {
+  return unwrap(await vendorApiClient.delete(`/pois/${poiId}/products/${productId}`));
 }

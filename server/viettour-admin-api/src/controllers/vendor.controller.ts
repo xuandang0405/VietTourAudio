@@ -143,6 +143,26 @@ export class VendorController {
     }
   };
 
+  unsuspendVendor = async (req: Request, res: Response): Promise<void> => {
+    const id = toBigIntId(req.params.id, 'vendor id');
+
+    try {
+      const { before, after, mappedAfter } = await this.vendorService.unsuspendVendor(id);
+
+      req.auditMeta = {
+        action: 'UNSUSPEND_VENDOR',
+        targetType: 'vendors',
+        targetId: id,
+        beforeData: before,
+        afterData: after,
+      };
+
+      res.json(ok(mappedAfter));
+    } catch (err: any) {
+      res.status(404).json({ success: false, error: err.message });
+    }
+  };
+
   forceCancelVendor = async (req: Request, res: Response): Promise<void> => {
     const id = toBigIntId(req.params.id, 'vendor id');
     const reason = requireReason(req.body.reason);

@@ -184,8 +184,8 @@ async function adjustWallet(input: {
 
     const [txResult] = await connection.execute<any>(
       `INSERT INTO wallet_transactions
-        (wallet_id, vendor_id, transaction_type, direction, amount, balance_before, balance_after, description, created_by_user_id)
-       VALUES (?, ?, 'MANUAL', ?, ?, ?, ?, ?, ?)`,
+        (wallet_id, vendor_id, transaction_type, transaction_category, direction, amount, balance_before, balance_after, description, created_by_user_id)
+       VALUES (?, ?, 'MANUAL', 'MANUAL_ADJUSTMENT', ?, ?, ?, ?, ?, ?)`,
       [wallet.id, input.vendorId, input.direction, amount, balanceBefore, balanceAfter, input.description, input.actorUserId]
     );
 
@@ -253,7 +253,7 @@ function mapTransaction(tx: any) {
   return {
     id: String(tx.id),
     walletId: String(tx.wallet_id),
-    type: tx.transaction_type === 'FEE' ? 'SUBSCRIPTION_FEE' : tx.transaction_type === 'MANUAL' && tx.direction === 'DEBIT' ? 'MANUAL_DEBIT' : tx.transaction_type === 'MANUAL' ? 'MANUAL_CREDIT' : 'TOP_UP',
+    type: tx.transaction_category === 'PREMIUM_UPGRADE' ? 'PREMIUM_UPGRADE' : tx.transaction_category === 'WEBAPP_MONTHLY_RENT' ? 'SUBSCRIPTION_FEE' : tx.transaction_type === 'MANUAL' && tx.direction === 'DEBIT' ? 'MANUAL_DEBIT' : tx.transaction_type === 'MANUAL' ? 'MANUAL_CREDIT' : 'TOP_UP',
     amount: tx.direction === 'DEBIT' ? `-${tx.amount}` : tx.amount,
     balanceAfter: tx.balance_after,
     description: tx.description,

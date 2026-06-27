@@ -227,17 +227,17 @@ router.get(
                z.latitude, z.longitude,
                z.activation_radius, z.is_premium_content, z.status, z.sort_order,
                z.stall_id,
-               (SELECT COUNT(DISTINCT pc.lang) FROM poi_contents pc WHERE pc.poi_id = z.id) AS language_count,
-               (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = ? LIMIT 1) AS audio_url,
-               (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = 'vi' LIMIT 1) AS audio_url_vi,
+               (SELECT COUNT(DISTINCT pc.lang) FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.approval_status = 'approved') AS language_count,
+               (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = ? AND pc.approval_status = 'approved' LIMIT 1) AS audio_url,
+               (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = 'vi' AND pc.approval_status = 'approved' LIMIT 1) AS audio_url_vi,
                COALESCE(sc_lang.name, sc_vi.name, s.name) AS stall_name,
                COALESCE(sc_lang.description, sc_vi.description, s.description) AS stall_description
              FROM zones z
              LEFT JOIN stalls s ON s.id = z.stall_id
              LEFT JOIN stall_contents sc_lang ON sc_lang.stall_id = s.id AND sc_lang.lang = ?
              LEFT JOIN stall_contents sc_vi ON sc_vi.stall_id = s.id AND sc_vi.lang = 'vi'
-             LEFT JOIN poi_contents pc_lang ON pc_lang.poi_id = z.id AND pc_lang.lang = ?
-             LEFT JOIN poi_contents pc_vi ON pc_vi.poi_id = z.id AND pc_vi.lang = 'vi'
+             LEFT JOIN poi_contents pc_lang ON pc_lang.poi_id = z.id AND pc_lang.lang = ? AND pc_lang.approval_status = 'approved'
+             LEFT JOIN poi_contents pc_vi ON pc_vi.poi_id = z.id AND pc_vi.lang = 'vi' AND pc_vi.approval_status = 'approved'
              WHERE z.stall_id = ? AND z.status = 'ACTIVE'
              ORDER BY z.sort_order ASC, z.id ASC`,
             [lang, lang, lang, lang, stall.id.toString()]
@@ -323,17 +323,17 @@ router.get(
              z.activation_radius, z.is_premium_content, z.status, z.sort_order,
              z.tour_id,
              z.stall_id,
-             (SELECT COUNT(DISTINCT pc.lang) FROM poi_contents pc WHERE pc.poi_id = z.id) AS language_count,
-             (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = ? LIMIT 1) AS audio_url,
-             (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = 'vi' LIMIT 1) AS audio_url_vi,
+             (SELECT COUNT(DISTINCT pc.lang) FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.approval_status = 'approved') AS language_count,
+             (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = ? AND pc.approval_status = 'approved' LIMIT 1) AS audio_url,
+             (SELECT pc.audio_url FROM poi_contents pc WHERE pc.poi_id = z.id AND pc.lang = 'vi' AND pc.approval_status = 'approved' LIMIT 1) AS audio_url_vi,
              COALESCE(sc_lang.name, sc_vi.name, s.name) AS stall_name,
              COALESCE(sc_lang.description, sc_vi.description, s.description) AS stall_description
            FROM zones z
            LEFT JOIN stalls s ON s.id = z.stall_id
            LEFT JOIN stall_contents sc_lang ON sc_lang.stall_id = s.id AND sc_lang.lang = ?
            LEFT JOIN stall_contents sc_vi ON sc_vi.stall_id = s.id AND sc_vi.lang = 'vi'
-           LEFT JOIN poi_contents pc_lang ON pc_lang.poi_id = z.id AND pc_lang.lang = ?
-           LEFT JOIN poi_contents pc_vi ON pc_vi.poi_id = z.id AND pc_vi.lang = 'vi'
+           LEFT JOIN poi_contents pc_lang ON pc_lang.poi_id = z.id AND pc_lang.lang = ? AND pc_lang.approval_status = 'approved'
+           LEFT JOIN poi_contents pc_vi ON pc_vi.poi_id = z.id AND pc_vi.lang = 'vi' AND pc_vi.approval_status = 'approved'
            WHERE z.tour_id = ? AND z.status = 'ACTIVE'
            ORDER BY z.sort_order ASC, z.id ASC`,
           [lang, lang, lang, String(tour.id)]
@@ -592,5 +592,97 @@ router.get(
   })
 );
 
-export default router;
+// ──────────────────────────────────────────────
+// GET /tours — Retrieve all active Tours (Khu vực) and their child POIs (Zones)
+// ──────────────────────────────────────────────
+router.get(
+  '/tours',
+  asyncHandler(async (req, res) => {
+    const lang = typeof req.query.lang === 'string' ? req.query.lang.trim() : 'vi';
+    const normalizedLang = ['vi', 'en', 'ja', 'ko', 'zh'].includes(lang) ? lang : 'vi';
 
+    const tourRows = await query<any[]>(
+      `SELECT t.id, t.name, t.slug, t.description, t.cover_image_url, t.is_premium, t.price,
+              (SELECT COUNT(*) FROM zones z JOIN stalls s ON s.id = z.stall_id
+               WHERE z.tour_id = t.id AND z.status = 'ACTIVE' AND z.approval_status = 'APPROVED' AND s.status = 'APPROVED') AS poi_count
+       FROM tours t
+       WHERE t.status = 'PUBLISHED'
+       ORDER BY t.sort_order ASC, t.id ASC`
+    );
+
+    const result = [];
+    for (const tour of tourRows) {
+      const pois = await query<any[]>(
+        `SELECT z.id, 
+                COALESCE(pc_lang.title, pc_vi.title, z.name) AS name, 
+                z.slug, 
+                COALESCE(pc_lang.tts_script, pc_vi.tts_script, z.description) AS description, 
+                z.latitude, z.longitude, z.activation_radius, z.is_premium_content, z.stall_id
+         FROM zones z
+         JOIN stalls s ON s.id = z.stall_id
+         LEFT JOIN poi_contents pc_lang ON pc_lang.poi_id = z.id AND pc_lang.lang = ? AND pc_lang.approval_status = 'approved'
+         LEFT JOIN poi_contents pc_vi ON pc_vi.poi_id = z.id AND pc_vi.lang = 'vi' AND pc_vi.approval_status = 'approved'
+         WHERE z.tour_id = ?
+           AND z.status = 'ACTIVE'
+           AND z.approval_status = 'APPROVED'
+           AND s.status = 'APPROVED'
+         ORDER BY z.sort_order ASC, z.id ASC`,
+        [normalizedLang, tour.id.toString()]
+      );
+
+      result.push({
+        id: Number(tour.id),
+        name: tour.name,
+        slug: tour.slug,
+        description: tour.description,
+        cover_image_url: tour.cover_image_url,
+        coverImage: tour.cover_image_url,
+        is_premium: Boolean(tour.is_premium),
+        price: Number(tour.price ?? 0),
+        poi_count: Number(tour.poi_count ?? 0),
+        pois: pois.map(p => ({
+          id: Number(p.id),
+          name: p.name,
+          title: p.name,
+          slug: p.slug,
+          description: p.description,
+          latitude: Number(p.latitude),
+          longitude: Number(p.longitude),
+          activationRadius: Number(p.activation_radius),
+          premium: Boolean(p.is_premium_content),
+          stallId: p.stall_id
+        }))
+      });
+    }
+
+    res.json(ok(result));
+  })
+);
+
+// ──────────────────────────────────────────────
+// POST /tickets — Submit a support or registration request ticket
+// ──────────────────────────────────────────────
+router.post(
+  '/tickets',
+  asyncHandler(async (req, res) => {
+    const { email, subject, message } = req.body;
+
+    const emailStr = (typeof email === 'string' ? email : '').trim();
+    const subjectStr = (typeof subject === 'string' ? subject : '').trim();
+    const messageStr = (typeof message === 'string' ? message : '').trim();
+
+    if (!emailStr || !subjectStr || !messageStr) {
+      res.status(400).json({ success: false, error: 'Email, subject and message are required' });
+      return;
+    }
+
+    await query(
+      `INSERT INTO system_tickets (sender_email, subject, message, status) VALUES (?, ?, ?, 'PENDING')`,
+      [emailStr, subjectStr, messageStr]
+    );
+
+    res.json(ok({ message: 'Ticket submitted successfully' }));
+  })
+);
+
+export default router;

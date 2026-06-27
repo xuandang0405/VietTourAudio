@@ -22,7 +22,12 @@
     "vendor_code": "Mã Vendor",
     "vendor_login_button": "Đăng nhập Vendor Portal",
     "demo_account_hint": "Tài khoản mẫu local:",
-    "vendor_code_short": "Mã"
+    "vendor_code_short": "Mã",
+    "invalid_credentials": "Email hoặc mật khẩu không đúng.",
+    "account_pending": "Tài khoản Vendor đang chờ phê duyệt.",
+    "account_banned": "Tài khoản Vendor đã bị khóa.",
+    "vendor_email": "Email Vendor",
+    "vendor_email_short": "Email"
   },
   "common": {
     "save": "Lưu thay đổi",
@@ -50,6 +55,7 @@
     "yes": "Có",
     "no": "Không",
     "loading": "Đang tải dữ liệu...",
+    "saving": "Đang lưu...",
     "error": "Lỗi",
     "success": "Thành công",
     "all": "Tất cả",
@@ -63,7 +69,11 @@
     "minute": "phút",
     "km": "km",
     "m": "m",
-    "unknown_stall": "Không xác định"
+    "unknown_stall": "Không xác định",
+    "vendor": "Vendor",
+    "stall": "Sạp",
+    "actions": "Hành động",
+    "load_error": "Không tải được dữ liệu."
   },
   "poi": {
     "management_subtitle": "POI MANAGEMENT",
@@ -126,13 +136,52 @@
     "translating": "Đang dịch...",
     "translate_empty_name": "Vui lòng điền Tên POI tiếng Việt trước khi dịch!",
     "translate_failed": "Dịch tự động thất bại. Vui lòng thử lại.",
-    "translate_success": "Đã tự động dịch sang tiếng Anh, Nhật, Hàn, Trung!"
+    "translate_success": "Đã tự động dịch sang tiếng Anh, Nhật, Hàn, Trung!",
+    "no_products": "Sạp chưa có sản phẩm nào trong catalog.",
+    "product_add_error": "Không thể thêm sản phẩm.",
+    "product_update_error": "Không thể cập nhật sản phẩm.",
+    "product_delete_confirm": "Bạn có chắc chắn muốn xóa sản phẩm này?",
+    "product_delete_error": "Không thể xóa sản phẩm.",
+    "poi_id": "Mã POI",
+    "premium_content": "Nội dung Premium",
+    "free_content": "Nội dung miễn phí",
+    "no_poi_title": "Không tìm thấy POI",
+    "no_poi_assigned": "Tài khoản chưa được gán điểm thuyết minh.",
+    "update_error": "Có lỗi khi cập nhật.",
+    "profile_title": "Hồ sơ điểm thuyết minh",
+    "profile_desc": "Chỉnh sửa thông tin và hình ảnh của điểm tham quan.",
+    "pending_status_title": "Thay đổi đang chờ duyệt",
+    "pending_status_desc": "Thay đổi đã được gửi và chưa áp dụng công khai.",
+    "update_success_title": "Gửi yêu cầu thành công",
+    "update_success": "Yêu cầu cập nhật đã vào hàng chờ Admin duyệt.",
+    "update_failed_title": "Cập nhật thất bại",
+    "name_label": "Tên điểm tham quan",
+    "name_placeholder": "Nhập tên điểm tham quan...",
+    "image_label": "Ảnh bìa",
+    "image_placeholder": "Nhập URL ảnh...",
+    "desc_label": "Mô tả chi tiết",
+    "desc_placeholder": "Nhập nội dung mô tả...",
+    "saving": "Đang lưu...",
+    "save_changes": "Lưu thay đổi và gửi duyệt",
+    "preview_title": "Bản xem trước",
+    "no_image": "Chưa có ảnh bìa",
+    "status_pending": "Đang chờ duyệt",
+    "status_approved": "Công khai",
+    "untitled": "Chưa đặt tên",
+    "no_description_preview": "Chưa có mô tả.",
+    "products_catalog": "Danh mục sản phẩm của sạp",
+    "products_catalog_desc": "Sản phẩm và giá hiển thị cho khách.",
+    "new_product_name": "Tên sản phẩm",
+    "new_product_price": "Giá tiền (VND)",
+    "product_name": "Tên sản phẩm",
+    "product_price": "Giá bán"
   },
   "users": {
     "create_zone_admin": "Tạo Admin Khu vực",
     "select_zone": "Chọn khu vực"
   },
   "sidebar": {
+    "tickets": "Hộp thư hỗ trợ",
     "group_management": "Quản lý",
     "group_finance": "Tài chính",
     "group_system": "Hệ thống",
@@ -158,6 +207,8 @@
   },
   "vendor": {
     "management": "Quản lý nhà cung cấp",
+    "dashboard_desc": "Tổng quan hoạt động của {{name}}.",
+    "management_description": "Quản lý sạp, nội dung TTS và ví tiền & thanh toán.",
     "vendors_list": "Danh sách sạp hàng",
     "vendor_detail": "Chi tiết nhà cung cấp",
     "create_vendor": "Tạo tài khoản Vendor",
@@ -185,7 +236,49 @@
     "stalls_management": "Quản lý sạp hàng",
     "stall_info": "Thông tin sạp hàng",
     "save_stall_success": "Đã lưu cấu hình sạp thành công!",
-    "loading_stall": "Đang tải thông tin sạp..."
+    "loading_stall": "Đang tải thông tin sạp...",
+    "assigned_zone_alert": "Khu vực quản lý của bạn: {{name}}",
+    "wallet_title": "Ví tiền và Thanh toán",
+    "wallet_desc": "Quản lý một số dư chung cho phí thuê, Premium và các yêu cầu nạp tiền.",
+    "unknown_zone": "Khu vực không xác định",
+    "stall_qr_title": "Mã QR sạp của bạn",
+    "stall_qr_desc": "Khách hàng quét mã để truy cập khu vực của bạn.",
+    "zone_code": "Mã khu vực",
+    "copied": "Đã sao chép!",
+    "copy_code": "Sao chép mã",
+    "download_qr": "Tải xuống QR",
+    "qr_not_configured": "Sạp chưa được cấp mã QR. Vui lòng liên hệ Admin để tạo mã."
+  },
+  "wallet": {
+    "loading": "Đang tải ví tiền...",
+    "load_error": "Không tải được ví tiền.",
+    "export": "Xuất CSV",
+    "top_up_total": "Tổng đã nạp",
+    "monthly_rent": "Phí thuê WebApp hàng tháng",
+    "next_billing": "Kỳ tiếp theo",
+    "pay_rent": "Thanh toán từ ví",
+    "rent_paid": "Đã thanh toán phí thuê từ ví chung.",
+    "premium_upgrade": "Nâng cấp Premium",
+    "premium_active": "Premium đang hoạt động",
+    "upgrade_from_wallet": "Nâng cấp bằng số dư ví",
+    "premium_upgraded": "Đã nâng cấp Premium từ ví chung.",
+    "transaction_history": "Sổ cái giao dịch",
+    "date": "Thời gian",
+    "type": "Loại giao dịch",
+    "description": "Mô tả",
+    "amount": "Số tiền",
+    "no_transactions": "Chưa có giao dịch ví.",
+    "topup_title": "Nạp thêm tiền",
+    "topup_instructions": "Chuyển khoản qua mã QR tĩnh, sau đó gửi ảnh xác nhận để Admin duyệt.",
+    "payment_qr_alt": "Mã QR chuyển khoản",
+    "transfer_amount": "Số tiền đã chuyển",
+    "transfer_proof": "Ảnh xác nhận chuyển khoản",
+    "select_proof": "Chọn ảnh xác nhận",
+    "proof_required": "Vui lòng chọn ảnh xác nhận chuyển khoản.",
+    "notes": "Ghi chú",
+    "submit_topup": "Gửi yêu cầu nạp tiền",
+    "topup_submitted": "Yêu cầu nạp tiền đã được gửi và đang chờ Admin duyệt.",
+    "topup_history": "Yêu cầu nạp gần đây"
   },
   "status": {
     "draft": "Bản nháp",
@@ -311,7 +404,24 @@
     "qr_today": "QR Scans hôm nay",
     "revenue": "Doanh thu",
     "total": "{{count}} tổng",
-    "premium_conversions": "{{count}} premium"
+    "premium_conversions": "{{count}} premium",
+    "category": "Danh mục",
+    "cover_image": "Ảnh bìa",
+    "select_image": "Chọn ảnh",
+    "premium_stall": "Sạp Premium",
+    "premium_desc": "Premium: Bán kính từ 10m trở lên và được ưu tiên phát audio khi có chồng lấn.",
+    "save_stall": "Lưu vị trí & thông tin sạp",
+    "radius_display": "Bán kính: {{radius}}m",
+    "error_file_type": "Chỉ chấp nhận ảnh JPEG, PNG, WebP hoặc GIF.",
+    "geolocation_unavailable": "Thiết bị không hỗ trợ định vị.",
+    "geolocation_failed": "Không thể lấy vị trí hiện tại. Hãy kiểm tra quyền định vị.",
+    "use_my_location": "Vị trí của tôi",
+    "map_instruction": "Bấm trên bản đồ hoặc kéo điểm đánh dấu để chọn tọa độ mới.",
+    "image_requirements": "Ảnh JPEG, PNG, WebP hoặc GIF; tối đa 5MB.",
+    "pending_approval_notice": "Thay đổi đang chờ Admin duyệt và chưa hiển thị công khai.",
+    "submitted_for_approval": "Đã gửi thay đổi vào hàng chờ duyệt.",
+    "error_load": "Không tải được thông tin sạp.",
+    "error_save": "Không thể gửi thay đổi sạp."
   },
   "landing": {
     "no_description": "Chưa có mô tả",
@@ -509,7 +619,11 @@
     "footer_hint": "Sau khi gửi, nội dung sẽ chuyển sang trạng thái <span class=\"font-bold text-amber-600\">\"Đang chờ duyệt\"</span> và không thể chỉnh sửa cho đến khi Admin phê duyệt hoặc từ chối.",
     "sending": "Đang gửi...",
     "send": "Gửi nội dung duyệt",
-    "approved_title": "Nội dung đã duyệt — Đang phát cho khách"
+    "approved_title": "Nội dung đã duyệt — Đang phát cho khách",
+    "default_title": "Bài giới thiệu sạp",
+    "need_more_chars_error": "Nội dung TTS phải có ít nhất 50 ký tự.",
+    "punctuation_error": "Vui lòng thêm dấu câu để giọng đọc tự nhiên hơn.",
+    "save_error": "Không thể lưu nội dung."
   },
   "map": {
     "no_gps": "Chưa có GPS"
@@ -704,13 +818,32 @@
     "clear_directions": "Hủy chỉ đường"
   },
   "admin": {
-    "scanner": {
-      "title": "Trình kiểm thử quét mã QR",
-      "description": "Giao diện kiểm thử camera và giải mã QR cho Quản trị viên.",
-      "unsecure_warning": "Trình duyệt chặn Camera do môi trường HTTP không bảo mật. Vui lòng cấu hình HTTPS hoặc dùng file ảnh để test.",
-      "upload_fallback": "Chọn ảnh chụp QR để test"
+    "notifications": {
+      "title": "Thông báo",
+      "empty": "Chưa có thông báo mới nào"
+    },
+    "tickets": {
+      "confirm_resolve": "Đánh dấu yêu cầu này đã được xử lý?",
+      "status": {
+        "PENDING": "Chờ xử lý",
+        "PROCESSED": "Đã xử lý"
+      },
+      "table": {
+        "date": "Thời gian",
+        "email": "Người gửi",
+        "subject": "Chủ đề"
+      },
+      "resolve_title": "Đánh dấu đã xử lý",
+      "title": "Hộp thư liên hệ & đăng ký",
+      "description": "Xem các yêu cầu hỗ trợ và đăng ký làm đối tác/vendor từ khách truy cập.",
+      "empty_inbox": "Hộp thư trống",
+      "detail_title": "Chi tiết yêu cầu hỗ trợ",
+      "message_body": "Nội dung tin nhắn",
+      "resolve_btn": "Đánh dấu đã xử lý"
     },
     "vendors": {
+      "confirm_unsuspend": "Bạn có chắc chắn muốn mở khóa tài khoản vendor này?",
+      "unsuspend_btn": "Mở khóa",
       "title": "Quản lý đối tác sạp hàng",
       "subtitle": "Phân quyền khu vực, kiểm soát vòng đời tài khoản và trạng thái hoạt động của các Vendor.",
       "create_btn": "CẤP TÀI KHOẢN VENDOR",
@@ -743,6 +876,12 @@
       "unassigned": "Chưa gán khu vực hoạt động",
       "unassigned_desc": "Nhà cung cấp chưa được liên kết với khu vực hoạt động nào."
     },
+    "scanner": {
+      "title": "Trình kiểm thử quét mã QR",
+      "description": "Giao diện kiểm thử camera và giải mã QR cho Quản trị viên.",
+      "unsecure_warning": "Trình duyệt chặn Camera do môi trường HTTP không bảo mật. Vui lòng cấu hình HTTPS hoặc dùng file ảnh để test.",
+      "upload_fallback": "Chọn ảnh chụp QR để test"
+    },
     "analytics": {
       "realtime_title": "Theo dõi thời gian thực (5 phút qua)",
       "active_visitors": "Số lượng du khách đang truy cập",
@@ -766,5 +905,18 @@
     "no_pois": "Chưa có điểm tham quan. Quét QR tại cổng để khám phá.",
     "go_to_zone": "Đi tới khu vực",
     "footer": "Chạm vào khu vực để xem các điểm tham quan"
+  },
+  "support": {
+    "modal_title": "Liên hệ hỗ trợ",
+    "success_title": "Gửi thành công!",
+    "success_desc": "Chúng tôi sẽ phản hồi lại bạn sớm nhất.",
+    "form_email": "Email liên hệ",
+    "form_subject": "Chủ đề",
+    "form_subject_placeholder": "Đăng ký đối tác / Cần hỗ trợ...",
+    "form_message": "Nội dung tin nhắn",
+    "form_message_placeholder": "Nhập nội dung chi tiết...",
+    "official_contact": "Email liên hệ chính thức: support@viettouraudio.com",
+    "sending": "Đang gửi...",
+    "send_button": "Gửi tin nhắn"
   }
 }

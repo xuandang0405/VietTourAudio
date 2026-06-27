@@ -79,7 +79,8 @@ export class GeofenceService {
     const tourPoiRows = await this.geofenceRepo.getTourPois();
 
     const tours = tourRows.map((tour) => {
-      const poisInTour = tourPoiRows.filter((tp) => tp.tour_id === tour.id);
+      const tourId = Number(tour.id);
+      const poisInTour = tourPoiRows.filter((tp) => Number(tp.tour_id) === tourId);
       if (poisInTour.length === 0) {
         return {
           id: String(tour.id),

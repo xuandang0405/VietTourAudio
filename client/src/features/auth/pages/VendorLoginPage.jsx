@@ -11,7 +11,7 @@ export function VendorLoginPage() {
   const location = useLocation();
   const isAuthenticated = useVendorAuthStore((state) => state.isAuthenticated);
   const setSession = useVendorAuthStore((state) => state.setSession);
-  const [form, setForm] = useState({ vendorCode: 'VND-0001', password: 'Vendor123' });
+  const [form, setForm] = useState({ vendorCode: 'bao@vinhkhanhfood.vn', password: 'Vendor123' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const from = location.state?.from?.pathname ?? '/vendor';
@@ -26,11 +26,30 @@ export function VendorLoginPage() {
     setLoading(true);
 
     try {
-      const session = await vendorLogin({ vendorCode: form.vendorCode, password: form.password });
+      const session = await vendorLogin({ email: form.vendorCode, password: form.password });
+      
+      if (session?.accessToken) {
+        localStorage.setItem('vendor_token', session.accessToken);
+      }
+      
       setSession(session);
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err.response?.data?.error ?? t('auth.vendor_login_error'));
+      const response = err?.response;
+      if (response) {
+        const data = response.data;
+        if (response.status === 401 || data?.code === 'VENDOR_AUTH_INVALID') {
+          setError(t('auth.invalid_credentials', { defaultValue: 'Tài khoản hoặc mật khẩu không chính xác' }));
+        } else if (data?.code === 'VENDOR_PENDING') {
+          setError(t('auth.account_pending', { defaultValue: 'Tài khoản của bạn đang chờ Admin phê duyệt' }));
+        } else if (data?.code === 'VENDOR_BANNED') {
+          setError(t('auth.account_banned', { defaultValue: 'Tài khoản của bạn đã bị khóa hoặc từ chối' }));
+        } else {
+          setError(data?.error ?? t('auth.vendor_login_error'));
+        }
+      } else {
+        setError(t('auth.vendor_login_error'));
+      }
     } finally {
       setLoading(false);
     }
@@ -72,7 +91,7 @@ export function VendorLoginPage() {
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <label className="block">
-              <span className="text-sm font-bold text-slate-700">{t('auth.vendor_code')}</span>
+              <span className="text-sm font-bold text-slate-700">{t('auth.vendor_email', { defaultValue: 'Email đăng nhập' })}</span>
               <div className="relative mt-1">
                 <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
@@ -80,7 +99,7 @@ export function VendorLoginPage() {
                   value={form.vendorCode}
                   onChange={(event) => setForm((current) => ({ ...current, vendorCode: event.target.value }))}
                   className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm font-semibold text-slate-900 outline-none transition duration-200 ease-out focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
-                  placeholder="VND-XXXX"
+                  placeholder="email@example.com"
                   autoComplete="username"
                   required
                 />
@@ -109,7 +128,7 @@ export function VendorLoginPage() {
 
           <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50 p-3">
             <p className="text-xs font-bold text-slate-500">🔑 {t('auth.demo_account_hint')}</p>
-            <p className="mt-1 text-xs font-mono text-slate-600">{t('auth.vendor_code_short')}: <span className="font-bold text-teal-600">VND-0001</span> / {t('auth.password')}: <span className="font-bold text-teal-600">Vendor123</span></p>
+            <p className="mt-1 text-xs font-mono text-slate-600">{t('auth.vendor_email_short', { defaultValue: 'Email' })}: <span className="font-bold text-teal-600">bao@vinhkhanhfood.vn</span> / {t('auth.password')}: <span className="font-bold text-teal-600">Vendor123</span></p>
           </div>
         </section>
       </div>

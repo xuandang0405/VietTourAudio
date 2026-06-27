@@ -41,7 +41,8 @@ export function useVendorStall() {
 export function useVendorContent() {
   return useQuery({
     queryKey: vendorQueryKeys.content,
-    queryFn: fetchVendorContent
+    queryFn: fetchVendorContent,
+    select: (data) => data?.contents?.[0] ?? null
   });
 }
 

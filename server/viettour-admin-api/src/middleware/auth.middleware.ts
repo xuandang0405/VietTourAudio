@@ -23,14 +23,25 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
 
+    if (payload.tokenType === 'refresh') {
+      res.status(401).json({ error: 'Refresh token cannot be used as an access token', code: 'AUTH_WRONG_TOKEN_TYPE' });
+      return;
+    }
+
     if (payload.role === UserRole.VENDOR) {
-      const rows = await query<any[]>(
-        `SELECT vpu.status AS user_status, v.status AS vendor_status
-         FROM vendor_portal_users vpu
-         JOIN vendors v ON v.id = vpu.vendor_id
-         WHERE vpu.id = ?`,
-        [String(payload.userId ?? payload.id)]
-      );
+      let rows: any[];
+      try {
+        rows = await query<any[]>(
+          `SELECT vpu.status AS user_status, v.status AS vendor_status
+           FROM vendor_portal_users vpu
+           JOIN vendors v ON v.id = vpu.vendor_id
+           WHERE vpu.id = ?`,
+          [String(payload.userId ?? payload.id)]
+        );
+      } catch (error) {
+        next(error);
+        return;
+      }
       if (rows.length === 0 || rows[0].user_status !== 'ACTIVE' || rows[0].vendor_status !== 'APPROVED') {
         res.status(403).json({ error: 'Vendor account is disabled or suspended', code: 'VENDOR_SUSPENDED' });
         return;

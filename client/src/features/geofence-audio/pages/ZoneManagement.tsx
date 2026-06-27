@@ -1,4 +1,4 @@
-import { Edit3, MapPin, Plus, Search, Trash2 } from 'lucide-react';
+import { Edit3, MapPin, Plus, Search, Trash2, Store } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AdminBadge } from '../../../admin/components/AdminBadge';
@@ -7,10 +7,26 @@ import { AdminPageHeader } from '../../../admin/components/AdminPageHeader';
 import { AdminModal } from '../../../admin/components/AdminModal';
 import { useTours, useCreateTour, useUpdateTour, useDeleteTour, useStallsList } from '../../../admin/api/adminQueries';
 
+function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371e3; // meters
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // in meters
+}
+
 export function ZoneManagement() {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState<any>(null);
+  const [stallsModalZone, setStallsModalZone] = useState<any>(null);
   const [error, setError] = useState('');
 
   // Form State
@@ -27,6 +43,23 @@ export function ZoneManagement() {
   // Queries
   const { data: tours = [], isLoading, error: fetchError } = useTours();
   const { data: stalls = [] } = useStallsList();
+
+  const nearbyStalls = useMemo(() => {
+    if (!stallsModalZone || stallsModalZone.latitude === null || stallsModalZone.longitude === null) return [];
+    return stalls
+      .map((s: any) => {
+        if (s.latitude === null || s.longitude === null) return null;
+        const distance = distanceMeters(
+          Number(stallsModalZone.latitude),
+          Number(stallsModalZone.longitude),
+          Number(s.latitude),
+          Number(s.longitude)
+        );
+        return { ...s, distance };
+      })
+      .filter((s: any) => s !== null && s.distance <= 1000)
+      .sort((a: any, b: any) => a.distance - b.distance);
+  }, [stalls, stallsModalZone]);
   
   const createMutation = useCreateTour();
   const updateMutation = useUpdateTour();
@@ -171,6 +204,14 @@ export function ZoneManagement() {
       cellClassName: 'px-4 py-3 text-right',
       render: (zone: any) => (
         <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setStallsModalZone(zone)}
+            className="grid h-9 w-9 place-items-center rounded-lg border border-blue-200 text-blue-700 transition hover:bg-blue-50"
+            title={t('zone.stalls_list', { defaultValue: 'Danh sách sạp' })}
+          >
+            <Store size={16} />
+          </button>
           <button
             type="button"
             onClick={() => openEditModal(zone)}
@@ -362,6 +403,44 @@ export function ZoneManagement() {
         onClose={() => setModal(null)}
         onConfirm={handleConfirm}
       />
+
+      {/* Stalls Proximity Modal */}
+      <AdminModal
+        open={Boolean(stallsModalZone)}
+        title={t('zone.stalls_modal_title', { defaultValue: 'Danh sách Sạp thuộc Khu vực' })}
+        description={stallsModalZone ? t('zone.stalls_modal_desc', { name: stallsModalZone.name, defaultValue: `Các sạp của Vendor nằm trong bán kính 1km của khu vực: ${stallsModalZone.name}` }) : ''}
+        onClose={() => setStallsModalZone(null)}
+        tone="info"
+        confirmLabel={t('common.close')}
+        onConfirm={() => setStallsModalZone(null)}
+      >
+        <div className="py-2 max-h-[400px] overflow-y-auto space-y-3">
+          {nearbyStalls.length === 0 ? (
+            <p className="text-sm font-semibold text-slate-500 text-center py-8">
+              {t('zone.no_nearby_stalls', { defaultValue: 'Không có sạp nào nằm trong khu vực này.' })}
+            </p>
+          ) : (
+            nearbyStalls.map((s: any) => (
+              <div key={s.id} className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+                <div>
+                  <p className="font-bold text-slate-900">{s.name}</p>
+                  <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                    {t('zone.stall_vendor', { defaultValue: 'Vendor' })}: {s.vendor?.businessName || t('common.unknown')}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-700">
+                    {Math.round(s.distance)}m
+                  </span>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1">
+                    Radius: {s.activationRadius}m
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </AdminModal>
     </div>
   );
 }

@@ -30,6 +30,7 @@ export const useVendorAuthStore = create(
       storage: createJSONStorage(() => window.localStorage),
       partialize: (state) => ({
         user: state.user,
+        accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated
       })

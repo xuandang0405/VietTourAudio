@@ -21,7 +21,10 @@ export class GeofenceRepository {
       `SELECT p.*, s.name AS stall_name
        FROM zones p
        LEFT JOIN stalls s ON s.id = p.stall_id
-       WHERE p.latitude IS NOT NULL AND p.longitude IS NOT NULL AND p.status != 'HIDDEN'
+       WHERE p.latitude IS NOT NULL
+         AND p.longitude IS NOT NULL
+         AND p.status = 'ACTIVE'
+         AND p.approval_status = 'APPROVED'
        ${zoneScopeClause}`,
       zoneScopeParams
     );
@@ -36,7 +39,12 @@ export class GeofenceRepository {
     return query<any[]>(
       `SELECT z.tour_id, z.id AS poi_id, z.latitude, z.longitude, z.name AS poi_name
        FROM zones z
-       WHERE z.latitude IS NOT NULL AND z.longitude IS NOT NULL AND z.status = 'ACTIVE'`
+       JOIN stalls s ON s.id = z.stall_id
+       WHERE z.latitude IS NOT NULL
+         AND z.longitude IS NOT NULL
+         AND z.status = 'ACTIVE'
+         AND z.approval_status = 'APPROVED'
+         AND s.status = 'APPROVED'`
     );
   }
 }

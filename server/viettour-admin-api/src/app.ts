@@ -23,6 +23,9 @@ import guestRoutes from './routes/guest.routes';
 import paymentRoutes from './routes/payment.routes';
 import zoneRoutes from './routes/zone.routes';
 import translateRoutes from './routes/translate.routes';
+import ticketRoutes from './routes/ticket.routes';
+import narrationRoutes from './routes/narration.routes';
+import notificationRoutes from './routes/notification.routes';
 import { errorMiddleware } from './middleware/error.middleware';
 import { auditMiddleware } from './middleware/audit.middleware';
 
@@ -96,6 +99,9 @@ app.use(`${api}/audit-logs`, auditRoutes);
 app.use(`${api}/users`, userRoutes);
 app.use(`${api}/zones`, zoneRoutes);
 app.use(`${api}/translate`, translateRoutes);
+app.use(`${api}/tickets`, ticketRoutes);
+app.use(`${api}/narrations`, narrationRoutes);
+app.use(`${api}/notifications`, notificationRoutes);
 
 app.use(errorMiddleware);
 

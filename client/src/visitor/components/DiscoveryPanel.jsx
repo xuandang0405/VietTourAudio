@@ -3,8 +3,9 @@ import { ChevronDown, ChevronRight, MapPin, X, Compass, Music, Navigation2, Load
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { zones } from '../../data/zones';
 import { useLocationStore } from '../../features/geofence-audio/stores/locationStore';
+import axios from 'axios';
+import { appConfig } from '../../config/appConfig';
 
 const CATEGORY_EMOJI = {
   food: '🍜', restaurant: '🍜',
@@ -25,13 +26,16 @@ function getCategoryEmoji(category = '') {
 }
 
 export function DiscoveryPanel() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isOpen = useLocationStore((s) => s.isDiscoveryOpen);
   const setIsOpen = useLocationStore((s) => s.setIsDiscoveryOpen);
   const selectAndFocusPoi = useLocationStore((s) => s.selectAndFocusPoi);
   const [expandedZones, setExpandedZones] = useState({});
+
+  const [tours, setTours] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   // Close on Escape key
   useEffect(() => {
@@ -42,6 +46,22 @@ export function DiscoveryPanel() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, setIsOpen]);
 
+  // Fetch active tours on open
+  useEffect(() => {
+    if (!isOpen) return;
+    setLoading(true);
+    axios.get(`${appConfig.guestApiBaseUrl}/tours?lang=${i18n.language}`)
+      .then(res => {
+        const data = res.data?.data ?? res.data ?? [];
+        setTours(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Error loading tours in DiscoveryPanel:', err);
+        setLoading(false);
+      });
+  }, [isOpen, i18n.language]);
+
   const toggleZone = (zoneSlug) => {
     setExpandedZones((prev) => ({
       ...prev,
@@ -49,7 +69,7 @@ export function DiscoveryPanel() {
     }));
 
     // Fly to zone center on the map
-    const zone = zones.find((z) => z.slug === zoneSlug);
+    const zone = tours.find((z) => z.slug === zoneSlug);
     if (zone && zone.pois && zone.pois.length > 0) {
       const map = useLocationStore.getState().mapInstance;
       if (map) {
@@ -124,7 +144,7 @@ export function DiscoveryPanel() {
                     {t('discovery.title', { defaultValue: 'Khám phá Khu vực' })}
                   </h2>
                   <p className="text-[11px] font-medium text-slate-400">
-                    {t('discovery.subtitle', { defaultValue: `${zones.length} khu vực lễ hội` })}
+                    {t('discovery.subtitle', { defaultValue: `${tours.length} khu vực lễ hội` })}
                   </p>
                 </div>
               </div>
@@ -140,24 +160,34 @@ export function DiscoveryPanel() {
 
             {/* Zone List */}
             <div className="flex-1 overflow-y-auto overscroll-contain">
-              <div className="p-3 space-y-2">
-                {zones.map((zone) => {
-                  const isExpanded = expandedZones[zone.slug] || false;
-                  const hasPois = zone.pois && zone.pois.length > 0;
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400 font-semibold gap-2">
+                  <Loader2 className="animate-spin text-teal-500" size={24} />
+                  <span>{t('common.loading', { defaultValue: 'Đang tải...' })}</span>
+                </div>
+              ) : tours.length === 0 ? (
+                <div className="text-slate-400 font-semibold text-center py-16">
+                  {t('common.no_data', { defaultValue: 'Chưa có dữ liệu' })}
+                </div>
+              ) : (
+                <div className="p-3 space-y-2">
+                  {tours.map((zone) => {
+                    const isExpanded = expandedZones[zone.slug] || false;
+                    const hasPois = zone.pois && zone.pois.length > 0;
 
-                  return (
-                    <div
-                      key={zone.id}
-                      className="rounded-2xl border border-slate-100 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-                    >
-                      {/* Zone Header */}
-                      <button
-                        type="button"
-                        onClick={() => toggleZone(zone.slug)}
-                        className="w-full flex items-center gap-3 p-3.5 text-left transition active:scale-[0.99] hover:bg-slate-50"
+                    return (
+                      <div
+                        key={zone.id}
+                        className="rounded-2xl border border-slate-100 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow"
                       >
-                        {/* Zone Thumbnail */}
-                        <div className="flex-shrink-0 h-12 w-12 rounded-xl overflow-hidden border border-slate-100 shadow-sm bg-slate-50">
+                        {/* Zone Header */}
+                        <button
+                          type="button"
+                          onClick={() => toggleZone(zone.slug)}
+                          className="w-full flex items-center gap-3 p-3.5 text-left transition active:scale-[0.99] hover:bg-slate-50"
+                        >
+                          {/* Zone Thumbnail */}
+                          <div className="flex-shrink-0 h-12 w-12 rounded-xl overflow-hidden border border-slate-100 shadow-sm bg-slate-50">
                           {zone.coverImage ? (
                             <img
                               src={zone.coverImage}
@@ -270,6 +300,7 @@ export function DiscoveryPanel() {
                   );
                 })}
               </div>
+              )}
             </div>
 
             {/* Footer */}

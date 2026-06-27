@@ -135,6 +135,24 @@ export function PoiBottomSheet({
                 <p className="mt-2 max-h-36 overflow-y-auto pr-1 text-sm leading-7 text-slate-600 hide-scrollbar">{localizedContent.description}</p>
               </section>
 
+              {poi.products && poi.products.length > 0 && (
+                <section className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <h3 className="font-display font-bold text-slate-950 flex items-center gap-2 mb-3">
+                    🛍️ {t('poi.products_catalog', { defaultValue: 'Danh mục sản phẩm' })}
+                  </h3>
+                  <div className="space-y-2">
+                    {poi.products.map((prod) => (
+                      <div key={prod.id} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                        <span className="text-sm font-bold text-slate-800">{prod.name}</span>
+                        <span className="text-xs font-black text-teal-600 bg-teal-50 px-2.5 py-1 rounded-lg">
+                          {Number(prod.price).toLocaleString()} VND
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               <button
                 type="button"
                 onClick={onGetDirections}

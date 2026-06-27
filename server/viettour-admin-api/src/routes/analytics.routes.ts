@@ -53,8 +53,10 @@ router.get(
        ORDER BY hours.hour_start ASC`
     );
 
-    const currentHour = new Date().getHours().toString().padStart(2, '0') + ':00';
-    const currentRow = rows.find((row) => row.hour === currentHour);
+    const [activeNowRow] = await query<any[]>(
+      `SELECT COUNT(DISTINCT id) AS count FROM visitor_sessions WHERE last_seen_at >= NOW() - INTERVAL 5 MINUTE`
+    );
+    const activeUsersNow = Number(activeNowRow?.count ?? 0);
 
     res.json(
       ok({
@@ -62,7 +64,7 @@ router.get(
           hour: row.hour,
           activeUsers: Number(row.active_users ?? 0)
         })),
-        activeUsersNow: Number(currentRow?.active_users ?? 0),
+        activeUsersNow,
         updatedAt: new Date().toISOString()
       })
     );
@@ -90,7 +92,7 @@ router.get(
     );
 
     const [revenueStats] = await query<any[]>(
-      `SELECT COALESCE(SUM(amount), 0) AS total_revenue FROM payments WHERE status = 'PAID'`
+      `SELECT COALESCE(SUM(amount), 0) AS total_revenue FROM payments WHERE status = 'PAID' AND payment_type = 'VISITOR_PREMIUM'`
     );
 
     const [scanStats] = await query<any[]>(

@@ -43,9 +43,10 @@ export class PoiRepository {
     return rows;
   }
 
-  async getAllStalls(tourScopeClause = '', tourScopeParams: unknown[] = []): Promise<{ id: string; name: string }[]> {
+  async getAllStalls(tourScopeClause = '', tourScopeParams: unknown[] = []): Promise<any[]> {
     const rows = await query<any[]>(
-      `SELECT s.id, s.name FROM stalls s 
+      `SELECT s.id, s.name, s.latitude, s.longitude, s.activation_radius, s.vendor_id, v.trade_name AS vendor_trade_name 
+       FROM stalls s 
        LEFT JOIN vendors v ON v.id = s.vendor_id
        WHERE 1 = 1 ${tourScopeClause} ORDER BY s.name ASC`,
       tourScopeParams
@@ -53,6 +54,13 @@ export class PoiRepository {
     return rows.map((row) => ({
       id: String(row.id),
       name: row.name,
+      latitude: row.latitude != null ? Number(row.latitude) : null,
+      longitude: row.longitude != null ? Number(row.longitude) : null,
+      activationRadius: row.activation_radius != null ? Number(row.activation_radius) : null,
+      vendorId: String(row.vendor_id),
+      vendor: {
+        businessName: row.vendor_trade_name
+      }
     }));
   }
 
@@ -357,6 +365,7 @@ export class PoiRepository {
         p.longitude,
         p.activation_radius,
         p.is_premium_content,
+        s.is_premium AS is_premium_stall,
         p.status,
         p.sort_order,
         p.zone_code,

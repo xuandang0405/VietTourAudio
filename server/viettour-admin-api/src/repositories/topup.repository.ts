@@ -90,8 +90,8 @@ export class TopUpRepository {
   ): Promise<bigint> {
     const [txResult] = await connection.execute<any>(
       `INSERT INTO wallet_transactions
-        (wallet_id, vendor_id, top_up_request_id, transaction_type, direction, amount, balance_before, balance_after, description, created_by_user_id)
-       VALUES (?, ?, ?, 'TOP_UP', 'CREDIT', ?, ?, ?, ?, ?)`,
+        (wallet_id, vendor_id, top_up_request_id, transaction_type, transaction_category, direction, amount, balance_before, balance_after, description, created_by_user_id)
+       VALUES (?, ?, ?, 'TOP_UP', 'WALLET_TOP_UP', 'CREDIT', ?, ?, ?, ?, ?)`,
       [
         data.walletId.toString(),
         data.vendorId.toString(),

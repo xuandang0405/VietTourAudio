@@ -1,5 +1,6 @@
 import { PoiRepository, TourRepository } from '../repositories/poi.repository';
 import { buildPoiZoneScope, buildStallZoneScope } from '../utils/zoneScope';
+import { query } from '../lib/db';
 
 export class PoiService {
   private poiRepo = new PoiRepository();
@@ -39,6 +40,26 @@ export class PoiService {
 
   async getGuestPois(zoneCode: string, lang: string, activeTourId?: string) {
     const rows = await this.poiRepo.getGuestPoisByZoneCode(zoneCode, lang, activeTourId);
+    
+    if (rows.length === 0) return [];
+    
+    const poiIds = rows.map(r => String(r.id));
+    const productRows = await query<any[]>(
+      `SELECT id, poi_id, name, price FROM poi_products WHERE poi_id IN (${poiIds.map(() => '?').join(',')})`,
+      poiIds
+    );
+
+    const productsByPoiId: Record<string, any[]> = {};
+    for (const prod of productRows) {
+      const pid = String(prod.poi_id);
+      if (!productsByPoiId[pid]) productsByPoiId[pid] = [];
+      productsByPoiId[pid].push({
+        id: String(prod.id),
+        name: prod.name,
+        price: Number(prod.price)
+      });
+    }
+
     return rows.map((row) => ({
       id: String(row.id),
       stallId: String(row.stall_id),
@@ -50,6 +71,7 @@ export class PoiService {
       longitude: Number(row.longitude),
       activationRadius: Number(row.activation_radius),
       isPremium: Boolean(row.is_premium_content),
+      isPremiumStall: Boolean(row.is_premium_stall),
       status: row.status,
       sortOrder: Number(row.sort_order),
       languageCount: Number(row.language_count ?? 0),
@@ -59,6 +81,7 @@ export class PoiService {
       tourSlug: row.tour_slug || null,
       zone_code: row.zone_code || null,
       imageUrl: row.imageUrl || null,
+      products: productsByPoiId[String(row.id)] ?? []
     }));
   }
 

@@ -5,16 +5,20 @@ import { useTranslation } from 'react-i18next';
 import { formatCurrency, formatDate } from '../../../admin/utils/formatters';
 import { useVendorDashboard, useVendorStall, useVendorStallQr } from '../../../vendor/api/vendorQueries';
 import { useVendorPortalStore } from '../stores/vendorPortalStore';
+import { mockPaySubscription } from '../../../vendor/api/vendorApi';
 import { QRCodeCanvas } from 'qrcode.react';
 import { appConfig } from '../../../config/appConfig';
 
 export function VendorDashboard() {
   const { t } = useTranslation();
-  const { data, isLoading, error } = useVendorDashboard();
-  const subscription = useVendorPortalStore((state) => state.subscription);
+  const { data, isLoading, error, refetch } = useVendorDashboard();
+  const subscription = {
+    planName: data?.vendor?.subscriptionPlan ?? '',
+    nextBillingDate: data?.vendor?.nextBillingDate ?? '',
+    paymentStatus: data?.vendor?.paymentStatus ?? 'unpaid'
+  };
   const mockStats = useVendorPortalStore((state) => state.stats);
-  const isPayingSubscription = useVendorPortalStore((state) => state.isPayingSubscription);
-  const mockPaySubscription = useVendorPortalStore((state) => state.mockPaySubscription);
+  const [isPayingSubscription, setIsPayingSubscription] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
   const [copiedQr, setCopiedQr] = useState(false);
   const { data: qrData } = useVendorStallQr();
@@ -33,10 +37,14 @@ export function VendorDashboard() {
 
   async function handleMockPay() {
     setPaySuccess(false);
-    const result = await mockPaySubscription();
-    if (result.success) {
+    setIsPayingSubscription(true);
+    try {
+      await mockPaySubscription();
       setPaySuccess(true);
       setTimeout(() => setPaySuccess(false), 3000);
+      await refetch();
+    } finally {
+      setIsPayingSubscription(false);
     }
   }
 
@@ -135,8 +143,8 @@ export function VendorDashboard() {
                 <QrCode size={22} />
               </div>
               <div>
-                <p className="text-sm font-bold text-slate-900">Mã QR Sạp của bạn</p>
-                <p className="text-xs font-semibold text-slate-500">Khách hàng quét mã để truy cập khu vực của bạn</p>
+                <p className="text-sm font-bold text-slate-900">{t('vendor.stall_qr_title')}</p>
+                <p className="text-xs font-semibold text-slate-500">{t('vendor.stall_qr_desc')}</p>
               </div>
             </div>
 
@@ -144,7 +152,7 @@ export function VendorDashboard() {
               <div className="flex flex-col items-center gap-4">
                 {/* Zone Code Text */}
                 <div className="text-center">
-                  <p className="text-xs font-black uppercase tracking-wider text-slate-400">Mã khu vực</p>
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-400">{t('vendor.zone_code')}</p>
                   <h3 className="text-2xl font-black text-slate-900 mt-1 select-all tracking-widest">
                     {zoneCode}
                   </h3>
@@ -154,7 +162,7 @@ export function VendorDashboard() {
                     className="inline-flex items-center gap-1.5 mt-2 text-xs font-bold text-blue-600 hover:text-blue-700 transition"
                   >
                     {copiedQr ? <CheckCircle2 size={14} className="text-green-600" /> : <Copy size={14} />}
-                    {copiedQr ? 'Đã sao chép!' : 'Sao chép mã'}
+                    {copiedQr ? t('vendor.copied') : t('vendor.copy_code')}
                   </button>
                 </div>
 
@@ -176,13 +184,13 @@ export function VendorDashboard() {
                   className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 active:scale-[0.98]"
                 >
                   <Download size={16} />
-                  Tải xuống QR
+                  {t('vendor.download_qr')}
                 </button>
               </div>
             ) : (
               <div className="text-center py-6">
                 <p className="text-sm font-semibold text-slate-500">
-                  Sạp chưa được cấp mã QR. Vui lòng liên hệ Admin để tạo mã.
+                  {t('vendor.qr_not_configured')}
                 </p>
               </div>
             )}

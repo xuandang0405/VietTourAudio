@@ -7,6 +7,8 @@ import { UserRole } from '../types/domain';
 
 const JWT_SECRET: Secret = process.env.JWT_SECRET || 'secret';
 const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '15m') as SignOptions['expiresIn'];
+const VENDOR_REFRESH_SECRET: Secret = process.env.VENDOR_REFRESH_SECRET || `${String(JWT_SECRET)}:vendor-refresh`;
+const VENDOR_REFRESH_EXPIRES_IN = (process.env.VENDOR_REFRESH_EXPIRES_IN || '7d') as SignOptions['expiresIn'];
 
 interface VendorPortalUserRow extends RowDataPacket {
   id: number | string | bigint;
@@ -22,7 +24,21 @@ interface VendorPortalUserRow extends RowDataPacket {
 function signVendorToken(user: VendorPortalUserRow) {
   const id = String(user.id);
   const vendorId = String(user.vendor_id);
-  return jwt.sign({ id, userId: id, vendorId, email: user.email, role: UserRole.VENDOR }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(
+    { id, userId: id, vendorId, email: user.email, role: UserRole.VENDOR, tokenType: 'access' },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
+}
+
+function signVendorRefreshToken(user: VendorPortalUserRow) {
+  const id = String(user.id);
+  const vendorId = String(user.vendor_id);
+  return jwt.sign(
+    { id, userId: id, vendorId, email: user.email, role: UserRole.VENDOR, tokenType: 'refresh' },
+    VENDOR_REFRESH_SECRET,
+    { expiresIn: VENDOR_REFRESH_EXPIRES_IN }
+  );
 }
 
 function toVendorSession(user: VendorPortalUserRow) {
@@ -31,7 +47,7 @@ function toVendorSession(user: VendorPortalUserRow) {
   return {
     token,
     accessToken: token,
-    refreshToken: token,
+    refreshToken: signVendorRefreshToken(user),
     user: {
       id: String(user.id),
       email: user.email,
@@ -92,19 +108,19 @@ async function findVendorUserById(id: string) {
   return rows[0];
 }
 
-function ensureVendorAccessible(user: VendorPortalUserRow | undefined, res: Response) {
+function ensureVendorAccessible(user: any, res: Response) {
   if (!user) {
     res.status(401).json({ success: false, error: 'Invalid credentials', code: 'VENDOR_AUTH_INVALID' });
     return false;
   }
 
-  if (user.status !== 'ACTIVE') {
-    res.status(403).json({ success: false, error: 'Vendor account is locked or disabled', code: 'VENDOR_AUTH_LOCKED' });
+  if (user.vendor_status === 'PENDING') {
+    res.status(403).json({ success: false, error: 'Vendor account is pending approval', code: 'VENDOR_PENDING' });
     return false;
   }
 
-  if (user.vendor_status !== 'APPROVED') {
-    res.status(403).json({ success: false, error: 'Vendor portal is only available for approved vendors', code: 'VENDOR_NOT_APPROVED' });
+  if (user.vendor_status === 'SUSPENDED' || user.vendor_status === 'REJECTED' || user.status !== 'ACTIVE') {
+    res.status(403).json({ success: false, error: 'Vendor account is suspended or banned', code: 'VENDOR_BANNED' });
     return false;
   }
 
@@ -112,33 +128,49 @@ function ensureVendorAccessible(user: VendorPortalUserRow | undefined, res: Resp
 }
 
 export const vendorLogin = async (req: Request, res: Response) => {
-  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-  const vendorCode = typeof req.body?.vendorCode === 'string' ? req.body.vendorCode.trim() : '';
-  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  const { email, password } = req.body;
 
-  if ((!email && !vendorCode) || !password) {
-    res.status(400).json({ success: false, error: 'Credentials and password are required', code: 'VENDOR_AUTH_REQUIRED' });
+  if (!email || !password) {
+    res.status(400).json({ success: false, error: 'Email and password are required', code: 'VENDOR_AUTH_REQUIRED' });
     return;
   }
 
   try {
-    // Support both vendor_code and email login
-    const user = vendorCode
-      ? await findVendorUserByCode(vendorCode)
-      : await findVendorUserByEmail(email);
+    const rows = await query<any[]>(
+      `SELECT
+         vpu.id,
+         vpu.vendor_id,
+         vpu.email,
+         vpu.pass_hash AS password,
+         vpu.full_name,
+         vpu.status,
+         v.trade_name AS vendor_name,
+         v.status AS vendor_status
+       FROM vendor_portal_users vpu
+       JOIN vendors v ON v.id = vpu.vendor_id
+       WHERE vpu.email = ?
+       LIMIT 1`,
+      [email.trim().toLowerCase()]
+    );
+    const vendor = rows[0];
 
-    if (!ensureVendorAccessible(user, res)) {
-      return;
-    }
-
-    const isValid = await bcrypt.compare(password, user.pass_hash);
-    if (!isValid) {
+    if (!vendor) {
       res.status(401).json({ success: false, error: 'Invalid credentials', code: 'VENDOR_AUTH_INVALID' });
       return;
     }
 
-    await query('UPDATE vendor_portal_users SET last_login_at = NOW() WHERE id = ?', [String(user.id)]);
-    res.json({ success: true, data: toVendorSession(user) });
+    const isPasswordValid = await bcrypt.compare(password, vendor.password);
+    if (!isPasswordValid) {
+      res.status(401).json({ success: false, error: 'Invalid credentials', code: 'VENDOR_AUTH_INVALID' });
+      return;
+    }
+
+    if (!ensureVendorAccessible(vendor, res)) {
+      return;
+    }
+
+    await query('UPDATE vendor_portal_users SET last_login_at = NOW() WHERE id = ?', [String(vendor.id)]);
+    res.json({ success: true, data: toVendorSession(vendor) });
   } catch (error) {
     console.error('Vendor login failed:', error);
     res.status(500).json({ success: false, error: 'Vendor login failed', code: 'VENDOR_AUTH_FAILED' });
@@ -154,9 +186,9 @@ export const vendorRefresh = async (req: Request, res: Response) => {
   }
 
   try {
-    const payload = jwt.verify(refreshToken, JWT_SECRET) as any;
+    const payload = jwt.verify(refreshToken, VENDOR_REFRESH_SECRET) as any;
 
-    if (payload.role !== UserRole.VENDOR) {
+    if (payload.role !== UserRole.VENDOR || payload.tokenType !== 'refresh') {
       res.status(401).json({ success: false, error: 'Invalid or expired refresh token', code: 'VENDOR_REFRESH_INVALID' });
       return;
     }

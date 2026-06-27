@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVendorPois } from '../../../vendor/api/vendorQueries';
-import { updateVendorPoi } from '../../../vendor/api/vendorApi';
-import { Save, AlertCircle, Eye, CheckCircle, Clock } from 'lucide-react';
+import { requestUpdatePoi, fetchPoiProducts, createPoiProduct, updatePoiProduct, deletePoiProduct } from '../../../vendor/api/vendorApi';
+import { Save, AlertCircle, Eye, CheckCircle, Clock, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 
 export function VendorPOIs() {
   const { t } = useTranslation();
@@ -17,6 +17,15 @@ export function VendorPOIs() {
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
+  // Products state
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [newProdName, setNewProdName] = useState('');
+  const [newProdPrice, setNewProdPrice] = useState('30000');
+  const [editingProdId, setEditingProdId] = useState(null);
+  const [editProdName, setEditProdName] = useState('');
+  const [editProdPrice, setEditProdPrice] = useState('');
+
   useEffect(() => {
     if (poi) {
       // Initialize with pending changes if available, otherwise current values
@@ -25,6 +34,62 @@ export function VendorPOIs() {
       setImageUrl(poi.pendingCoverImageUrl ?? poi.imageUrl ?? '');
     }
   }, [poi]);
+
+  useEffect(() => {
+    if (poi?.id) {
+      setLoadingProducts(true);
+      fetchPoiProducts(poi.id)
+        .then((res) => setProducts(res.products ?? []))
+        .catch((err) => console.error('Failed to load products:', err))
+        .finally(() => setLoadingProducts(false));
+    }
+  }, [poi?.id]);
+
+  const handleAddProduct = async (e) => {
+    e.preventDefault();
+    if (!newProdName.trim() || !newProdPrice) return;
+    try {
+      const newProd = await createPoiProduct(poi.id, {
+        name: newProdName.trim(),
+        price: Number(newProdPrice)
+      });
+      setProducts((prev) => [...prev, newProd]);
+      setNewProdName('');
+      setNewProdPrice('30000');
+    } catch (err) {
+      alert(t('poi.product_add_error'));
+    }
+  };
+
+  const handleStartEdit = (prod) => {
+    setEditingProdId(prod.id);
+    setEditProdName(prod.name);
+    setEditProdPrice(String(prod.price));
+  };
+
+  const handleUpdateProduct = async (productId) => {
+    if (!editProdName.trim() || !editProdPrice) return;
+    try {
+      const updated = await updatePoiProduct(poi.id, productId, {
+        name: editProdName.trim(),
+        price: Number(editProdPrice)
+      });
+      setProducts((prev) => prev.map((p) => (p.id === productId ? updated : p)));
+      setEditingProdId(null);
+    } catch (err) {
+      alert(t('poi.product_update_error'));
+    }
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    if (!window.confirm(t('poi.product_delete_confirm'))) return;
+    try {
+      await deletePoiProduct(poi.id, productId);
+      setProducts((prev) => prev.filter((p) => p.id !== productId));
+    } catch (err) {
+      alert(t('poi.product_delete_error'));
+    }
+  };
 
   if (isLoading) {
     return (
@@ -55,7 +120,7 @@ export function VendorPOIs() {
     setSubmitSuccess(false);
 
     try {
-      await updateVendorPoi(poi.id, {
+      await requestUpdatePoi({
         name: name.trim(),
         description: description.trim(),
         imageUrl: imageUrl.trim()
@@ -183,7 +248,7 @@ export function VendorPOIs() {
               {imageUrl ? (
                 <img
                   src={imageUrl}
-                  alt={name || 'POI Preview'}
+                  alt={name || t('poi.preview_title')}
                   className="w-full h-full object-cover transition duration-300"
                   onError={(e) => {
                     e.target.src = 'https://images.unsplash.com/photo-1504609773096-104ff2c73ba4?w=600&auto=format&fit=crop&q=60';
@@ -221,12 +286,142 @@ export function VendorPOIs() {
               </p>
 
               <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                <span>ID POI: #{poi.id}</span>
-                <span>{poi.isPremiumContent ? '★ Premium Content' : 'Free Content'}</span>
+                <span>{t('poi.poi_id')}: #{poi.id}</span>
+                <span>{poi.isPremiumContent ? t('poi.premium_content') : t('poi.free_content')}</span>
               </div>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Product Catalog Section */}
+      <div className="mt-8 bg-white rounded-3xl shadow-sm border border-slate-100 p-6 lg:p-8">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
+          <div>
+            <h2 className="text-lg font-black text-slate-900">{t('poi.products_catalog', { defaultValue: 'Danh mục sản phẩm của sạp' })}</h2>
+            <p className="text-xs text-slate-500 mt-1">{t('poi.products_catalog_desc', { defaultValue: 'Sản phẩm và giá tiền hiển thị trực tiếp cho khách mua trên thiết bị di động.' })}</p>
+          </div>
+        </div>
+
+        {/* Add Product Form */}
+        <form onSubmit={handleAddProduct} className="grid grid-cols-1 sm:grid-cols-[1fr_200px_auto] gap-3 mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+          <input
+            type="text"
+            required
+            value={newProdName}
+            onChange={(e) => setNewProdName(e.target.value)}
+            placeholder={t('poi.new_product_name', { defaultValue: 'Tên sản phẩm (ví dụ: Trà đào, Bánh mì...)' })}
+            className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500 transition"
+          />
+          <input
+            type="number"
+            required
+            value={newProdPrice}
+            onChange={(e) => setNewProdPrice(e.target.value)}
+            placeholder={t('poi.new_product_price', { defaultValue: 'Giá tiền (VND)' })}
+            className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500 transition"
+          />
+          <button
+            type="submit"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black px-4 transition active:scale-[0.98]"
+          >
+            <Plus size={14} />
+            {t('common.add', { defaultValue: 'Thêm' })}
+          </button>
+        </form>
+
+        {/* Products List Table */}
+        {loadingProducts ? (
+          <div className="text-center py-6 text-xs text-slate-500 font-bold">{t('common.loading', { defaultValue: 'Đang tải...' })}</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                  <th className="p-3 w-12 text-center">#</th>
+                  <th className="p-3">{t('poi.product_name', { defaultValue: 'Tên sản phẩm' })}</th>
+                  <th className="p-3">{t('poi.product_price', { defaultValue: 'Giá bán' })}</th>
+                  <th className="p-3 text-center w-28">{t('common.actions', { defaultValue: 'Hành động' })}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((prod, idx) => (
+                  <tr key={prod.id} className="border-b border-slate-50 hover:bg-slate-50 transition text-xs font-semibold">
+                    <td className="p-3 text-center text-slate-400">{idx + 1}</td>
+                    <td className="p-3">
+                      {editingProdId === prod.id ? (
+                        <input
+                          type="text"
+                          value={editProdName}
+                          onChange={(e) => setEditProdName(e.target.value)}
+                          className="px-2 py-1 border border-slate-200 rounded-lg w-full focus:outline-none focus:ring-1 focus:ring-teal-500 focus:bg-white"
+                        />
+                      ) : (
+                        <span className="font-bold text-slate-800">{prod.name}</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {editingProdId === prod.id ? (
+                        <input
+                          type="number"
+                          value={editProdPrice}
+                          onChange={(e) => setEditProdPrice(e.target.value)}
+                          className="px-2 py-1 border border-slate-200 rounded-lg w-32 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:bg-white"
+                        />
+                      ) : (
+                        <span className="font-extrabold text-teal-600">{Number(prod.price).toLocaleString()} VND</span>
+                      )}
+                    </td>
+                    <td className="p-3 text-center">
+                      {editingProdId === prod.id ? (
+                        <div className="flex justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateProduct(prod.id)}
+                            className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition"
+                          >
+                            <Check size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingProdId(null)}
+                            className="p-1.5 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 transition"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(prod)}
+                            className="p-1.5 rounded-lg bg-teal-50 text-teal-600 hover:bg-teal-100 transition"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteProduct(prod.id)}
+                            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {products.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="p-6 text-center text-xs text-slate-400 font-bold">
+                      {t('poi.no_products', { defaultValue: 'Sạp chưa đăng ký sản phẩm nào.' })}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

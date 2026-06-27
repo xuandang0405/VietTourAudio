@@ -9,6 +9,7 @@ import { AdminContent } from './features/poi/pages/AdminContent';
 import { AdminGeofences } from './features/geofence-audio/pages/AdminGeofences';
 import { AdminLoginPage } from './features/auth/pages/AdminLoginPage';
 import { AdminPois } from './features/poi/pages/AdminPois';
+import { AdminTickets } from './admin/pages/AdminTickets';
 import { AdminRevenue } from './features/vendor-wallet/pages/AdminRevenue';
 import { AdminSubscriptions } from './features/vendor-wallet/pages/AdminSubscriptions';
 import { AdminTopUps } from './features/vendor-wallet/pages/AdminTopUps';
@@ -147,6 +148,7 @@ function AppRoutes() {
               <Route path="geofences" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminGeofences /></AdminGuard>} />
               <Route path="audit-logs" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminAuditLogs /></AdminGuard>} />
               <Route path="settings/users" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminUsers /></AdminGuard>} />
+              <Route path="tickets" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminTickets /></AdminGuard>} />
             </Route>
           </Route>
 

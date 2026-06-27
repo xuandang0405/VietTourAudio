@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Globe, ChevronDown } from 'lucide-react';
+import { useLanguageStore } from '../stores/languageStore';
 
 const languages = [
   { code: 'vi', name: 'Tiếng Việt', flag: '🇻🇳' },
@@ -30,6 +31,7 @@ export function LanguageSwitcher() {
   function handleLanguageChange(code) {
     i18n.changeLanguage(code);
     localStorage.setItem('admin_lang', code);
+    useLanguageStore.getState().setLanguage(code);
     setIsOpen(false);
   }
 

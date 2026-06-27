@@ -58,9 +58,15 @@ export function useGeofenceAudio({ onToast }) {
 
   const enrichedPois = useMemo(() => {
     const tourSlug = searchParams.get('zone');
-    let filteredPois = pois;
+    let filteredPois = pois.filter((poi) => (poi.status ?? 'ACTIVE') === 'ACTIVE' && (poi.approvalStatus ?? 'APPROVED') === 'APPROVED');
     if (tourSlug) {
-      filteredPois = pois.filter((poi) => poi.tourSlug === tourSlug);
+      const isNumericQuery = /^\d+$/.test(tourSlug);
+      filteredPois = filteredPois.filter((poi) => {
+        if (isNumericQuery) {
+          return poi.tourId !== null && Number(poi.tourId) === Number(tourSlug);
+        }
+        return poi.tourSlug === tourSlug;
+      });
     }
     const localizedPois = filteredPois.map((poi) => localizePoi(poi, currentLanguage));
     if (!position) {
@@ -116,7 +122,12 @@ export function useGeofenceAudio({ onToast }) {
   }, [selectedPoiId, enrichedPois, pois, currentLanguage]);
 
   const selectedPoi = currentPoi;
-  const activeAutoPoi = useMemo(() => enrichedPois.find((poi) => poi.isInsideRadius) ?? null, [enrichedPois]);
+  const activeAutoPoi = useMemo(() => {
+    const insidePois = enrichedPois.filter((poi) => poi.isInsideRadius);
+    if (insidePois.length === 0) return null;
+    const premiumInside = insidePois.find((poi) => poi.isPremiumStall);
+    return premiumInside ?? insidePois[0];
+  }, [enrichedPois]);
 
   // Sync selectedPoiId with URL search params changes
   useEffect(() => {
@@ -187,7 +198,9 @@ export function useGeofenceAudio({ onToast }) {
           tourId: apiPoi.tourId ? String(apiPoi.tourId) : null,
           zone_code: apiPoi.zone_code ?? null,
           stall_name: apiPoi.stall_name ?? fallback.stall_name ?? null,
-          stall_description: apiPoi.stall_description ?? fallback.stall_description ?? null
+          stall_description: apiPoi.stall_description ?? fallback.stall_description ?? null,
+          status: apiPoi.status ?? 'ACTIVE',
+          approvalStatus: apiPoi.approvalStatus ?? 'APPROVED'
         };
       });
     };

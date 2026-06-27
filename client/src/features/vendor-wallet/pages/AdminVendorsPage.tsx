@@ -2,7 +2,7 @@ import { Ban, Check, Eye, Plus, Search, X, ChevronLeft, Pencil } from 'lucide-re
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { useVendors, useCreateVendor, useUpdateVendorStatus, useToursList, useUpdateVendor } from '../../../admin/api/adminQueries';
+import { useVendors, useCreateVendor, useUpdateVendorStatus, useToursList, useUpdateVendor, useUnsuspendVendor } from '../../../admin/api/adminQueries';
 import { AdminDataTable } from '../../../admin/components/AdminDataTable';
 import { AdminModal } from '../../../admin/components/AdminModal';
 import { AdminPageHeader } from '../../../admin/components/AdminPageHeader';
@@ -25,6 +25,7 @@ export function AdminVendorsPage() {
   const createMutation = useCreateVendor();
   const updateMutation = useUpdateVendor();
   const updateStatusMutation = useUpdateVendorStatus();
+  const unsuspendMutation = useUnsuspendVendor();
 
   const handleCreateConfirm = async (payload: any) => {
     setError('');
@@ -206,6 +207,24 @@ export function AdminVendorsPage() {
             >
               <Ban size={14} />
               {t('common.suspend', { defaultValue: 'Suspend' })}
+            </button>
+          )}
+          {vendor.verificationStatus === 'SUSPENDED' && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (window.confirm(t('admin.vendors.confirm_unsuspend', { defaultValue: 'Bạn có chắc chắn muốn mở khóa tài khoản vendor này?' }))) {
+                  try {
+                    await unsuspendMutation.mutateAsync(vendor.id);
+                  } catch (err: any) {
+                    alert(err.response?.data?.error ?? t('common.error', { defaultValue: 'Có lỗi xảy ra' }));
+                  }
+                }
+              }}
+              className="inline-flex h-9 items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2.5 text-xs font-bold text-green-700 hover:bg-green-100 transition shadow-sm"
+            >
+              <Check size={14} />
+              {t('admin.vendors.unsuspend_btn', { defaultValue: 'Mở khóa' })}
             </button>
           )}
         </div>

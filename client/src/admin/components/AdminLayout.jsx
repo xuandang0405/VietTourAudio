@@ -17,7 +17,8 @@ import {
   Store,
   UploadCloud,
   WalletCards,
-  X
+  X,
+  Mail
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -27,6 +28,8 @@ import logoText from '../../assets/logo/logo-text.png';
 import { adminLogout } from '../api/adminApi';
 import { useAdminAuthStore } from '../store/adminAuthStore';
 import { LanguageSwitcher } from '../../components/LanguageSwitcher';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchAdminNotifications, markAdminNotificationRead } from '../api/adminApi';
 
 const roles = {
   vendor: ['SUPER_ADMIN', 'ADMIN'],
@@ -60,7 +63,8 @@ const navGroups = [
     items: [
       { labelKey: 'sidebar.geofences', to: '/admin/geofences', icon: ShieldCheck, roles: roles.geofence },
       { labelKey: 'sidebar.audit_logs', to: '/admin/audit-logs', icon: FileClock, roles: roles.system },
-      { labelKey: 'sidebar.admin_users', to: '/admin/settings/users', icon: Settings, roles: roles.system }
+      { labelKey: 'sidebar.admin_users', to: '/admin/settings/users', icon: Settings, roles: roles.system },
+      { labelKey: 'sidebar.tickets', to: '/admin/tickets', icon: Mail, roles: roles.system }
     ]
   }
 ];
@@ -77,7 +81,8 @@ const breadcrumbByPath = {
   '/admin/revenue/dashboard': ['Admin', 'Doanh thu'],
   '/admin/geofences': ['Admin', 'Geofences'],
   '/admin/audit-logs': ['Admin', 'Nhật ký'],
-  '/admin/settings/users': ['Admin', 'Admin users']
+  '/admin/settings/users': ['Admin', 'Admin users'],
+  '/admin/tickets': ['Admin', 'Hộp thư hỗ trợ']
 };
 
 const crumbTranslationKeys = {
@@ -93,7 +98,8 @@ const crumbTranslationKeys = {
   'Geofences': 'sidebar.geofences',
   'Nhật ký': 'sidebar.audit_logs',
   'Admin users': 'sidebar.admin_users',
-  'Chi tiết': 'common.detail'
+  'Chi tiết': 'common.detail',
+  'Hộp thư hỗ trợ': 'sidebar.tickets'
 };
 
 const getBreadcrumbUrl = (crumb, currentPathname) => {
@@ -121,6 +127,8 @@ const getBreadcrumbUrl = (crumb, currentPathname) => {
       return '/admin/audit-logs';
     case 'Admin users':
       return '/admin/settings/users';
+    case 'Hộp thư hỗ trợ':
+      return '/admin/tickets';
     case 'Chi tiết':
       return currentPathname;
     default:
@@ -132,10 +140,18 @@ const getBreadcrumbUrl = (crumb, currentPathname) => {
 export function AdminLayout() {
   const { t } = useTranslation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const user = useAdminAuthStore((state) => state.user);
   const clearSession = useAdminAuthStore((state) => state.clearSession);
+  const queryClient = useQueryClient();
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['admin', 'notifications'],
+    queryFn: fetchAdminNotifications,
+    refetchInterval: 60000
+  });
+  const unreadCount = notifications.filter((item) => !item.isRead).length;
 
   const breadcrumbs = useMemo(() => {
     if (location.pathname.startsWith('/admin/vendors/')) return ['Admin', 'Nhà cung cấp', 'Chi tiết'];
@@ -223,14 +239,61 @@ export function AdminLayout() {
 
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
-            <button
-              type="button"
-              className="relative grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition duration-200 ease-out hover:bg-slate-50"
-              aria-label="Thông báo"
-            >
-              <Bell size={18} />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-500" />
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition duration-200 ease-out hover:bg-slate-50"
+                aria-label="Thông báo"
+              >
+                <Bell size={18} />
+                {unreadCount > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-500" />}
+              </button>
+              <AnimatePresence>
+                {showNotifications && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl z-50 origin-top-right"
+                    >
+                      <h3 className="text-sm font-black text-slate-900 mb-2">
+                        {t('admin.notifications.title', { defaultValue: 'Thông báo' })}
+                      </h3>
+                      <div className="border-t border-slate-100 my-2"></div>
+                      {notifications.length === 0 ? (
+                        <p className="py-6 text-center text-xs font-semibold text-slate-400">
+                          {t('admin.notifications.empty')}
+                        </p>
+                      ) : (
+                        <div className="max-h-80 space-y-2 overflow-y-auto">
+                          {notifications.map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={async () => {
+                                if (!item.isRead) {
+                                  await markAdminNotificationRead(item.id);
+                                  queryClient.invalidateQueries({ queryKey: ['admin', 'notifications'] });
+                                }
+                              }}
+                              className={`w-full rounded-xl p-3 text-left transition hover:bg-slate-50 ${item.isRead ? 'bg-white' : 'bg-blue-50'}`}
+                            >
+                              <p className="text-xs font-black text-slate-900">{item.title}</p>
+                              <p className="mt-1 text-xs leading-5 text-slate-600">{item.message}</p>
+                              {item.vendorName && <p className="mt-1 text-[10px] font-bold text-slate-400">{item.vendorName}</p>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
             <div className="hidden items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 lg:flex">
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-600 text-xs font-black text-white">
                 {user?.displayName?.slice(0, 2).toUpperCase() ?? 'AD'}
@@ -309,4 +372,3 @@ function SidebarContent({ userRole, onNavigate, onLogout, forceLabels = false })
     </div>
   );
 }
-

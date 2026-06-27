@@ -88,6 +88,14 @@ export async function adminLogin(credentials) {
   return unwrap(await adminApiClient.post('/admin/auth/login', credentials));
 }
 
+export async function fetchAdminNotifications() {
+  return unwrap(await adminApiClient.get('/admin/notifications'));
+}
+
+export async function markAdminNotificationRead(id) {
+  return unwrap(await adminApiClient.post(`/admin/notifications/${id}/read`));
+}
+
 export async function adminLogout() {
   const { refreshToken } = useAdminAuthStore.getState();
   return unwrap(await adminApiClient.post('/admin/auth/logout', { refreshToken }));
@@ -310,4 +318,20 @@ export async function resetTourQr(id) {
 
 export async function autoTranslate(text, targetLangs) {
   return unwrap(await adminApiClient.post('/admin/translate', { text, targetLangs }));
+}
+
+export async function unsuspendVendor(id) {
+  return unwrap(await adminApiClient.post(`/admin/vendors/${id}/unsuspend`));
+}
+
+export async function fetchTickets() {
+  return unwrap(await adminApiClient.get('/admin/tickets'));
+}
+
+export async function resolveTicket(id) {
+  return unwrap(await adminApiClient.post(`/admin/tickets/${id}/resolve`));
+}
+
+export async function toggleStallPremium(stallId, isPremium) {
+  return unwrap(await adminApiClient.put(`/admin/stalls/${stallId}/premium`, { isPremium }));
 }

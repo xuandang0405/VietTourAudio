@@ -1,3 +1,10 @@
+-- =============================================================================
+-- VietTourAudio — Production Schema Definition
+-- Database: viettuoraudio
+-- Engine: MySQL 8.0+ / InnoDB
+-- Charset: utf8mb4 / utf8mb4_unicode_ci
+-- =============================================================================
+
 CREATE DATABASE IF NOT EXISTS viettuoraudio
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
@@ -6,6 +13,7 @@ USE viettuoraudio;
 
 SET FOREIGN_KEY_CHECKS = 0;
 
+-- Drop in reverse-dependency order
 DROP TABLE IF EXISTS revenue_daily;
 DROP TABLE IF EXISTS analytics_daily_stall;
 DROP TABLE IF EXISTS commission_earnings;
@@ -20,20 +28,28 @@ DROP TABLE IF EXISTS visitor_sessions;
 DROP TABLE IF EXISTS qr_codes;
 DROP TABLE IF EXISTS media_files;
 DROP TABLE IF EXISTS poi_contents;
+DROP TABLE IF EXISTS poi_products;
 DROP TABLE IF EXISTS favorites;
+DROP TABLE IF EXISTS unlocked_tours;
 DROP TABLE IF EXISTS tour_pois;
 DROP TABLE IF EXISTS tours;
 DROP TABLE IF EXISTS pois;
+DROP TABLE IF EXISTS zones;
 DROP TABLE IF EXISTS stalls;
 DROP TABLE IF EXISTS vendor_subscriptions;
 DROP TABLE IF EXISTS vendor_portal_users;
 DROP TABLE IF EXISTS vendors;
 DROP TABLE IF EXISTS subscription_plans;
+DROP TABLE IF EXISTS system_tickets;
+DROP TABLE IF EXISTS admin_notifications;
 DROP TABLE IF EXISTS audit_logs;
 DROP TABLE IF EXISTS refresh_tokens;
 DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS zones;
 DROP TABLE IF EXISTS app_settings;
+
+-- =============================================================================
+-- 1. ADMIN / PLATFORM USERS
+-- =============================================================================
 
 CREATE TABLE users (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -94,6 +110,28 @@ CREATE TABLE audit_logs (
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- 2. SUPPORT TICKETS (System-level contact/support)
+-- =============================================================================
+
+CREATE TABLE system_tickets (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  sender_email VARCHAR(255) NOT NULL,
+  subject VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  status ENUM('PENDING', 'IN_PROGRESS', 'PROCESSED', 'CLOSED') NOT NULL DEFAULT 'PENDING',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_system_tickets_status (status),
+  KEY idx_system_tickets_sender_email (sender_email),
+  KEY idx_system_tickets_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- 3. SUBSCRIPTION PLANS
+-- =============================================================================
+
 CREATE TABLE subscription_plans (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   code VARCHAR(60) NOT NULL,
@@ -112,6 +150,10 @@ CREATE TABLE subscription_plans (
   UNIQUE KEY uq_subscription_plans_code (code),
   KEY idx_subscription_plans_is_active (is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- 4. VENDORS
+-- =============================================================================
 
 CREATE TABLE vendors (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -162,6 +204,24 @@ CREATE TABLE vendor_portal_users (
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE admin_notifications (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  vendor_id BIGINT UNSIGNED NULL,
+  notification_type ENUM('WEBAPP_RENT_PAID', 'WEBAPP_RENT_OVERDUE', 'PREMIUM_UPGRADE', 'WALLET_TOP_UP_REQUEST') NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  message VARCHAR(600) NOT NULL,
+  is_read TINYINT(1) NOT NULL DEFAULT 0,
+  metadata JSON NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_admin_notifications_vendor_id (vendor_id),
+  KEY idx_admin_notifications_is_read (is_read),
+  KEY idx_admin_notifications_created_at (created_at),
+  CONSTRAINT fk_admin_notifications_vendor
+    FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+    ON UPDATE CASCADE ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE vendor_subscriptions (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   vendor_id BIGINT UNSIGNED NOT NULL,
@@ -190,6 +250,10 @@ CREATE TABLE vendor_subscriptions (
     ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- 5. TOURS (Festival / Area groupings)
+-- =============================================================================
+
 CREATE TABLE tours (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   vendor_id BIGINT UNSIGNED NOT NULL,
@@ -202,6 +266,7 @@ CREATE TABLE tours (
   status ENUM('DRAFT', 'PUBLISHED', 'ARCHIVED') NOT NULL DEFAULT 'DRAFT',
   sort_order INT UNSIGNED NOT NULL DEFAULT 0,
   is_premium TINYINT(1) NOT NULL DEFAULT 0,
+  price DECIMAL(14,2) NOT NULL DEFAULT 0.00,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -213,6 +278,10 @@ CREATE TABLE tours (
     FOREIGN KEY (vendor_id) REFERENCES vendors(id)
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- 6. STALLS (Physical vendor locations on the map)
+-- =============================================================================
 
 CREATE TABLE stalls (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -229,7 +298,14 @@ CREATE TABLE stalls (
   is_featured TINYINT(1) NOT NULL DEFAULT 0,
   is_premium TINYINT(1) NOT NULL DEFAULT 0,
   priority_score INT NOT NULL DEFAULT 0,
+  billing_suspended TINYINT(1) NOT NULL DEFAULT 0,
   zone_code VARCHAR(50) NULL,
+  pending_latitude DECIMAL(10,7) NULL,
+  pending_longitude DECIMAL(10,7) NULL,
+  pending_cover_image_url VARCHAR(500) NULL,
+  pending_name VARCHAR(255) NULL,
+  pending_description TEXT NULL,
+  approval_status VARCHAR(50) NOT NULL DEFAULT 'APPROVED',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -246,11 +322,15 @@ CREATE TABLE stalls (
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- 7. ZONES (Sub-areas within a stall, linked to tours)
+-- =============================================================================
+
 CREATE TABLE zones (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   tour_id BIGINT UNSIGNED NOT NULL,
   stall_id BIGINT UNSIGNED NOT NULL,
-  free_listens_allowed TINYINT UNSIGNED NOT NULL DEFAULT 2 COMMENT 'Số lần nghe miễn phí trước khi yêu cầu Premium',
+  free_listens_allowed TINYINT UNSIGNED NOT NULL DEFAULT 2 COMMENT 'Free listens before premium gate',
   name VARCHAR(255) NOT NULL,
   slug VARCHAR(255) NOT NULL,
   description TEXT NULL,
@@ -260,6 +340,12 @@ CREATE TABLE zones (
   is_premium_content TINYINT(1) NOT NULL DEFAULT 0,
   status ENUM('DRAFT', 'ACTIVE', 'INACTIVE', 'ARCHIVED') NOT NULL DEFAULT 'ACTIVE',
   sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+  pending_name VARCHAR(255) NULL,
+  pending_description TEXT NULL,
+  pending_cover_image_url VARCHAR(500) NULL,
+  pending_latitude DECIMAL(10,7) NULL,
+  pending_longitude DECIMAL(10,7) NULL,
+  approval_status VARCHAR(50) NOT NULL DEFAULT 'APPROVED',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -277,6 +363,10 @@ CREATE TABLE zones (
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- 8. POIs (Points of Interest — audio content locations)
+-- =============================================================================
+
 CREATE TABLE pois (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   stall_id BIGINT UNSIGNED NOT NULL,
@@ -291,11 +381,24 @@ CREATE TABLE pois (
   is_premium_content TINYINT(1) NOT NULL DEFAULT 0,
   status ENUM('DRAFT', 'ACTIVE', 'INACTIVE', 'ARCHIVED') NOT NULL DEFAULT 'ACTIVE',
   sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+  pending_name VARCHAR(255) NULL,
+  pending_description TEXT NULL,
+  pending_cover_image_url VARCHAR(500) NULL,
+  pending_latitude DECIMAL(10,7) NULL,
+  pending_longitude DECIMAL(10,7) NULL,
+  approval_status VARCHAR(50) NOT NULL DEFAULT 'APPROVED',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_pois_stall_slug (stall_id, slug),
+  KEY idx_pois_zone_code (zone_code),
+  KEY idx_pois_lat_lng (latitude, longitude),
+  KEY idx_pois_status (status),
   CONSTRAINT fk_pois_stall FOREIGN KEY (stall_id) REFERENCES stalls(id) ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- 9. TOUR ↔ POI JUNCTION
+-- =============================================================================
 
 CREATE TABLE tour_pois (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -315,6 +418,10 @@ CREATE TABLE tour_pois (
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- 10. FAVORITES (Guest bookmarks)
+-- =============================================================================
+
 CREATE TABLE favorites (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   guest_id VARCHAR(255) NOT NULL,
@@ -329,6 +436,10 @@ CREATE TABLE favorites (
     FOREIGN KEY (poi_id) REFERENCES pois(id)
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- 11. POI CONTENTS (Localized audio scripts & audio files)
+-- =============================================================================
 
 CREATE TABLE poi_contents (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -351,6 +462,28 @@ CREATE TABLE poi_contents (
     FOREIGN KEY (poi_id) REFERENCES pois(id)
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- 12. POI PRODUCTS (Menu / Price catalog per POI)
+-- =============================================================================
+
+CREATE TABLE poi_products (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  poi_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  price DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_poi_products_poi_id (poi_id),
+  CONSTRAINT fk_poi_products_poi
+    FOREIGN KEY (poi_id) REFERENCES pois(id)
+    ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- 13. MEDIA FILES
+-- =============================================================================
 
 CREATE TABLE media_files (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -398,6 +531,10 @@ CREATE TABLE media_files (
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- 14. QR CODES
+-- =============================================================================
+
 CREATE TABLE qr_codes (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   vendor_id BIGINT UNSIGNED NOT NULL,
@@ -432,6 +569,10 @@ CREATE TABLE qr_codes (
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- 15. VISITOR SESSIONS
+-- =============================================================================
+
 CREATE TABLE visitor_sessions (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   token VARCHAR(160) NOT NULL,
@@ -450,6 +591,10 @@ CREATE TABLE visitor_sessions (
   KEY idx_visitor_sessions_premium (is_premium, premium_24h_expiry),
   KEY idx_visitor_sessions_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- 16. ANALYTICS EVENTS
+-- =============================================================================
 
 CREATE TABLE qr_scan_events (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -559,6 +704,10 @@ CREATE TABLE play_history (
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- 17. PAYMENTS
+-- =============================================================================
+
 CREATE TABLE payments (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   vendor_id BIGINT UNSIGNED NULL,
@@ -593,6 +742,10 @@ CREATE TABLE payments (
     FOREIGN KEY (vendor_subscription_id) REFERENCES vendor_subscriptions(id)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- 18. VENDOR WALLETS
+-- =============================================================================
 
 CREATE TABLE vendor_wallets (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -653,6 +806,7 @@ CREATE TABLE wallet_transactions (
   payment_id BIGINT UNSIGNED NULL,
   top_up_request_id BIGINT UNSIGNED NULL,
   transaction_type ENUM('TOP_UP', 'FEE', 'MANUAL') NOT NULL,
+  transaction_category ENUM('WALLET_TOP_UP', 'WEBAPP_MONTHLY_RENT', 'PREMIUM_UPGRADE', 'MANUAL_ADJUSTMENT') NOT NULL,
   direction ENUM('CREDIT', 'DEBIT') NOT NULL,
   amount DECIMAL(14,2) NOT NULL,
   balance_before DECIMAL(14,2) NOT NULL,
@@ -685,6 +839,10 @@ CREATE TABLE wallet_transactions (
     FOREIGN KEY (created_by_user_id) REFERENCES users(id)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- 19. COMMISSIONS
+-- =============================================================================
 
 CREATE TABLE commission_earnings (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -719,6 +877,10 @@ CREATE TABLE commission_earnings (
     FOREIGN KEY (visitor_session_id) REFERENCES visitor_sessions(id)
     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- 20. AGGREGATED ANALYTICS
+-- =============================================================================
 
 CREATE TABLE analytics_daily_stall (
   date DATE NOT NULL,
@@ -758,6 +920,23 @@ CREATE TABLE revenue_daily (
   KEY idx_revenue_daily_source_provider (source, provider),
   KEY idx_revenue_daily_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- 21. UNLOCKED TOURS (Guest unlocked premium tours)
+-- =============================================================================
+
+CREATE TABLE unlocked_tours (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  guest_id VARCHAR(100) NOT NULL,
+  tour_id INT NOT NULL,
+  transaction_reference VARCHAR(100) NULL,
+  unlocked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_guest_tour (guest_id, tour_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- 22. APP SETTINGS (Key-Value configuration store)
+-- =============================================================================
 
 CREATE TABLE app_settings (
   `key` VARCHAR(100) NOT NULL,
