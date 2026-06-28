@@ -47,8 +47,8 @@ public class Stall
   [Column("id")]
   public ulong Id { get; set; }
 
-  [Column("owner_id")]
-  public ulong OwnerId { get; set; }
+  [Column("vendor_id")]
+  public ulong VendorId { get; set; }
 
   [Column("name")]
   [MaxLength(255)]
@@ -85,8 +85,24 @@ public class Stall
   [Column("is_premium")]
   public bool IsPremium { get; set; }
 
+  [Column("is_premium_priority")]
+  public bool IsPremiumPriority { get; set; }
+
+  [Column("activation_radius")]
+  public int TriggerRadius { get; set; } = 3;
+
+  [Column("approval_status")]
+  [MaxLength(30)]
+  public string ApprovalStatus { get; set; } = "PENDING";
+
   [Column("premium_priority")]
   public int PremiumPriority { get; set; }
+
+  [Column("premium_activation_date")]
+  public DateTime? PremiumActivationDate { get; set; }
+
+  [Column("premium_expiry_date")]
+  public DateTime? PremiumExpiryDate { get; set; }
 
   [Column("created_at")]
   public DateTime CreatedAt { get; set; }
@@ -134,6 +150,9 @@ public class Poi
   [Column("stall_id")]
   public ulong StallId { get; set; }
 
+  [Column("vendor_id")]
+  public ulong? VendorId { get; set; }
+
   [Column("name")]
   [MaxLength(255)]
   public string Name { get; set; } = string.Empty;
@@ -156,9 +175,17 @@ public class Poi
   [Column("is_premium")]
   public bool IsPremium { get; set; }
 
+  [Column("cover_url")]
+  [MaxLength(500)]
+  public string? CoverUrl { get; set; }
+
   [Column("status")]
   [MaxLength(30)]
   public string Status { get; set; } = "ACTIVE";
+
+  [Column("approval_status")]
+  [MaxLength(30)]
+  public string ApprovalStatus { get; set; } = "PENDING";
 
   [Column("created_at")]
   public DateTime CreatedAt { get; set; }
@@ -186,10 +213,6 @@ public class PoiContent
 
   [Column("tts_script")]
   public string? TtsScript { get; set; }
-
-  [Column("audio_file_url")]
-  [MaxLength(500)]
-  public string? AudioFileUrl { get; set; }
 
   [Column("voice_type")]
   [MaxLength(30)]

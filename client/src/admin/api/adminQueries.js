@@ -11,6 +11,7 @@ import {
   fetchGeofences,
   fetchRevenueOverview,
   fetchRevenueTimeline,
+  fetchPaymentRevenueStats,
   fetchTopUpRequests,
   fetchVendor,
   updateVendor,
@@ -54,7 +55,10 @@ import {
   resolveTicket,
   toggleStallPremium,
   fetchAdminUsers,
-  fetchCommissions
+  fetchCommissions,
+  grantMultiPremium,
+  setPremiumPriority,
+  adminCreateStallForVendor
 } from './adminApi';
 
 export const adminQueryKeys = {
@@ -186,6 +190,13 @@ export function useRevenueTimeline(params) {
   return useQuery({
     queryKey: adminQueryKeys.revenueTimeline(params),
     queryFn: () => fetchRevenueTimeline(params)
+  });
+}
+
+export function usePaymentRevenueStats() {
+  return useQuery({
+    queryKey: ['admin', 'revenue', 'payment-stats'],
+    queryFn: fetchPaymentRevenueStats
   });
 }
 
@@ -527,5 +538,38 @@ export function useCommissions() {
   return useQuery({
     queryKey: adminQueryKeys.commissions,
     queryFn: fetchCommissions
+  });
+}
+
+export function useGrantMultiPremium() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vendorId) => grantMultiPremium(vendorId),
+    onSuccess: (_data, vendorId) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(vendorId) });
+    }
+  });
+}
+
+export function useSetPremiumPriority() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ stallId, vendorId }) => setPremiumPriority(stallId, vendorId),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(variables.vendorId) });
+    }
+  });
+}
+
+export function useAdminCreateStallForVendor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ vendorId, data }) => adminCreateStallForVendor(vendorId, data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(variables.vendorId) });
+    }
   });
 }

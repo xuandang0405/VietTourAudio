@@ -28,6 +28,8 @@ export const paymentApi = {
       headers: { 'Content-Type': 'multipart/form-data' }
     }).then(unwrap);
   },
+  getStatus: (transactionId) =>
+    axios.get(`${appConfig.apiBaseUrl}/payment/status/${transactionId}`).then(unwrap),
   getConfigs: () => adminApiClient.get('/admin/payment-config').then(unwrap),
   updateConfig: (body) => adminApiClient.post('/admin/payment-config/update', body, {
     headers: { 'Content-Type': 'multipart/form-data' }

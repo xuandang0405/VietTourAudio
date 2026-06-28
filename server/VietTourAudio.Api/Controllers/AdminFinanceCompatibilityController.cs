@@ -230,6 +230,61 @@ public sealed class AdminRevenueCompatibilityController(AppDbContext db) : Contr
     foreach (var row in rows) csv.AppendLine(string.Join(',', row.Values.Select(x => $"\"{x?.ToString()?.Replace("\"", "\"\"")}\"")));
     return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv; charset=utf-8", "viettour-revenue.csv");
   }
+  [HttpGet("payment-stats")]
+  public async Task<IActionResult> PaymentStats()
+  {
+    var now = DateTime.UtcNow;
+
+    var allApproved = await db.PaymentTransactions
+      .Where(t => t.Status == "APPROVED")
+      .AsNoTracking()
+      .ToListAsync();
+
+    object CalculatePeriodMetrics(List<PaymentTransaction> transactions)
+    {
+      decimal tourist = transactions.Where(t => t.SenderType == "USER").Sum(t => t.Amount);
+      decimal vendor = transactions.Where(t => t.SenderType == "VENDOR").Sum(t => t.Amount);
+      return new
+      {
+        total = tourist + vendor,
+        tourist,
+        vendor,
+        count = transactions.Count
+      };
+    }
+
+    var todayStats = CalculatePeriodMetrics(allApproved.Where(t => t.CreatedAt.Date == now.Date).ToList());
+    var monthStats = CalculatePeriodMetrics(allApproved.Where(t => t.CreatedAt.Month == now.Month && t.CreatedAt.Year == now.Year).ToList());
+    var yearStats = CalculatePeriodMetrics(allApproved.Where(t => t.CreatedAt.Year == now.Year).ToList());
+    var allTimeStats = CalculatePeriodMetrics(allApproved);
+
+    int pendingCount = await db.PaymentTransactions
+      .CountAsync(t => t.Status == "PENDING");
+
+    var chartData = allApproved
+      .GroupBy(t => t.CreatedAt.ToString("MM/yyyy"))
+      .Select(g => new
+      {
+        period = g.Key,
+        tourist = g.Where(t => t.SenderType == "USER").Sum(t => t.Amount),
+        vendor = g.Where(t => t.SenderType == "VENDOR").Sum(t => t.Amount),
+        total = g.Sum(t => t.Amount)
+      })
+      .OrderBy(g => g.period)
+      .ToList();
+
+    return Ok(ApiResponseFactory.Ok(new
+    {
+      today = todayStats,
+      thisMonth = monthStats,
+      thisYear = yearStats,
+      allTime = allTimeStats,
+      pendingCount,
+      chartData,
+      activeUsers = Hubs.NotificationHub.ActiveUserCount
+    }));
+  }
+
   private static DateTime Start(string period)
   {
     var today = DateTime.Today;

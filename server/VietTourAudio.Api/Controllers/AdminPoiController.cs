@@ -5,13 +5,18 @@ using System.Text.Json;
 using VietTourAudio.Api.Data;
 using VietTourAudio.Api.Domain;
 using VietTourAudio.Api.Helpers;
+using VietTourAudio.Api.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 namespace VietTourAudio.Api.Controllers;
 
 [ApiController]
 [Route("api/admin/pois")]
 [Authorize(Roles = "SUPER_ADMIN,ADMIN")]
-public sealed class AdminPoiController(AppDbContext db, IHttpClientFactory clients) : ControllerBase
+public sealed class AdminPoiController(
+  AppDbContext db,
+  IHttpClientFactory clients,
+  IHubContext<NotificationHub> hubContext) : ControllerBase
 {
   [HttpGet]
   public async Task<IActionResult> List()
@@ -332,13 +337,20 @@ public sealed class AdminPoiController(AppDbContext db, IHttpClientFactory clien
         UPDATE {table} SET name=COALESCE(pending_name,name),description=COALESCE(pending_description,description),
           latitude=COALESCE(pending_latitude,latitude),longitude=COALESCE(pending_longitude,longitude),
           pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,pending_latitude=NULL,pending_longitude=NULL,
-          approval_status='APPROVED',updated_at=NOW() WHERE id=@id
+          approval_status='APPROVED',status={(
+            isStall ? "'APPROVED'" : "status"
+          )},updated_at=NOW() WHERE id=@id
         """
       : $"""
         UPDATE {table} SET pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,
-          pending_latitude=NULL,pending_longitude=NULL,approval_status='APPROVED',updated_at=NOW() WHERE id=@id
+          pending_latitude=NULL,pending_longitude=NULL,approval_status='REJECTED',updated_at=NOW() WHERE id=@id
         """);
     command.AddParameter("@id", numericId); await command.ExecuteNonQueryAsync();
+    if (isStall)
+      await hubContext.Clients.All.SendAsync(
+        "StallStatusUpdated",
+        numericId.ToString(),
+        approve ? "APPROVED" : "REJECTED");
     return Ok(ApiResponseFactory.Ok(new { id, approved = approve }));
   }
 

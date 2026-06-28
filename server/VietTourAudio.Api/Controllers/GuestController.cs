@@ -244,6 +244,68 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
     return Ok(ApiResponseFactory.Ok(rows));
   }
 
+  [HttpGet("audio/trigger")]
+  public async Task<IActionResult> TriggerAudio(
+    [FromQuery] string zone,
+    [FromQuery] double latitude,
+    [FromQuery] double longitude,
+    [FromQuery] string lang = "vi")
+  {
+    if (string.IsNullOrWhiteSpace(zone) ||
+        latitude is < -90 or > 90 ||
+        longitude is < -180 or > 180)
+      return BadRequest(ApiResponseFactory.Fail("stall.invalid_coordinates"));
+
+    var rows = await DatabaseSql.QueryRowsAsync(db, """
+      SELECT CAST(z.id AS CHAR) id,z.name,z.latitude,z.longitude,
+        COALESCE(pc.audio_url,'') audioUrl,
+        CAST(s.id AS CHAR) stallId,s.name stallName,
+        s.activation_radius triggerRadius,s.is_premium_priority isPremiumPriority
+      FROM zones z
+      JOIN stalls s ON s.id=z.stall_id
+      LEFT JOIN poi_contents pc
+        ON pc.poi_id=z.id AND pc.lang=@lang AND pc.approval_status='approved'
+      WHERE (LOWER(s.zone_code)=LOWER(@zone) OR LOWER(s.slug)=LOWER(@zone))
+        AND s.status='APPROVED' AND s.approval_status='APPROVED'
+        AND s.billing_suspended=0
+        AND z.status='ACTIVE' AND z.approval_status='APPROVED'
+      """, new Dictionary<string, object?>
+    {
+      ["@zone"] = zone.Trim(),
+      ["@lang"] = SupportedLanguage(lang)
+    });
+
+    var candidates = rows.Select(row =>
+    {
+      var distance = HaversineMeters(
+        latitude,
+        longitude,
+        Convert.ToDouble(row["latitude"]),
+        Convert.ToDouble(row["longitude"]));
+      return new
+      {
+        Row = row,
+        Distance = distance,
+        TriggerRadius = Convert.ToDouble(row["triggerRadius"]),
+        IsPremiumPriority = Convert.ToBoolean(row["isPremiumPriority"])
+      };
+    })
+    .Where(candidate => candidate.Distance <= candidate.TriggerRadius)
+    .OrderByDescending(candidate => candidate.IsPremiumPriority)
+    .ThenBy(candidate => candidate.Distance)
+    .FirstOrDefault();
+
+    if (candidates is null)
+      return Ok(ApiResponseFactory.Ok(new { triggered = false, poi = (object?)null }));
+
+    return Ok(ApiResponseFactory.Ok(new
+    {
+      triggered = true,
+      poi = candidates.Row,
+      computedDistanceToUser = Math.Round(candidates.Distance, 2)
+    }));
+  }
+
   [HttpGet("favorites/{guestId}")]
   public async Task<IActionResult> Favorites(string guestId)
   {
@@ -453,6 +515,18 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
 
   private static string SupportedLanguage(string lang) =>
     new[] { "vi", "en", "ja", "ko", "zh" }.Contains(lang) ? lang : "vi";
+
+  private static double HaversineMeters(double lat1, double lng1, double lat2, double lng2)
+  {
+    const double earthRadius = 6_371_000;
+    var dLat = (lat2 - lat1) * Math.PI / 180;
+    var dLng = (lng2 - lng1) * Math.PI / 180;
+    var a = Math.Pow(Math.Sin(dLat / 2), 2) +
+      Math.Cos(lat1 * Math.PI / 180) *
+      Math.Cos(lat2 * Math.PI / 180) *
+      Math.Pow(Math.Sin(dLng / 2), 2);
+    return earthRadius * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+  }
 }
 
 public sealed record TicketRequest(string Email, string Subject, string Message);

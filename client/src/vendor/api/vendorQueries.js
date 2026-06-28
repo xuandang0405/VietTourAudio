@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchVendorDashboard, fetchVendorPois, fetchVendorRevenue, fetchVendorStall, fetchVendorContent, fetchVendorStallQr } from './vendorApi';
+import { fetchVendorDashboard, fetchVendorPois, fetchVendorRevenue, fetchVendorStall, fetchVendorMyStalls, fetchVendorContent, fetchVendorStallQr } from './vendorApi';
 
 export const vendorQueryKeys = {
   dashboard: ['vendor', 'dashboard'],
   pois: ['vendor', 'pois'],
   revenue: ['vendor', 'revenue'],
   stall: ['vendor', 'stall'],
+  myStalls: ['vendor', 'my-stalls'],
   content: ['vendor', 'content'],
   stallQr: ['vendor', 'stall-qr']
 };
@@ -35,6 +36,13 @@ export function useVendorStall() {
   return useQuery({
     queryKey: vendorQueryKeys.stall,
     queryFn: fetchVendorStall
+  });
+}
+
+export function useVendorMyStalls() {
+  return useQuery({
+    queryKey: vendorQueryKeys.myStalls,
+    queryFn: fetchVendorMyStalls
   });
 }
 

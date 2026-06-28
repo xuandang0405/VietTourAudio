@@ -25,6 +25,11 @@ import {
   useRejectPoi
 } from '../../../admin/api/adminQueries';
 
+function toPublicImageUrl(value) {
+  if (!value || value.startsWith('blob:') || value.startsWith('data:') || /^https?:\/\//.test(value)) return value;
+  return `http://localhost:45200${value.startsWith('/') ? value : `/${value}`}`;
+}
+
 export function AdminPois() {
   const { t } = useTranslation();
 
@@ -646,43 +651,39 @@ export function AdminPois() {
                 <div className="grid grid-cols-1 gap-6">
                   {approvals.map((req) => (
                     <div key={req.id} className="bg-white rounded-3xl shadow-md border border-slate-200 overflow-hidden grid grid-cols-1 md:grid-cols-2">
-                      {/* Left: Current Info */}
+                      {/* Left: General Info */}
                       <div className="p-6 border-r border-slate-100 bg-slate-50/40">
                         <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                          {t('poi.current_live_info', { defaultValue: 'Thông tin hiện tại (Đang công khai)' })}
+                          Thông tin chung sạp hàng
                         </span>
                         <div className="mt-3 flex gap-3">
-                          {req.imageUrl ? (
-                            <img src={req.imageUrl} alt={req.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
-                          ) : (
-                            <div className="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center text-slate-400 text-xs shrink-0 font-bold">No Image</div>
-                          )}
+                          <div className="w-16 h-16 bg-indigo-100 text-indigo-700 rounded-xl flex items-center justify-center font-bold text-xs shrink-0">
+                            POI #{req.id}
+                          </div>
                           <div>
-                            <p className="text-xs font-bold text-teal-600">{req.vendorName} ({req.stallName})</p>
-                            <h3 className="font-extrabold text-slate-900 text-sm mt-1">#{req.id}: {req.name}</h3>
-                            <p className="text-xs text-slate-500 mt-2 line-clamp-3 leading-relaxed">{req.description}</p>
+                            <p className="text-xs font-bold text-teal-600">Vĩ độ: {req.latitude} | Kinh độ: {req.longitude}</p>
+                            <h3 className="font-extrabold text-slate-900 text-sm mt-1">{req.name}</h3>
+                            <p className="text-xs text-slate-500 mt-2 line-clamp-3 leading-relaxed">{req.description || 'Không có mô tả'}</p>
                           </div>
                         </div>
                       </div>
 
-                      {/* Right: Pending Info + Action buttons */}
+                      {/* Right: Proposal & Actions */}
                       <div className="p-6 flex flex-col justify-between">
                         <div>
                           <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-amber-600 tracking-wider bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                             <AlertTriangle size={10} />
-                            {t('poi.pending_changes_request', { defaultValue: 'Thông tin đề xuất chỉnh sửa' })}
+                            Đề xuất duyệt thay đổi
                           </span>
                           <div className="mt-3 flex gap-3">
-                            {req.pendingCoverImageUrl ? (
-                              <img src={req.pendingCoverImageUrl} alt={req.pendingName} className="w-16 h-16 rounded-xl object-cover shrink-0 border-2 border-amber-400" />
-                            ) : req.imageUrl ? (
-                              <img src={req.imageUrl} alt={req.pendingName} className="w-16 h-16 rounded-xl object-cover shrink-0 opacity-70" />
+                            {req.coverUrl ? (
+                              <img src={toPublicImageUrl(req.coverUrl)} alt={req.name} className="w-16 h-16 rounded-xl object-cover shrink-0 border-2 border-amber-400" />
                             ) : (
-                              <div className="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center text-slate-400 text-xs shrink-0 font-bold">No Image</div>
+                              <div className="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center text-slate-400 text-xs shrink-0 font-bold">No Cover</div>
                             )}
                             <div>
-                              <h3 className="font-extrabold text-slate-900 text-sm mt-1">{req.pendingName}</h3>
-                              <p className="text-xs text-slate-600 mt-2 line-clamp-3 leading-relaxed">{req.pendingDescription || req.description}</p>
+                              <h3 className="font-extrabold text-slate-900 text-sm mt-1">{req.name}</h3>
+                              <p className="text-xs text-slate-600 mt-2 line-clamp-3 leading-relaxed">{req.description}</p>
                             </div>
                           </div>
                         </div>

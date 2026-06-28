@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AdminGuard } from './features/auth/components/AdminGuard';
@@ -26,10 +26,9 @@ import { VendorGuard } from './features/auth/components/VendorGuard';
 import { VendorLayout } from './vendor/components/VendorLayout';
 import { VendorDashboard } from './features/vendor-wallet/pages/VendorDashboard';
 import { VendorLoginPage } from './features/auth/pages/VendorLoginPage';
-import { VendorPOIs } from './features/poi/pages/VendorPOIs';
 import { VendorRevenue } from './features/vendor-wallet/pages/VendorRevenue';
 import { VendorStall } from './features/vendor-wallet/pages/VendorStall';
-import { VendorContent } from './features/poi/pages/VendorContent';
+
 import { AppErrorBoundary } from './visitor/components/AppErrorBoundary';
 import { CheckoutModal } from './visitor/components/CheckoutModal';
 import { Confetti } from './visitor/components/Confetti';
@@ -45,6 +44,8 @@ import { ZonePage } from './features/poi/pages/ZonePage';
 import { AdminPaymentSettings } from './features/payment/AdminPaymentSettings';
 import { UserPremiumUpgrade } from './features/payment/UserPremiumUpgrade';
 import { VendorBilling } from './features/payment/VendorBilling';
+import { HubConnectionBuilder } from '@microsoft/signalr';
+import { appConfig } from './config/appConfig';
 
 function AppRoutes() {
   const { t } = useTranslation('translation', { keyPrefix: 'landing' });
@@ -56,6 +57,30 @@ function AppRoutes() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
+  const presenceRef = useRef(null);
+
+  // Global SignalR presence connection — registers this tab as an active user
+  useEffect(() => {
+    const backendUrl = appConfig.apiBaseUrl.replace(/\/api\/?$/, '');
+    const hubUrl = `${backendUrl}/hub/notifications`;
+
+    const connection = new HubConnectionBuilder()
+      .withUrl(hubUrl)
+      .withAutomaticReconnect()
+      .build();
+
+    connection.start()
+      .then(() => console.log('[Presence] SignalR connected — user counted'))
+      .catch((err) => console.error('[Presence] SignalR error:', err));
+
+    presenceRef.current = connection;
+
+    return () => {
+      connection.stop()
+        .then(() => console.log('[Presence] SignalR disconnected — user removed'))
+        .catch(() => {});
+    };
+  }, []);
 
   const showToast = useCallback((message) => {
     setToast(message);
@@ -129,8 +154,8 @@ function AppRoutes() {
             <Route path="/vendor" element={<VendorLayout />}>
               <Route index element={<VendorDashboard />} />
               <Route path="stall" element={<VendorStall />} />
-              <Route path="content" element={<VendorContent />} />
-              <Route path="pois" element={<VendorPOIs />} />
+
+              <Route path="pois" element={<Navigate to="/vendor/stall" replace />} />
               <Route path="revenue" element={<VendorRevenue />} />
               <Route path="billing" element={<VendorBilling />} />
             </Route>

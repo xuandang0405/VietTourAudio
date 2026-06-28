@@ -1,164 +1,236 @@
-import { Download, RefreshCcw, Repeat2, TrendingUp, WalletCards } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { exportRevenueCsv } from '../../../admin/api/adminApi';
-import { useRevenueOverview, useRevenueTimeline } from '../../../admin/api/adminQueries';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer,
+  Tooltip, XAxis, YAxis
+} from 'recharts';
+import {
+  CircleDollarSign, RefreshCcw, TrendingUp, Users, WalletCards,
+  Clock, Wifi
+} from 'lucide-react';
+import { HubConnectionBuilder } from '@microsoft/signalr';
 import { AdminPageHeader } from '../../../admin/components/AdminPageHeader';
 import { AdminStatCard } from '../../../admin/components/AdminStatCard';
-import { downloadBlob, formatCurrency, formatDate, toNumber } from '../../../admin/utils/formatters';
-
-const periods = [
-  { label: 'Hôm nay', value: 'today' },
-  { label: 'Tháng này', value: 'month' },
-  { label: 'YTD', value: 'ytd' }
-];
-
-const providerColors = ['#3B82F6', '#22C55E', '#F97316', '#8B5CF6', '#14B8A6', '#64748B'];
+import { usePaymentRevenueStats } from '../../../admin/api/adminQueries';
+import { formatCurrency } from '../../../admin/utils/formatters';
+import { appConfig } from '../../../config/appConfig';
 
 export function AdminRevenue() {
-  const [period, setPeriod] = useState('month');
-  const params = useMemo(() => ({ period }), [period]);
-  const overview = useRevenueOverview(params);
-  const timeline = useRevenueTimeline(params);
-  const chartRows = useMemo(() => buildTimeline(timeline.data ?? []), [timeline.data]);
-  const providerRows = useMemo(() => (overview.data?.providers ?? []).map((item) => ({ name: item.provider, value: toNumber(item.amount) })), [overview.data]);
+  const { data: stats, isLoading, refetch } = usePaymentRevenueStats();
+  const [activeOnlineUsers, setActiveOnlineUsers] = useState(0);
+  const [timePeriod, setTimePeriod] = useState('allTime');
+  const connectionRef = useRef(null);
 
-  async function handleExport() {
-    const blob = await exportRevenueCsv(params);
-    downloadBlob(blob, `viettour-revenue-${period}.csv`);
-  }
+  // Seed initial active users from the REST fallback
+  useEffect(() => {
+    if (stats?.activeUsers != null) {
+      setActiveOnlineUsers(stats.activeUsers);
+    }
+  }, [stats]);
+
+  // Subscribe to real-time active user count via SignalR
+  useEffect(() => {
+    const backendUrl = appConfig.apiBaseUrl.replace(/\/api\/?$/, '');
+    const hubUrl = `${backendUrl}/hub/notifications`;
+
+    const connection = new HubConnectionBuilder()
+      .withUrl(hubUrl)
+      .withAutomaticReconnect()
+      .build();
+
+    connection.on('UpdateActiveUsersCount', (liveCount) => {
+      setActiveOnlineUsers(liveCount);
+    });
+
+    // Also auto-refresh financial stats when a payment is verified by admin
+    connection.on('ReceiveNotification', (notification) => {
+      if (notification?.type === 'PAYMENT_PROOF' || notification?.type === 'PAYMENT_APPROVED') {
+        refetch();
+      }
+    });
+
+    connection.start()
+      .then(() => console.log('[RevenueDashboard] SignalR connected'))
+      .catch((err) => console.error('[RevenueDashboard] SignalR error:', err));
+
+    connectionRef.current = connection;
+
+    return () => {
+      connection.off('UpdateActiveUsersCount');
+      connection.off('ReceiveNotification');
+      connection.stop().catch(() => {});
+    };
+  }, [refetch]);
+
+  const currentYear = new Date().getFullYear().toString();
+  const currentMonth = `${String(new Date().getMonth() + 1).padStart(2, '0')}/${currentYear}`;
+
+  const chartData = (stats?.chartData ?? [])
+    .filter((item) => {
+      if (timePeriod === 'thisYear') {
+        return item.period.endsWith(currentYear);
+      }
+      if (timePeriod === 'thisMonth' || timePeriod === 'today') {
+        return item.period === currentMonth;
+      }
+      return true; // allTime
+    })
+    .map((item) => ({
+      period: item.period,
+      tourist: Number(item.tourist ?? 0),
+      vendor: Number(item.vendor ?? 0)
+    }));
+
+  const currentMetrics = stats?.[timePeriod] || { total: 0, tourist: 0, vendor: 0, count: 0 };
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-5">
       <AdminPageHeader
         eyebrow="Revenue"
-        title="Doanh thu"
-        description="Theo dõi doanh thu, top-up, MRR, renewals và xuất CSV theo kỳ."
+        title="Doanh thu hệ thống"
+        description="Tổng quan tài chính và chỉ số hoạt động kinh doanh của toàn bộ nền tảng theo thời gian thực."
         action={
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                overview.refetch();
-                timeline.refetch();
-              }}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50"
-            >
-              <RefreshCcw size={17} />
-              Làm mới
-            </button>
-            <button
-              type="button"
-              onClick={handleExport}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
-            >
-              <Download size={17} />
-              Export CSV
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+          >
+            <RefreshCcw size={17} />
+            Làm mới
+          </button>
         }
       />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-        <div className="flex gap-2 overflow-x-auto hide-scrollbar">
-          {periods.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => setPeriod(item.value)}
-              className={period === item.value ? 'shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-sm font-black text-white' : 'shrink-0 rounded-xl bg-slate-100 px-3 py-2 text-sm font-black text-slate-600 transition hover:bg-slate-200'}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </section>
+      {/* Time Period Filter Tabs */}
+      <div className="flex bg-slate-100 p-1.5 rounded-xl gap-1 w-fit mb-6 border border-slate-200">
+        {['today', 'thisMonth', 'thisYear', 'allTime'].map((period) => (
+          <button
+            key={period}
+            type="button"
+            onClick={() => setTimePeriod(period)}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition active:scale-[0.98] cursor-pointer ${
+              timePeriod === period 
+                ? 'bg-white text-teal-600 shadow-sm' 
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            {period === 'today' && 'Hôm nay'}
+            {period === 'thisMonth' && 'Tháng này'}
+            {period === 'thisYear' && 'Năm nay'}
+            {period === 'allTime' && 'Từ trước đến nay'}
+          </button>
+        ))}
+      </div>
 
-      {overview.error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
-          {overview.error.response?.data?.error ?? 'Không tải được revenue overview.'}
-        </div>
-      )}
-
+      {/* KPI Cards Row */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <AdminStatCard label="MRR" value={formatCurrency(overview.data?.mrr)} helper={`${overview.data?.activeSubscriptions ?? 0} subscription ACTIVE`} trend="up" tone="blue" icon={TrendingUp} />
-        <AdminStatCard label="Total revenue" value={formatCurrency(overview.data?.totalRevenue)} helper="Payment PAID trong kỳ" trend="up" tone="green" icon={WalletCards} />
-        <AdminStatCard label="Top-Ups" value={formatCurrency(overview.data?.totalTopUps)} helper="TopUpRequest APPROVED" trend="up" tone="indigo" icon={WalletCards} />
-        <AdminStatCard label="Renewals" value={overview.data?.renewals ?? 0} helper="Subscription fee transactions" trend="up" tone="amber" icon={Repeat2} />
-      </section>
-
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-4">
-            <h2 className="text-base font-black text-slate-950">Timeline doanh thu</h2>
-            <p className="text-sm font-semibold text-slate-500">Dữ liệu từ RevenueDaily</p>
+        <AdminStatCard
+          label="Tổng doanh thu"
+          value={isLoading ? '—' : formatCurrency(currentMetrics.total)}
+          helper="Tổng doanh thu hoàn tất đối soát"
+          trend="up"
+          tone="green"
+          icon={CircleDollarSign}
+        />
+        <AdminStatCard
+          label="Doanh thu khách du lịch"
+          value={isLoading ? '—' : formatCurrency(currentMetrics.tourist)}
+          helper="Doanh thu kích hoạt tài khoản Premium"
+          trend="up"
+          tone="blue"
+          icon={TrendingUp}
+        />
+        <AdminStatCard
+          label="Doanh thu nhà cung cấp"
+          value={isLoading ? '—' : formatCurrency(currentMetrics.vendor)}
+          helper="Doanh thu duy trì sạp hàng & dịch vụ"
+          trend="up"
+          tone="indigo"
+          icon={WalletCards}
+        />
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-slate-500">Người online</p>
+              <p className="mt-2 text-2xl font-black text-slate-950">{activeOnlineUsers}</p>
+            </div>
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
+              <Wifi size={21} />
+            </span>
           </div>
-          <div className="w-full h-[360px] min-w-0 min-h-[300px] relative">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={50}>
-              <LineChart data={chartRows} margin={{ left: -10, right: 10, top: 8, bottom: 0 }}>
-                <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="dateLabel" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12, fontWeight: 700 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12, fontWeight: 700 }} tickFormatter={(value) => `${Math.round(value / 1000)}k`} />
-                <Tooltip formatter={(value) => formatCurrency(value)} />
-                <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#3B82F6" strokeWidth={3} dot={false} />
-                <Line type="monotone" dataKey="topUps" name="Top-Ups" stroke="#22C55E" strokeWidth={3} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="mt-4 flex items-center gap-1.5 text-xs font-black text-slate-500">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            </span>
+            Số lượng thiết bị đang truy cập thời gian thực
           </div>
         </article>
+      </section>
 
-        <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-base font-black text-slate-950">Provider mix</h2>
-          <p className="mt-1 text-sm font-semibold text-slate-500">Payment provider theo kỳ</p>
-          <div className="w-full h-[260px] min-w-0 min-h-[220px] relative">
-            {providerRows.length ? (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={50}>
-                <PieChart>
-                  <Pie data={providerRows} dataKey="value" nameKey="name" innerRadius={62} outerRadius={96} paddingAngle={3}>
-                    {providerRows.map((entry, index) => (
-                      <Cell key={entry.name} fill={providerColors[index % providerColors.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="grid h-full place-items-center rounded-2xl bg-slate-50 text-sm font-semibold text-slate-500">Chưa có dữ liệu provider.</div>
-            )}
+      {/* Pending Transactions Banner */}
+      {(stats?.pendingCount ?? 0) > 0 && (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-600">
+              <Clock size={20} />
+            </span>
+            <div>
+              <p className="text-sm font-black text-amber-800">
+                {stats.pendingCount} giao dịch đang chờ duyệt
+              </p>
+              <p className="text-xs font-semibold text-amber-600">
+                Các giao dịch PENDING cần Admin xác nhận minh chứng chuyển khoản.
+              </p>
+            </div>
           </div>
-          <div className="mt-4 space-y-2">
-            {providerRows.map((entry, index) => (
-              <div key={entry.name} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm">
-                <span className="flex items-center gap-2 font-bold text-slate-700">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: providerColors[index % providerColors.length] }} />
-                  {entry.name}
-                </span>
-                <span className="font-black text-slate-950">{formatCurrency(entry.value)}</span>
-              </div>
-            ))}
+        </section>
+      )}
+
+      {/* Monthly Revenue Chart */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
+        <div className="mb-5">
+          <h2 className="text-base font-black text-slate-950">Biểu đồ tăng trưởng doanh thu hệ thống</h2>
+          <p className="text-sm font-semibold text-slate-500">
+            Phân tách luồng tiền thu thập từ Tài khoản Khách tham quan và Đối tác cung cấp gói dịch vụ.
+          </p>
+        </div>
+
+        {chartData.length > 0 ? (
+          <div className="w-full h-[380px] min-w-0 min-h-[300px] relative">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={50}>
+              <BarChart data={chartData} margin={{ left: -10, right: 10, top: 8, bottom: 0 }}>
+                <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="period"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#64748B', fontSize: 12, fontWeight: 700 }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#64748B', fontSize: 12, fontWeight: 700 }}
+                  tickFormatter={(value) => `${Math.round(value / 1000)}k`}
+                />
+                <Tooltip
+                  formatter={(value) => formatCurrency(value)}
+                  contentStyle={{
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 14,
+                    boxShadow: '0 18px 45px rgba(15, 23, 42, 0.12)'
+                  }}
+                />
+                <Bar dataKey="tourist" name="Khách du lịch" fill="#3B82F6" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="vendor" name="Nhà cung cấp" fill="#8B5CF6" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        </aside>
+        ) : (
+          <div className="grid h-[300px] place-items-center rounded-2xl bg-slate-50 text-sm font-semibold text-slate-500">
+            {isLoading ? 'Đang tải dữ liệu...' : 'Chưa có giao dịch APPROVED nào trong hệ thống.'}
+          </div>
+        )}
       </section>
     </div>
   );
-}
-
-function buildTimeline(rows) {
-  const grouped = new Map();
-
-  rows.forEach((row) => {
-    const key = String(row.date).slice(0, 10);
-    const current = grouped.get(key) ?? { date: key, dateLabel: formatDate(key), revenue: 0, topUps: 0 };
-    const amount = toNumber(row.totalAmount);
-
-    if (row.source === 'TOP_UP') {
-      current.topUps += amount;
-    } else {
-      current.revenue += amount;
-    }
-
-    grouped.set(key, current);
-  });
-
-  return Array.from(grouped.values());
 }

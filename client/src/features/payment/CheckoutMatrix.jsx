@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Building2, CheckCircle2, Copy, CreditCard, Loader2, Smartphone } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Building2, CheckCircle2, Copy, CreditCard, Crown, Loader2, Radio, Smartphone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { resolveBackendMediaUrl } from '../../utils/mediaUrl';
 import { paymentApi } from './paymentApi';
+import { HubConnectionBuilder } from '@microsoft/signalr';
+import { appConfig } from '../../config/appConfig';
 
 const methods = [
   { id: 'MOMO', icon: Smartphone, key: 'payment.momo' },
@@ -11,7 +13,7 @@ const methods = [
   { id: 'VISA', icon: CreditCard, key: 'payment.visa' }
 ];
 
-export function CheckoutMatrix({ senderId, senderType, transactionType, onSuccess }) {
+export function CheckoutMatrix({ senderId, senderType, transactionType, onSuccess, onSuccessClose }) {
   const { t } = useTranslation();
   const [method, setMethod] = useState('MOMO');
   const [configs, setConfigs] = useState([]);
@@ -19,9 +21,21 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
   const [checkout, setCheckout] = useState(null);
   const [busy, setBusy] = useState(false);
   const [proof, setProof] = useState(null);
-  const [waiting, setWaiting] = useState(false);
+  const [viewMode, setViewMode] = useState('CHECKOUT');
+  const [activeTransactionId, setActiveTransactionId] = useState('');
   const [qrFailed, setQrFailed] = useState(false);
   const [card, setCard] = useState({ cardholderName: '', cardNumber: '', expiry: '', cvv: '' });
+  const successTriggeredRef = useRef(false);
+
+  const triggerVendorSuccessCelebration = useCallback(() => {
+    if (successTriggeredRef.current) return;
+    successTriggeredRef.current = true;
+    setViewMode('SUCCESS');
+    onSuccess?.();
+    toast.success(t('vendor_payment.success_toast', {
+      defaultValue: 'Kích hoạt gói Vendor thành công!'
+    }));
+  }, [onSuccess, t]);
 
   useEffect(() => {
     let active = true;
@@ -45,7 +59,9 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
     let active = true;
     setBusy(true);
     setCheckout(null);
-    setWaiting(false);
+    setViewMode('CHECKOUT');
+    setActiveTransactionId('');
+    successTriggeredRef.current = false;
     setQrFailed(false);
     paymentApi.initialize({ senderId: String(senderId), senderType, paymentMethod: method, transactionType })
       .then((data) => { if (active) setCheckout(data); })
@@ -53,6 +69,57 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
   }, [configs, configsLoading, method, senderId, senderType, t, transactionType]);
+
+  useEffect(() => {
+    if (senderType !== 'VENDOR' || viewMode !== 'WAITING_APPROVAL' || !activeTransactionId) {
+      return undefined;
+    }
+
+    let disposed = false;
+    const backendRoot = appConfig.apiBaseUrl.replace(/\/api\/?$/, '');
+    const connection = new HubConnectionBuilder()
+      .withUrl(`${backendRoot}/hub/notifications`)
+      .withAutomaticReconnect()
+      .build();
+
+    const handlePaymentUpdate = (targetId, currentStatus) => {
+      if (String(targetId).toLowerCase() !== activeTransactionId.toLowerCase()) return;
+      if (String(currentStatus).toUpperCase() === 'APPROVED') {
+        triggerVendorSuccessCelebration();
+      }
+      if (String(currentStatus).toUpperCase() === 'FAILED') {
+        setViewMode('CHECKOUT');
+        toast.error(t('vendor_payment.rejected', {
+          defaultValue: 'Giao dịch chưa được phê duyệt. Vui lòng kiểm tra lại minh chứng.'
+        }));
+      }
+    };
+
+    connection.on('ReceivePaymentUpdate', handlePaymentUpdate);
+    connection.start().catch((error) => {
+      if (!disposed) console.warn('Vendor payment SignalR unavailable; polling remains active.', error);
+    });
+
+    const pollStatus = async () => {
+      try {
+        const data = await paymentApi.getStatus(activeTransactionId);
+        const status = String(data?.status ?? data?.data?.status ?? '').toUpperCase();
+        if (status === 'APPROVED') triggerVendorSuccessCelebration();
+        if (status === 'FAILED') handlePaymentUpdate(activeTransactionId, status);
+      } catch (error) {
+        if (!disposed) console.debug('Vendor status check poll slipped:', error.message);
+      }
+    };
+
+    void pollStatus();
+    const vendorPollTimer = window.setInterval(pollStatus, 3000);
+    return () => {
+      disposed = true;
+      window.clearInterval(vendorPollTimer);
+      connection.off('ReceivePaymentUpdate', handlePaymentUpdate);
+      void connection.stop();
+    };
+  }, [activeTransactionId, senderType, t, triggerVendorSuccessCelebration, viewMode]);
 
   async function copyMemo() {
     try {
@@ -68,7 +135,8 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
     setBusy(true);
     try {
       await paymentApi.uploadProof(checkout.transaction.id, proof);
-      setWaiting(true);
+      setActiveTransactionId(String(checkout.transaction.id));
+      setViewMode('WAITING_APPROVAL');
       toast.success(t('payment.manual_submission_success'));
     } catch (error) {
       toast.error(error.response?.data?.message ?? t('common.error'));
@@ -82,8 +150,11 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
     setBusy(true);
     try {
       await paymentApi.processVisa({ transactionId: checkout.transaction.id, ...card });
-      toast.success(t('payment.success'));
-      onSuccess?.();
+      if (senderType === 'VENDOR') triggerVendorSuccessCelebration();
+      else {
+        toast.success(t('payment.success'));
+        onSuccess?.();
+      }
     } catch (error) {
       toast.error(error.response?.data?.message ?? t('payment.card_failed'));
     } finally {
@@ -93,6 +164,61 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
 
   return (
     <section className="relative rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/50 md:p-7">
+      {viewMode === 'WAITING_APPROVAL' && (
+        <div className="grid min-h-[500px] place-items-center overflow-hidden rounded-3xl bg-slate-950 p-6 text-center text-white">
+          <div className="relative z-10 max-w-xl">
+            <div className="relative mx-auto h-36 w-36">
+              <div className="absolute inset-0 animate-ping rounded-full border border-teal-400/30" />
+              <div className="absolute inset-3 animate-pulse rounded-full bg-teal-400/10 shadow-[0_0_60px_rgba(45,212,191,0.35)]" />
+              <div className="absolute inset-6 animate-spin rounded-full border-4 border-transparent border-r-teal-300 border-t-teal-400" />
+              <div className="absolute inset-0 grid place-items-center">
+                <Radio size={38} className="text-teal-300" />
+              </div>
+            </div>
+            <h2 className="mt-8 text-2xl font-black">
+              {t('vendor_payment.waiting_title', {
+                defaultValue: 'Đang xác thực giao dịch gia hạn...'
+              })}
+            </h2>
+            <p className="mt-4 leading-7 text-slate-300">
+              {t('vendor_payment.waiting_desc', {
+                defaultValue: 'Hệ thống đang kiểm tra minh chứng chuyển khoản từ Đối tác. Vui lòng giữ nguyên màn hình, tính năng sạp hàng/Premium sẽ tự động kích hoạt ngay khi hoàn tất đối soát.'
+              })}
+            </p>
+            <p className="mt-5 font-mono text-xs text-teal-300/80">
+              {t('vendor_payment.transaction_id', { defaultValue: 'Mã giao dịch' })}: {activeTransactionId}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {viewMode === 'SUCCESS' && (
+        <div className="grid min-h-[500px] place-items-center overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-amber-950 to-slate-950 p-6 text-center text-white">
+          <div className="max-w-xl">
+            <div className="mx-auto grid h-28 w-28 scale-110 place-items-center rounded-full bg-amber-300/20 text-amber-300 shadow-[0_0_70px_rgba(251,191,36,0.45)] ring-4 ring-amber-300/30 transition-all duration-500">
+              <Crown size={54} />
+            </div>
+            <CheckCircle2 size={34} className="mx-auto mt-6 text-emerald-400" />
+            <h2 className="mt-4 text-3xl font-black">
+              {t('vendor_payment.success_title', { defaultValue: 'Kích hoạt thành công!' })}
+            </h2>
+            <p className="mt-4 text-slate-200">
+              {t('vendor_payment.success_desc', {
+                defaultValue: 'Gói dịch vụ đã được kích hoạt. Quyền quản lý sạp mở rộng đã sẵn sàng.'
+              })}
+            </p>
+            <button
+              type="button"
+              onClick={onSuccessClose}
+              className="mt-8 rounded-2xl bg-amber-300 px-6 py-3 font-black text-slate-950 shadow-lg shadow-amber-500/20 transition hover:scale-105 hover:bg-amber-200"
+            >
+              {t('vendor_payment.start_now', { defaultValue: 'Bắt đầu trải nghiệm ngay' })}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {viewMode === 'CHECKOUT' && <>
       <h2 className="text-xl font-black text-slate-950">{t('payment.select_method')}</h2>
       {configsLoading && <div className="mt-5 flex items-center gap-2 text-sm font-bold text-slate-500"><Loader2 className="animate-spin" size={18} />{t('payment.loading_gateways')}</div>}
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -132,10 +258,10 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
             <p className="text-lg font-black text-teal-700">{Number(checkout.transaction.amount).toLocaleString()} VND</p>
             <input type="file" accept="image/*" onChange={(e) => setProof(e.target.files?.[0] ?? null)}
               className="block w-full rounded-xl border border-slate-200 p-3 text-sm" />
-            <button type="button" disabled={busy || waiting} onClick={submitProof}
+            <button type="button" disabled={busy} onClick={submitProof}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-3 font-black text-white disabled:opacity-60">
-              {waiting ? <CheckCircle2 size={18} /> : busy ? <Loader2 className="animate-spin" size={18} /> : null}
-              {waiting ? t('payment.waiting_admin') : t('payment.submit_transaction')}
+              {busy ? <Loader2 className="animate-spin" size={18} /> : null}
+              {t('payment.submit_transaction')}
             </button>
           </div>
         </div>
@@ -174,6 +300,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
           <div><div className="mx-auto grid h-20 w-20 animate-pulse place-items-center rounded-full bg-teal-500/20 ring-4 ring-teal-400/30"><CreditCard size={36} className="text-teal-300" /></div><p className="mt-5 text-lg font-black">{t('payment.secure_processing')}</p><p className="mt-2 text-sm text-slate-300">{t('payment.secure_processing_desc')}</p></div>
         </div>
       )}
+      </>}
     </section>
   );
 }

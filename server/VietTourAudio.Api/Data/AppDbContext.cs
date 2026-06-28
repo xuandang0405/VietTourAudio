@@ -74,14 +74,18 @@ public class AppDbContext : DbContext
       entity.Property(x => x.Id).HasColumnName("id");
       entity.Property(x => x.TourId).HasColumnName("tour_id");
       entity.Property(x => x.StallId).HasColumnName("stall_id");
+      entity.Property(x => x.VendorId).HasColumnName("vendor_id");
       entity.Property(x => x.Name).HasColumnName("name");
       entity.Property(x => x.Slug).HasColumnName("slug");
       entity.Property(x => x.Description).HasColumnName("description");
       entity.Property(x => x.Latitude).HasColumnName("latitude");
       entity.Property(x => x.Longitude).HasColumnName("longitude");
       entity.Property(x => x.ActivationRadius).HasColumnName("activation_radius");
+      entity.Property(x => x.CoverUrl).HasColumnName("cover_url");
       entity.Property(x => x.Status).HasColumnName("status");
       entity.Property(x => x.ApprovalStatus).HasColumnName("approval_status").HasConversion<string>();
+      entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+      entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
       entity.HasIndex(x => new { x.StallId, x.Slug }).IsUnique();
       entity.HasOne(x => x.FestivalZone).WithMany(x => x.Pois).HasForeignKey(x => x.TourId).OnDelete(DeleteBehavior.Cascade);
     });

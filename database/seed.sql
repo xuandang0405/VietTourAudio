@@ -1,6 +1,6 @@
 -- =============================================================================
--- VietTourAudio — Production Seed Data (Ho Chi Minh City ONLY)
--- All coordinates strictly within HCMC (Lat ~10.77x, Lng ~106.70x)
+-- VietTourAudio — Production Seed Data (Hà Tôn Quyền Sủi Cảo walking tour ONLY)
+-- All coordinates strictly within HCMC (Hà Tôn Quyền area: Lat ~10.7601x, Lng ~106.6575x)
 -- =============================================================================
 
 USE viettuoraudio;
@@ -9,7 +9,6 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 TRUNCATE TABLE unlocked_tours;
-TRUNCATE TABLE payment_requests;
 TRUNCATE TABLE revenue_daily;
 TRUNCATE TABLE analytics_daily_stall;
 TRUNCATE TABLE commission_earnings;
@@ -63,18 +62,13 @@ INSERT INTO subscription_plans (id, code, name, price, max_stalls, max_pois_per_
 (2, 'PREMIUM_MONTHLY', 'Premium Monthly', 599000.00, 10, 80, 500, 1, 1);
 
 -- =============================================================================
--- VENDORS — 8 vendors, all HCMC-based businesses
+-- VENDORS — Authentic Hà Tôn Quyền vendors
 -- =============================================================================
 
-INSERT INTO vendors (id, legal_name, trade_name, slug, vendor_code, assigned_tour_id, contact_name, contact_email, phone, address, status, rejection_reason, approved_by_user_id, approved_at) VALUES
-(1, 'Công ty TNHH Ẩm Thực Bến Thành', 'Ẩm Thực Bến Thành', 'am-thuc-ben-thanh', 'VND-0001', 1, 'Nguyễn Văn Hùng', 'hung@amthucbenthanh.vn', '0901100001', '23 Phan Bội Châu, Quận 1, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 09:00:00'),
-(2, 'Hộ Kinh Doanh Cà Phê Nguyễn Huệ', 'Cà Phê Nguyễn Huệ', 'ca-phe-nguyen-hue', 'VND-0002', 1, 'Trần Thị Mai', 'mai@caphenguyenhue.vn', '0901100002', '68 Nguyễn Huệ, Quận 1, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 09:10:00'),
-(3, 'Công ty Thủ Công Mỹ Nghệ Sài Gòn', 'Thủ Công Sài Gòn', 'thu-cong-sai-gon', 'VND-0003', 1, 'Lê Quốc Bảo', 'bao@thucongsg.vn', '0901100003', '45 Lê Lợi, Quận 1, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 09:20:00'),
-(4, 'Hộ Kinh Doanh Bánh Mì Sài Gòn', 'Bánh Mì Sài Gòn', 'banh-mi-sai-gon', 'VND-0004', 1, 'Phạm Hoài Linh', 'linh@banhmisaigon.vn', '0901100004', '120 Nguyễn Trãi, Quận 1, TP.HCM', 'PENDING', NULL, NULL, NULL),
-(5, 'Quán Nước Ép Tươi Quận 1', 'Nước Ép Tươi Q1', 'nuoc-ep-tuoi-q1', 'VND-0005', 1, 'Võ Thanh Tâm', 'tam@nuoceptuoi.vn', '0901100005', '90 Đề Thám, Quận 1, TP.HCM', 'REJECTED', 'Thiếu giấy phép kinh doanh hợp lệ.', 3, NULL),
-(6, 'Công ty Du Lịch Vĩnh Khánh Foods', 'Vĩnh Khánh Seafood', 'vinh-khanh-seafood', 'VND-0006', 2, 'Đặng Mỹ Duyên', 'duyen@vinhkhanh.vn', '0901100006', '162 Vĩnh Khánh, Quận 4, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 10:00:00'),
-(7, 'Studio Áo Dài Đường Sách', 'Áo Dài Đường Sách', 'ao-dai-duong-sach', 'VND-0007', 1, 'Hoàng Nhật Quang', 'quang@aodaids.vn', '0901100007', '44 Nguyễn Văn Bình, Quận 1, TP.HCM', 'SUSPENDED', 'Tạm dừng do quá hạn phí dịch vụ.', 4, NULL),
-(8, 'Hộ Kinh Doanh Phở Sài Gòn', 'Phở Gia Truyền Sài Gòn', 'pho-gia-truyen-sai-gon', 'VND-0008', 3, 'Bùi Ngọc Hân', 'han@phosaigon.vn', '0901100008', '260 Pasteur, Quận 3, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 10:30:00');
+INSERT INTO vendors (id, legal_name, trade_name, slug, vendor_code, assigned_tour_id, contact_name, contact_email, phone, address, status, approved_by_user_id, approved_at) VALUES
+(1, 'Công ty TNHH Sủi Cảo Thiên Thiên', 'Sủi Cảo Thiên Thiên', 'sui-cao-thien-thien', 'VND-HTQ01', 1, 'Lâm Thiên', 'thienthien@viettuoraudio.vn', '02838561111', '197 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 'APPROVED', 2, '2026-06-01 09:00:00'),
+(2, 'Hộ Kinh Doanh Sủi Cảo Ngọc Ý', 'Sủi Cảo Ngọc Ý', 'sui-cao-ngoc-y', 'VND-HTQ02', 1, 'Trương Ngọc Ý', 'ngocy@viettuoraudio.vn', '02839556666', '187 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 'APPROVED', 2, '2026-06-01 09:10:00'),
+(3, 'Hộ Kinh Doanh Sủi Cảo Như Ý', 'Sủi Cảo Như Ý', 'sui-cao-nhu-y', 'VND-HTQ03', 1, 'Lý Như Ý', 'nhuy@viettuoraudio.vn', '02839558888', '185 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 'APPROVED', 2, '2026-06-01 09:20:00');
 
 -- =============================================================================
 -- VENDOR PORTAL USERS — Password: Vendor123
@@ -82,345 +76,111 @@ INSERT INTO vendors (id, legal_name, trade_name, slug, vendor_code, assigned_tou
 -- =============================================================================
 
 INSERT INTO vendor_portal_users (id, vendor_id, email, pass_hash, full_name, status) VALUES
-(1, 1, 'hung@amthucbenthanh.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Nguyễn Văn Hùng', 'ACTIVE'),
-(2, 2, 'mai@caphenguyenhue.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Trần Thị Mai', 'ACTIVE'),
-(3, 3, 'bao@thucongsg.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Lê Quốc Bảo', 'ACTIVE'),
-(4, 6, 'duyen@vinhkhanh.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Đặng Mỹ Duyên', 'ACTIVE'),
-(5, 8, 'han@phosaigon.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Bùi Ngọc Hân', 'ACTIVE');
+(1, 1, 'thienthien@viettuoraudio.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Lâm Thiên', 'ACTIVE'),
+(2, 2, 'ngocy@viettuoraudio.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Trương Ngọc Ý', 'ACTIVE'),
+(3, 3, 'nhuy@viettuoraudio.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Lý Như Ý', 'ACTIVE');
 
 -- =============================================================================
--- VENDOR SUBSCRIPTIONS
+-- VENDOR SUBSCRIPTIONS & WALLETS
 -- =============================================================================
 
 INSERT INTO vendor_subscriptions (id, vendor_id, plan_id, status, period_start, period_end, trial_end, next_billing_date, payment_status, price_snapshot) VALUES
 (1, 1, 2, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, '2026-06-30', 'paid', 599000.00),
 (2, 2, 2, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, '2026-06-30', 'paid', 599000.00),
-(3, 3, 1, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, '2026-06-30', 'paid', 299000.00),
-(4, 4, 1, 'TRIAL', '2026-06-10', '2026-06-24', '2026-06-24', '2026-06-24', 'unpaid', 0.00),
-(5, 5, 1, 'CANCELLED', '2026-05-01', '2026-05-31', NULL, '2026-05-31', 'unpaid', 299000.00),
-(6, 6, 1, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, '2026-06-30', 'paid', 299000.00),
-(7, 7, 2, 'SUSPENDED', '2026-05-01', '2026-05-31', NULL, '2026-05-31', 'unpaid', 599000.00),
-(8, 8, 2, 'OVERDUE', '2026-05-15', '2026-06-14', NULL, '2026-06-14', 'unpaid', 599000.00);
+(3, 3, 2, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, '2026-06-30', 'paid', 599000.00);
+
+INSERT INTO vendor_wallets (id, vendor_id, balance, promo_balance, created_at, updated_at) VALUES
+(1, 1, 2500000.00, 500000.00, NOW(), NOW()),
+(2, 2, 1800000.00, 200000.00, NOW(), NOW()),
+(3, 3, 3200000.00, 800000.00, NOW(), NOW());
 
 -- =============================================================================
--- TOURS — 3 themed walking tours across HCMC
+-- TOURS — Food walking tour on Hà Tôn Quyền Street
 -- =============================================================================
 
 INSERT INTO tours (id, vendor_id, name, slug, description, latitude, longitude, status, sort_order, is_premium) VALUES
-(1, 1, 'Phố đi bộ Nguyễn Huệ', 'nguyen-hue', 'Trải nghiệm ẩm thực và văn hóa dọc phố đi bộ Nguyễn Huệ, trung tâm Quận 1.', 10.7734200, 106.7031800, 'PUBLISHED', 1, 0),
-(2, 6, 'Khu ẩm thực Vĩnh Khánh', 'vinh-khanh', 'Thiên đường hải sản và ốc nổi tiếng nhất Sài Gòn tại đường Vĩnh Khánh, Quận 4.', 10.7580000, 106.6990000, 'PUBLISHED', 2, 0),
-(3, 8, 'Hành lang Pasteur – Quận 3', 'pasteur-q3', 'Khám phá ẩm thực truyền thống dọc đường Pasteur, từ phở đến bún bò.', 10.7830000, 106.6950000, 'PUBLISHED', 3, 1);
+(1, 1, 'Tour Ẩm Thực Phố Sủi Cảo Hà Tôn Quyền - Quận 11', 'sui-cao-ha-ton-quyen', 'Hành trình khám phá con phố sủi cảo người Hoa sầm uất bậc nhất Sài Gòn tại Quận 11.', 10.7601660, 106.6575190, 'PUBLISHED', 1, 1);
 
 -- =============================================================================
--- STALLS — 8 physical stall locations, precise HCMC coordinates
--- Vendor 1: Bến Thành area      (10.7722, 106.6980)
--- Vendor 2: Nguyễn Huệ           (10.7735, 106.7032)
--- Vendor 3: Lê Lợi pedestrian    (10.7730, 106.6990)
--- Vendor 4: Nguyễn Trãi           (10.7700, 106.6920)
--- Vendor 5: Đề Thám backpacker   (10.7690, 106.6936)
--- Vendor 6: Vĩnh Khánh, Q4       (10.7580, 106.6990)
--- Vendor 7: Đường sách NVB       (10.7790, 106.7000)
--- Vendor 8: Pasteur, Q3           (10.7830, 106.6950)
+-- STALLS — Physical location details on the street map
 -- =============================================================================
 
-INSERT INTO stalls (id, vendor_id, name, slug, description, address, latitude, longitude, activation_radius, status, opening_hours, is_featured, is_premium, priority_score, zone_code) VALUES
-(1, 1, 'Sạp Ẩm Thực Bến Thành', 'sap-am-thuc-ben-thanh', 'Quầy ẩm thực truyền thống ngay trước chợ Bến Thành.', '23 Phan Bội Châu, Quận 1, TP.HCM', 10.7722000, 106.6980000, 35, 'APPROVED', '{"mon_fri":"06:00-22:00","sat_sun":"06:00-23:00"}', 1, 0, 0, 'HCM-01'),
-(2, 2, 'Quầy Cà Phê Nguyễn Huệ', 'quay-ca-phe-nguyen-hue', 'Cà phê rang xay và trà truyền thống trên phố đi bộ.', '68 Nguyễn Huệ, Quận 1, TP.HCM', 10.7735000, 106.7032000, 30, 'APPROVED', '{"daily":"06:30-23:00"}', 1, 0, 0, 'HCM-02'),
-(3, 3, 'Sạp Thủ Công Lê Lợi', 'sap-thu-cong-le-loi', 'Sản phẩm thủ công mỹ nghệ Sài Gòn trên phố Lê Lợi.', '45 Lê Lợi, Quận 1, TP.HCM', 10.7730000, 106.6990000, 40, 'APPROVED', '{"daily":"08:00-21:00"}', 0, 0, 0, 'HCM-03'),
-(4, 4, 'Xe Bánh Mì Nguyễn Trãi', 'xe-banh-mi-nguyen-trai', 'Xe bánh mì nổi tiếng trên đường Nguyễn Trãi.', '120 Nguyễn Trãi, Quận 1, TP.HCM', 10.7700000, 106.6920000, 25, 'PENDING', '{"daily":"05:00-14:00"}', 0, 0, 0, NULL),
-(5, 5, 'Nước Ép Tươi Đề Thám', 'nuoc-ep-tuoi-de-tham', 'Nước ép trái cây tươi khu phố Tây.', '90 Đề Thám, Quận 1, TP.HCM', 10.7690000, 106.6936000, 20, 'REJECTED', '{"daily":"07:00-22:00"}', 0, 0, 0, NULL),
-(6, 6, 'Quầy Hải Sản Vĩnh Khánh', 'quay-hai-san-vinh-khanh', 'Hải sản tươi nướng trên vỉa hè Vĩnh Khánh.', '162 Vĩnh Khánh, Quận 4, TP.HCM', 10.7580000, 106.6990000, 35, 'APPROVED', '{"daily":"15:00-23:00"}', 1, 0, 0, 'HCM-06'),
-(7, 7, 'Studio Áo Dài Đường Sách', 'studio-ao-dai-duong-sach', 'Không gian chụp ảnh áo dài giữa phố sách.', '44 Nguyễn Văn Bình, Quận 1, TP.HCM', 10.7790000, 106.7000000, 30, 'SUSPENDED', '{"daily":"08:00-20:00"}', 0, 0, 0, NULL),
-(8, 8, 'Tiệm Phở Pasteur', 'tiem-pho-pasteur', 'Phở gia truyền ba đời trên đường Pasteur.', '260 Pasteur, Quận 3, TP.HCM', 10.7830000, 106.6950000, 35, 'APPROVED', '{"daily":"06:00-22:00"}', 1, 1, 10, 'HCM-08');
+INSERT INTO stalls (id, vendor_id, name, slug, description, address, latitude, longitude, activation_radius, status, opening_hours, is_featured, is_premium, is_premium_priority, premium_activation_date, premium_expiry_date, priority_score, zone_code) VALUES
+(1, 1, 'Sủi Cảo Thiên Thiên', 'sui-cao-thien-thien-primary', 'Quán sủi cảo lâu đời với không gian rộng rãi, nổi tiếng với nước lèo thanh ngọt nấu từ xương và mực khô.', '197 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 10.7600860, 106.6576820, 10, 'APPROVED', '{"daily":"14:00-01:30"}', 1, 1, 1, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 100, 'STALL-01'),
+(2, 2, 'Sủi Cảo Ngọc Ý', 'sui-cao-ngoc-y-primary', 'Được lòng thực khách nhờ sủi cảo to tròn, vỏ mỏng dai mịn ôm trọn nhân tôm thịt tươi ngon giòn sần sật.', '187 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 10.7602350, 106.6574710, 10, 'APPROVED', '{"daily":"13:00-01:00"}', 1, 1, 1, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 100, 'STALL-02'),
+(3, 3, 'Sủi Cảo Như Ý', 'sui-cao-nhu-y-primary', 'Nơi bán sủi cảo chiên giòn rụm chấm nước sốt xí muội cực phẩm và món sủi cảo chưng cách thủy nhân hẹ thơm lừng.', '185 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 10.7601950, 106.6575000, 10, 'APPROVED', '{"daily":"14:00-01:00"}', 1, 1, 1, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 100, 'STALL-03');
 
 -- =============================================================================
--- ZONES — Sub-areas within stalls (all coordinates HCMC)
+-- ZONES (Sub-areas for tour structure) — Backfilled matching Pois
 -- =============================================================================
 
-INSERT INTO zones (id, stall_id, tour_id, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order) VALUES
-(1, 1, 1, 2, 'Sạp Ẩm Thực Bến Thành', 'sap-am-thuc-ben-thanh', 'Quầy ẩm thực truyền thống ngay trước chợ Bến Thành.', 10.7722000, 106.6980000, 35, 0, 'ACTIVE', 1),
-(2, 2, 1, 2, 'Quầy Cà Phê Nguyễn Huệ', 'quay-ca-phe-nguyen-hue', 'Cà phê rang xay và trà truyền thống trên phố đi bộ.', 10.7735000, 106.7032000, 30, 0, 'ACTIVE', 2),
-(3, 3, 1, 2, 'Sạp Thủ Công Lê Lợi', 'sap-thu-cong-le-loi', 'Sản phẩm thủ công mỹ nghệ Sài Gòn trên phố Lê Lợi.', 10.7730000, 106.6990000, 40, 0, 'ACTIVE', 3),
-(4, 4, 1, 2, 'Xe Bánh Mì Nguyễn Trãi', 'xe-banh-mi-nguyen-trai', 'Xe bánh mì nổi tiếng trên đường Nguyễn Trãi.', 10.7700000, 106.6920000, 25, 0, 'ACTIVE', 4),
-(5, 5, 1, 2, 'Nước Ép Tươi Đề Thám', 'nuoc-ep-tuoi-de-tham', 'Nước ép trái cây tươi khu phố Tây.', 10.7690000, 106.6936000, 20, 0, 'INACTIVE', 5),
-(6, 6, 2, 2, 'Quầy Hải Sản Vĩnh Khánh', 'quay-hai-san-vinh-khanh', 'Hải sản tươi nướng trên vỉa hè Vĩnh Khánh.', 10.7580000, 106.6990000, 35, 0, 'ACTIVE', 1),
-(7, 7, 1, 2, 'Studio Áo Dài Đường Sách', 'studio-ao-dai-duong-sach', 'Không gian chụp ảnh áo dài giữa phố sách.', 10.7790000, 106.7000000, 30, 0, 'INACTIVE', 6),
-(8, 8, 3, 2, 'Tiệm Phở Pasteur', 'tiem-pho-pasteur', 'Phở gia truyền ba đời trên đường Pasteur.', 10.7830000, 106.6950000, 35, 1, 'ACTIVE', 1);
+INSERT INTO zones (id, tour_id, stall_id, vendor_id, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order, approval_status) VALUES
+(1, 1, 1, 1, 2, 'Sủi Cảo Thiên Thiên', 'sui-cao-thien-thien-poi', 'Quán sủi cảo lâu đời với không gian rộng rãi, nổi tiếng với nước lèo thanh ngọt nấu từ xương và mực khô.', 10.7600860, 106.6576820, 10, 1, 'ACTIVE', 1, 'APPROVED'),
+(2, 1, 2, 2, 2, 'Sủi Cảo Ngọc Ý', 'sui-cao-ngoc-y-poi', 'Được lòng thực khách nhờ sủi cảo to tròn, vỏ mỏng dai mịn ôm trọn nhân tôm thịt tươi ngon giòn sần sật.', 10.7602350, 106.6574710, 10, 1, 'ACTIVE', 2, 'APPROVED'),
+(3, 1, 3, 3, 2, 'Sủi Cảo Như Ý', 'sui-cao-nhu-y-poi', 'Nơi bán sủi cảo chiên giòn rụm chấm nước sốt xí muội cực phẩm và món sủi cảo chưng cách thủy nhân hẹ thơm lừng.', 10.7601950, 106.6575000, 10, 1, 'ACTIVE', 3, 'APPROVED');
 
 -- =============================================================================
--- POIs — Points of Interest (mirrors zone structure, HCMC coordinates)
+-- POIs (Unified with zones)
 -- =============================================================================
 
-INSERT IGNORE INTO pois (id, stall_id, zone_code, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order) VALUES
-(1, 1, 'HCM-01', 2, 'Sạp Ẩm Thực Bến Thành', 'sap-am-thuc-ben-thanh', 'Quầy ẩm thực truyền thống ngay trước chợ Bến Thành.', 10.7722000, 106.6980000, 35, 0, 'ACTIVE', 1),
-(2, 2, 'HCM-02', 2, 'Quầy Cà Phê Nguyễn Huệ', 'quay-ca-phe-nguyen-hue', 'Cà phê rang xay và trà truyền thống trên phố đi bộ.', 10.7735000, 106.7032000, 30, 0, 'ACTIVE', 2),
-(3, 3, 'HCM-03', 2, 'Sạp Thủ Công Lê Lợi', 'sap-thu-cong-le-loi', 'Sản phẩm thủ công mỹ nghệ Sài Gòn trên phố Lê Lợi.', 10.7730000, 106.6990000, 40, 0, 'ACTIVE', 3),
-(4, 4, NULL,     2, 'Xe Bánh Mì Nguyễn Trãi', 'xe-banh-mi-nguyen-trai', 'Xe bánh mì nổi tiếng trên đường Nguyễn Trãi.', 10.7700000, 106.6920000, 25, 0, 'ACTIVE', 4),
-(5, 5, NULL,     2, 'Nước Ép Tươi Đề Thám', 'nuoc-ep-tuoi-de-tham', 'Nước ép trái cây tươi khu phố Tây.', 10.7690000, 106.6936000, 20, 0, 'INACTIVE', 5),
-(6, 6, 'HCM-06', 2, 'Quầy Hải Sản Vĩnh Khánh', 'quay-hai-san-vinh-khanh', 'Hải sản tươi nướng trên vỉa hè Vĩnh Khánh.', 10.7580000, 106.6990000, 35, 0, 'ACTIVE', 1),
-(7, 7, NULL,     2, 'Studio Áo Dài Đường Sách', 'studio-ao-dai-duong-sach', 'Không gian chụp ảnh áo dài giữa phố sách.', 10.7790000, 106.7000000, 30, 0, 'INACTIVE', 6),
-(8, 8, 'HCM-08', 2, 'Tiệm Phở Pasteur', 'tiem-pho-pasteur', 'Phở gia truyền ba đời trên đường Pasteur.', 10.7830000, 106.6950000, 35, 1, 'ACTIVE', 1);
+INSERT INTO pois (id, stall_id, vendor_id, zone_code, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order, approval_status) VALUES
+(1, 1, 1, 'STALL-01', 2, 'Sủi Cảo Thiên Thiên', 'sui-cao-thien-thien-poi', 'Quán sủi cảo lâu đời với không gian rộng rãi, nổi tiếng với nước lèo thanh ngọt nấu từ xương và mực khô.', 10.7600860, 106.6576820, 10, 1, 'ACTIVE', 1, 'APPROVED'),
+(2, 2, 2, 'STALL-02', 2, 'Sủi Cảo Ngọc Ý', 'sui-cao-ngoc-y-poi', 'Được lòng thực khách nhờ sủi cảo to tròn, vỏ mỏng dai mịn ôm trọn nhân tôm thịt tươi ngon giòn sần sật.', 10.7602350, 106.6574710, 10, 1, 'ACTIVE', 2, 'APPROVED'),
+(3, 3, 3, 'STALL-03', 2, 'Sủi Cảo Như Ý', 'sui-cao-nhu-y-poi', 'Nơi bán sủi cảo chiên giòn rụm chấm nước sốt xí muội cực phẩm và món sủi cảo chưng cách thủy nhân hẹ thơm lừng.', 10.7601950, 106.6575000, 10, 1, 'ACTIVE', 3, 'APPROVED');
 
 -- =============================================================================
--- TOUR ↔ POI JUNCTION
+-- TOUR ↔ POI LINK
 -- =============================================================================
 
 INSERT INTO tour_pois (tour_id, poi_id, sort_order) VALUES
 (1, 1, 1),
 (1, 2, 2),
-(1, 3, 3),
-(1, 4, 4),
-(1, 5, 5),
-(2, 6, 1),
-(1, 7, 6),
-(3, 8, 1);
+(1, 3, 3);
 
 -- =============================================================================
--- POI CONTENTS — Bilingual (vi + en) audio content for each POI
+-- POI CONTENTS — Rich bilingual & multilingual auto translation strings for TTS
 -- =============================================================================
 
-INSERT INTO poi_contents (id, poi_id, lang, title, short_text, tts_script, audio_url, voice_profile, approval_status) VALUES
-(1, 1, 'vi', 'Sạp Ẩm Thực Bến Thành', 'Bến Thành food stall.', 'Trải nghiệm ẩm thực truyền thống Việt Nam ngay tại chợ Bến Thành lâu đời.', '/uploads/audio/poi-1-vi.mp3', 'vi-standard', 'approved'),
-(2, 1, 'en', 'Ben Thanh Food Stall', 'Traditional food stand.', 'Experience authentic Vietnamese street food right outside the historical Ben Thanh Market.', '/uploads/audio/poi-1-en.mp3', 'en-standard', 'approved'),
-(3, 2, 'vi', 'Quầy Cà Phê Nguyễn Huệ', 'Cà phê phố đi bộ.', 'Cà phê rang xay chuẩn vị Sài Gòn, đặc biệt là cà phê sữa đá pha phin thơm béo.', '/uploads/audio/poi-2-vi.mp3', 'vi-standard', 'approved'),
-(4, 2, 'en', 'Nguyen Hue Coffee Stand', 'Sidewalk coffee corner.', 'Saigon-style roasted coffee, especially the rich and creamy Vietnamese iced milk coffee.', '/uploads/audio/poi-2-en.mp3', 'en-standard', 'approved'),
-(5, 3, 'vi', 'Sạp Thủ Công Lê Lợi', 'Mỹ nghệ thủ công.', 'Khám phá các tác phẩm gốm sứ Bát Tràng và tranh sơn mài Nam Bộ tinh xảo.', '/uploads/audio/poi-3-vi.mp3', 'vi-standard', 'approved'),
-(6, 3, 'en', 'Le Loi Handicrafts', 'Handmade arts and crafts.', 'Explore exquisite Bat Trang ceramics and fine lacquer art from Southern Vietnam.', '/uploads/audio/poi-3-en.mp3', 'en-standard', 'approved'),
-(7, 4, 'vi', 'Xe Bánh Mì Nguyễn Trãi', 'Bánh mì thịt nướng.', 'Xe bánh mì vỉa hè nổi tiếng với thịt nướng xiên thơm ngon và nước sốt đặc trưng.', '/uploads/audio/poi-4-vi.mp3', 'vi-standard', 'approved'),
-(8, 5, 'vi', 'Nước Ép Tươi Đề Thám', 'Nước ép khu phố Tây.', 'Nước ép trái cây tươi mát lạnh giúp giải nhiệt ngày hè nóng bức Sài Gòn.', '/uploads/audio/poi-5-vi.mp3', 'vi-standard', 'approved'),
-(9, 6, 'vi', 'Quầy Hải Sản Vĩnh Khánh', 'Hải sản nướng than.', 'Hải sản tươi ngon nướng trực tiếp tại chỗ trên con đường ẩm thực đêm Vĩnh Khánh.', '/uploads/audio/poi-6-vi.mp3', 'vi-standard', 'approved'),
-(10, 6, 'en', 'Vinh Khanh Seafood Stand', 'Grilled fresh seafood.', 'Freshly caught and grilled seafood along the lively Vinh Khanh street night market.', '/uploads/audio/poi-6-en.mp3', 'en-standard', 'approved'),
-(11, 7, 'vi', 'Studio Áo Dài Đường Sách', 'Không gian chụp ảnh áo dài.', 'Nơi gìn giữ và quảng bá trang phục áo dài truyền thống giữa phố sách yên bình.', '/uploads/audio/poi-7-vi.mp3', 'vi-standard', 'approved'),
-(12, 8, 'vi', 'Tiệm Phở Pasteur', 'Phở gia truyền Sài Gòn.', 'Thưởng thức hương vị phở bò gia truyền đậm đà nước dùng hầm xương bò 12 tiếng.', '/uploads/audio/poi-8-vi.mp3', 'vi-premium', 'approved'),
-(13, 8, 'en', 'Pasteur Pho House', 'Legacy beef noodle soup.', 'Enjoy traditional beef pho with rich broth simmered from beef bones for 12 hours.', '/uploads/audio/poi-8-en.mp3', 'en-premium', 'approved');
+INSERT INTO poi_contents (id, poi_id, lang, title, tts_script, voice_type, approval_status) VALUES
+-- Sủi Cảo Thiên Thiên
+(1, 1, 'vi', 'Sủi Cảo Thiên Thiên', 'Chào mừng bạn đến với sủi cảo Thiên Thiên, một trong những quán ăn lâu đời và nổi tiếng nhất tại phố ẩm thực Hà Tôn Quyền. Món sủi cảo ở đây nổi tiếng với nhân tôm thịt tươi giòn sần sật ôm trọn trong vỏ bánh mỏng mịn. Nước dùng được hầm kỹ từ xương ống heo cùng mực khô nướng đem lại hậu vị thanh mát ngọt đậm đà khó quên.', 'NORMAL', 'APPROVED'),
+(2, 1, 'en', 'Thien Thien Dumplings', 'Welcome to Thien Thien Dumplings, one of the oldest and most legendary eateries on Ha Ton Quyen Food Street. Our dumplings are famous for their thin, smooth wraps holding fresh, crunchy shrimp and pork filling. The broth is simmered with pork bones and grilled dried squid, delivering a uniquely sweet, savory, and unforgettable aftertaste.', 'NORMAL', 'APPROVED'),
+(3, 1, 'zh', '天天水饺', '欢迎光临天天水饺，这是哈尊权美食街上最古老且最具传奇色彩的餐厅之一。我们的水饺以皮薄滑嫩、内馅鲜美弹牙的鲜虾猪肉馅而闻名。汤底由猪骨和烤干鱿鱼熬制而成，带来独特的鲜甜回味，令人难忘。', 'NORMAL', 'APPROVED'),
+(4, 1, 'ja', 'ティエンティエン水餃子', 'ハトンクエン・フードストリートで最も歴史があり、有名なレストランの一つであるティエンティエン水餃子へようこそ。ここの餃子は、薄く滑らかな皮の中に、新鮮でプリプリしたエビと豚肉 of 餡がぎっしり詰まっていることで有名です。スープは豚骨と焼きスルメをじっくり煮込んで作られており、独特の甘みとコクのある後味が楽しめます。', 'NORMAL', 'APPROVED'),
+(5, 1, 'ko', '티엔티엔 물만두', '하톤꾸옌 음식 거리에서 가장 오래되고 전설적인 맛집 중 하나인 티엔티엔 물만두에 오신 것을 환영합니다. 저희 만두는 얇고 부드러운 만두피 속에 신선하고 탱글탱글한 새우와 돼지고기 소가 가득 차 있는 것으로 유명합니다. 육수는 돼지뼈와 구운 마른 오징어를 함께 우려내어 잊을 수 없는 깊고 달콤한 감칠맛을 선사합니다.', 'NORMAL', 'APPROVED'),
+
+-- Sủi Cảo Ngọc Ý
+(6, 2, 'vi', 'Sủi Cảo Ngọc Ý', 'Sủi cảo Ngọc Ý là điểm dừng chân lý tưởng dành cho tín đồ yêu thích sủi cảo truyền thống Trung Hoa. Với công thức chế biến gia truyền qua nhiều thế hệ, từng viên sủi cảo tròn mập mạp đều tăm tắp, nhân bên trong đầy đặn đậm vị. Nước súp hầm mực khô đặc trưng giúp làm dậy mùi thơm ngào ngạt ăn kèm cải ngọt giòn mát.', 'NORMAL', 'APPROVED'),
+(7, 2, 'en', 'Ngoc Y Dumplings', 'Ngoc Y Dumplings is the perfect stop for lovers of traditional Chinese dumplings. Using a legacy recipe passed down through generations, each dumpling is plump, perfectly wrapped, and bursting with seasoned filling. The signature dried squid broth raises the rich aroma, served alongside crunchy sweet cabbage.', 'NORMAL', 'APPROVED'),
+(8, 2, 'zh', '玉意水饺', '玉意水饺是喜爱传统中式水饺的食客的理想去处。采用代代相传的秘方，每一颗水饺都圆润饱满、皮薄馅大、调味恰到好处。招牌干鱿鱼汤头香气四溢，搭配爽口的甜白菜，更是美味加倍。', 'NORMAL', 'APPROVED'),
+
+-- Sủi Cảo Như Ý
+(9, 3, 'vi', 'Sủi Cảo Như Ý', 'Sủi cảo Như Ý mang đến sự đổi mới độc đáo với món sủi cảo chiên giòn rụm vàng ươm, khi cắn vào vỏ ngoài giòn tan bên trong nóng hổi mọng nước. Quán ăn nổi tiếng với các phần súp thập cẩm ăn kèm da heo phồng, mực ngâm tro và các loại rau thanh mát mang đậm nét ẩm thực của người Hoa Chợ Lớn.', 'NORMAL', 'APPROVED'),
+(10, 3, 'en', 'Nhu Y Dumplings', 'Nhu Y Dumplings offers a unique twist with golden, crispy fried dumplings that are crunchy on the outside and juicy on the inside. We are famous for our combination soups featuring pork skin, ash-soaked squid, and fresh greens, reflecting the authentic culinary traditions of Cholon Chinese-Vietnamese culture.', 'NORMAL', 'APPROVED'),
+(11, 3, 'zh', '如意水饺', '如意水饺以金黄酥脆的炸水饺带来独特的风味，外酥里嫩，一口咬下汁水四溢。店内以招牌什锦汤闻名，汤里配 có 炸猪皮、灰浸鱿鱼和新鲜蔬菜，展现了堤岸华人独特的饮食传统。', 'NORMAL', 'APPROVED');
 
 -- =============================================================================
--- POI PRODUCTS — Menu items with VND pricing
+-- POI PRODUCTS — Menu items with prices in VND
 -- =============================================================================
 
 INSERT INTO poi_products (id, poi_id, name, price) VALUES
-(1, 1, 'Bánh mì chả lụa', 25000.00),
-(2, 1, 'Bánh mì thịt nướng', 30000.00),
-(3, 1, 'Chè thập cẩm', 20000.00),
-(4, 1, 'Nước mía đá bào', 15000.00),
-(5, 2, 'Cà phê sữa đá', 35000.00),
-(6, 2, 'Cà phê đen đá', 30000.00),
-(7, 2, 'Trà đào cam sả', 40000.00),
-(8, 2, 'Trà vải', 38000.00),
-(9, 3, 'Chén gốm Bát Tràng', 120000.00),
-(10, 3, 'Bình hoa gốm men ngọc', 250000.00),
-(11, 3, 'Tranh sơn mài nhỏ', 350000.00),
-(12, 4, 'Bánh mì đặc biệt', 35000.00),
-(13, 5, 'Nước ép dứa tươi', 25000.00),
-(14, 6, 'Tôm nướng muối ớt (1kg)', 250000.00),
-(15, 6, 'Mực nướng sa tế', 180000.00),
-(16, 6, 'Ốc hương rang muối', 120000.00),
-(17, 7, 'Thuê áo dài truyền thống (1h)', 150000.00),
-(18, 8, 'Phở bò tái nạm', 65000.00),
-(19, 8, 'Phở bò viên', 60000.00),
-(20, 8, 'Nước chanh đá', 15000.00);
+-- Sủi Cảo Thiên Thiên (poi_id: 1)
+(1, 1, 'Sủi cảo nước thập cẩm', 65000.00),
+(2, 1, 'Sủi cảo tôm mực', 70000.00),
+(3, 1, 'Sủi cảo chiên giòn', 68000.00),
+(4, 1, 'Mì sủi cảo xá xíu', 75000.00),
+(5, 1, 'Hồng trà chanh đá', 25000.00),
 
--- =============================================================================
--- MEDIA FILES
--- =============================================================================
+-- Sủi Cảo Ngọc Ý (poi_id: 2)
+(6, 2, 'Sủi cảo tôm thịt heo', 60000.00),
+(7, 2, 'Hủ tiếu sủi cảo xương', 65000.00),
+(8, 2, 'Sủi cảo hấp cải thảo', 58000.00),
+(9, 2, 'Mì khô sốt dầu hào sủi cảo', 70000.00),
+(10, 2, 'Nước sâm bí đao hạt chia', 20000.00),
 
-INSERT INTO media_files (id, vendor_id, stall_id, poi_id, uploaded_by_user_id, file_type, storage_provider, file_name, file_path, public_url, mime_type, file_size, moderation_status) VALUES
-(1, 1, 1, NULL, 2, 'IMAGE', 'LOCAL', 'ben-thanh-stall.jpg', '/uploads/vendors/1/stalls/1/ben-thanh-stall.jpg', '/media/ben-thanh-stall.jpg', 'image/jpeg', 245000, 'APPROVED'),
-(2, 2, 2, NULL, 2, 'IMAGE', 'LOCAL', 'nguyen-hue-coffee.jpg', '/uploads/vendors/2/stalls/2/nguyen-hue-coffee.jpg', '/media/nguyen-hue-coffee.jpg', 'image/jpeg', 310000, 'APPROVED'),
-(3, 8, 8, 8, 2, 'AUDIO', 'LOCAL', 'pho-vi.mp3', '/uploads/audio/poi-8-vi.mp3', '/media/audio/poi-8-vi.mp3', 'audio/mpeg', 1200000, 'APPROVED'),
-(4, 6, 6, 6, 2, 'IMAGE', 'LOCAL', 'vinh-khanh-seafood.jpg', '/uploads/vendors/6/stalls/6/vinh-khanh-seafood.jpg', '/media/vinh-khanh-seafood.jpg', 'image/jpeg', 280000, 'APPROVED');
-
--- =============================================================================
--- QR CODES
--- =============================================================================
-
-INSERT INTO qr_codes (id, vendor_id, tour_id, stall_id, poi_id, code, qr_type, target_url, image_url, is_active) VALUES
-(1, 1, NULL, 1, NULL, 'VTA-ST-0001', 'STALL', 'https://app.viettouraudio.vn/map?stall=1', '/qr/stall-1.png', 1),
-(2, 2, NULL, 2, NULL, 'VTA-ST-0002', 'STALL', 'https://app.viettouraudio.vn/map?stall=2', '/qr/stall-2.png', 1),
-(3, 8, NULL, 8, 8, 'VTA-POI-0008', 'POI', 'https://app.viettouraudio.vn/map?poi=8', '/qr/poi-8.png', 1),
-(4, 8, NULL, 8, NULL, 'VTA-PAY-0008', 'PAYMENT', 'https://app.viettouraudio.vn/pay?vendor=8', '/qr/pay-8.png', 1),
-(5, 1, 1, NULL, NULL, 'VTA-TOUR-0001', 'TOUR', 'https://app.viettouraudio.vn/tour/nguyen-hue', '/qr/tour-1.png', 1),
-(6, 6, 2, NULL, NULL, 'VTA-TOUR-0002', 'TOUR', 'https://app.viettouraudio.vn/tour/vinh-khanh', '/qr/tour-2.png', 1),
-(7, 6, NULL, 6, NULL, 'VTA-ST-0006', 'STALL', 'https://app.viettouraudio.vn/map?stall=6', '/qr/stall-6.png', 1);
-
--- =============================================================================
--- VISITOR SESSIONS
--- =============================================================================
-
-INSERT INTO visitor_sessions (id, token, is_premium, premium_24h_expiry, device_fingerprint, ip_address, user_agent) VALUES
-(1, 'vs_hcm_demo_001', 1, '2026-06-15 09:00:00', 'fp-ios-hcm-001', '127.0.0.1', 'Demo Safari'),
-(2, 'vs_hcm_demo_002', 0, NULL, 'fp-android-hcm-002', '127.0.0.1', 'Demo Chrome'),
-(3, 'vs_hcm_demo_003', 1, '2026-06-15 10:00:00', 'fp-web-hcm-003', '127.0.0.1', 'Demo Edge');
-
--- =============================================================================
--- QR SCAN EVENTS
--- =============================================================================
-
-INSERT INTO qr_scan_events (id, qr_code_id, vendor_id, tour_id, stall_id, poi_id, visitor_session_id, country_code, scanned_at) VALUES
-(1, 5, 1, 1, NULL, NULL, 1, 'VN', '2026-06-11 08:30:00'),
-(2, 1, 1, NULL, 1, NULL, 1, 'VN', '2026-06-11 09:00:00'),
-(3, 2, 2, NULL, 2, NULL, 2, 'VN', '2026-06-11 09:15:00'),
-(4, 3, 8, NULL, 8, 8, 3, 'US', '2026-06-11 10:00:00'),
-(5, 6, 6, 2, NULL, NULL, 2, 'VN', '2026-06-11 18:30:00');
-
--- =============================================================================
--- VISIT EVENTS
--- =============================================================================
-
-INSERT INTO visit_events (id, vendor_id, stall_id, poi_id, visitor_session_id, source, latitude, longitude, distance_meters, visited_at) VALUES
-(1, 1, 1, 1, 1, 'GPS', 10.7722100, 106.6980200, 5.30, '2026-06-11 09:03:00'),
-(2, 2, 2, 2, 2, 'QR', 10.7735100, 106.7032200, 0.00, '2026-06-11 09:16:00'),
-(3, 8, 8, 8, 3, 'GPS', 10.7830100, 106.6950200, 4.80, '2026-06-11 10:04:00'),
-(4, 6, 6, 6, 2, 'GPS', 10.7580100, 106.6990200, 3.20, '2026-06-11 18:35:00');
-
--- =============================================================================
--- PLAY HISTORY
--- =============================================================================
-
-INSERT INTO play_history (id, visitor_session_id, poi_id, poi_content_id, lang, source, started_at, completed_at, duration_seconds) VALUES
-(1, 1, 1, 1, 'vi', 'AUTO_GPS', '2026-06-11 09:04:00', '2026-06-11 09:05:20', 80),
-(2, 3, 8, 12, 'vi', 'AUTO_GPS', '2026-06-11 10:05:00', '2026-06-11 10:06:35', 95),
-(3, 2, 6, 9, 'vi', 'MANUAL', '2026-06-11 18:36:00', '2026-06-11 18:37:30', 90);
-
--- =============================================================================
--- PAYMENTS
--- =============================================================================
-
-INSERT INTO payments (id, vendor_id, visitor_session_id, vendor_subscription_id, amount, provider, payment_type, status, transaction_code, provider_payload, paid_at) VALUES
-(1, 1, NULL, 1, 599000.00, 'BANK_QR', 'VENDOR_SUBSCRIPTION', 'PAID', 'PAY-SUB-0001', '{"bank":"VCB"}', '2026-06-01 08:00:00'),
-(2, 2, NULL, 2, 599000.00, 'MOMO', 'VENDOR_SUBSCRIPTION', 'PAID', 'PAY-SUB-0002', '{"wallet":"momo"}', '2026-06-01 08:05:00'),
-(3, 3, NULL, 3, 299000.00, 'BANK_QR', 'VENDOR_SUBSCRIPTION', 'PAID', 'PAY-SUB-0003', '{"bank":"TCB"}', '2026-06-01 08:10:00'),
-(4, 8, NULL, 8, 599000.00, 'BANK_QR', 'WALLET_TOP_UP', 'PAID', 'PAY-TOP-0008', '{"bank":"ACB"}', '2026-06-10 11:00:00'),
-(5, NULL, 1, NULL, 30000.00, 'MOMO', 'VISITOR_PREMIUM', 'PAID', 'PAY-VIS-0001', '{"wallet":"momo"}', '2026-06-11 09:00:00'),
-(6, NULL, 3, NULL, 30000.00, 'STRIPE', 'VISITOR_PREMIUM', 'PAID', 'PAY-VIS-0002', '{"card":"test"}', '2026-06-11 10:00:00');
-
--- =============================================================================
--- VENDOR WALLETS
--- =============================================================================
-
-INSERT INTO vendor_wallets (id, vendor_id, balance, total_top_up, total_spent, total_commission) VALUES
-(1, 1, 450000.00, 500000.00, 80000.00, 30000.00),
-(2, 2, 620000.00, 700000.00, 100000.00, 20000.00),
-(3, 3, 210000.00, 250000.00, 40000.00, 0.00),
-(4, 4, 0.00, 0.00, 0.00, 0.00),
-(5, 5, 0.00, 0.00, 0.00, 0.00),
-(6, 6, 360000.00, 400000.00, 60000.00, 20000.00),
-(7, 7, 15000.00, 100000.00, 85000.00, 0.00),
-(8, 8, 930000.00, 1000000.00, 100000.00, 30000.00);
-
--- =============================================================================
--- TOP-UP REQUESTS
--- =============================================================================
-
-INSERT INTO top_up_requests (id, vendor_id, wallet_id, requested_by_user_id, provider, status, amount, proof_url, note, reviewed_by_user_id, reviewed_at) VALUES
-(1, 1, 1, 4, 'BANK_QR', 'APPROVED', 500000.00, '/proofs/topup-1.jpg', 'Nạp ví tháng 6', 4, '2026-06-02 08:00:00'),
-(2, 2, 2, 4, 'MOMO', 'APPROVED', 700000.00, '/proofs/topup-2.jpg', 'Nạp ví premium', 4, '2026-06-02 08:10:00'),
-(3, 3, 3, 4, 'BANK_QR', 'APPROVED', 250000.00, '/proofs/topup-3.jpg', 'Nạp ví basic', 4, '2026-06-02 08:20:00'),
-(4, 6, 6, 4, 'VNPAY', 'APPROVED', 400000.00, '/proofs/topup-6.jpg', 'Nạp ví hải sản VK', 4, '2026-06-02 08:30:00'),
-(5, 7, 7, 4, 'BANK_QR', 'PENDING', 100000.00, '/proofs/topup-7.jpg', 'Chờ đối soát', NULL, NULL),
-(6, 8, 8, 4, 'BANK_QR', 'APPROVED', 1000000.00, '/proofs/topup-8.jpg', 'Nạp ví phở Pasteur', 4, '2026-06-10 11:05:00');
-
--- =============================================================================
--- WALLET TRANSACTIONS
--- =============================================================================
-
-INSERT INTO wallet_transactions (id, wallet_id, vendor_id, payment_id, top_up_request_id, transaction_type, transaction_category, direction, amount, balance_before, balance_after, description, created_by_user_id, metadata) VALUES
-(1, 1, 1, NULL, 1, 'TOP_UP', 'WALLET_TOP_UP', 'CREDIT', 500000.00, 0.00, 500000.00, 'Top up approved', 4, '{"batch":"seed"}'),
-(2, 1, 1, NULL, NULL, 'FEE', 'WEBAPP_MONTHLY_RENT', 'DEBIT', 50000.00, 500000.00, 450000.00, 'Monthly platform fee', 4, '{"batch":"seed"}'),
-(3, 1, 1, NULL, NULL, 'MANUAL', 'MANUAL_ADJUSTMENT', 'CREDIT', 30000.00, 420000.00, 450000.00, 'Manual adjustment', 4, '{"batch":"seed"}'),
-(4, 2, 2, NULL, 2, 'TOP_UP', 'WALLET_TOP_UP', 'CREDIT', 700000.00, 0.00, 700000.00, 'Top up approved', 4, '{"batch":"seed"}'),
-(5, 2, 2, NULL, NULL, 'FEE', 'PREMIUM_UPGRADE', 'DEBIT', 80000.00, 700000.00, 620000.00, 'Premium media fee', 4, '{"batch":"seed"}'),
-(6, 2, 2, NULL, NULL, 'MANUAL', 'MANUAL_ADJUSTMENT', 'CREDIT', 20000.00, 600000.00, 620000.00, 'Commission correction', 4, '{"batch":"seed"}'),
-(7, 3, 3, NULL, 3, 'TOP_UP', 'WALLET_TOP_UP', 'CREDIT', 250000.00, 0.00, 250000.00, 'Top up approved', 4, '{"batch":"seed"}'),
-(8, 3, 3, NULL, NULL, 'FEE', 'WEBAPP_MONTHLY_RENT', 'DEBIT', 40000.00, 250000.00, 210000.00, 'Audio processing fee', 4, '{"batch":"seed"}'),
-(9, 6, 6, NULL, 4, 'TOP_UP', 'WALLET_TOP_UP', 'CREDIT', 400000.00, 0.00, 400000.00, 'Top up approved', 4, '{"batch":"seed"}'),
-(10, 6, 6, NULL, NULL, 'FEE', 'WEBAPP_MONTHLY_RENT', 'DEBIT', 60000.00, 400000.00, 340000.00, 'QR campaign fee', 4, '{"batch":"seed"}'),
-(11, 6, 6, NULL, NULL, 'MANUAL', 'MANUAL_ADJUSTMENT', 'CREDIT', 20000.00, 340000.00, 360000.00, 'Manual correction', 4, '{"batch":"seed"}'),
-(12, 7, 7, NULL, 5, 'TOP_UP', 'WALLET_TOP_UP', 'CREDIT', 100000.00, 0.00, 100000.00, 'Pending top up provisional', 4, '{"batch":"seed"}'),
-(13, 7, 7, NULL, NULL, 'FEE', 'WEBAPP_MONTHLY_RENT', 'DEBIT', 85000.00, 100000.00, 15000.00, 'Overdue fee', 4, '{"batch":"seed"}'),
-(14, 8, 8, 4, 6, 'TOP_UP', 'WALLET_TOP_UP', 'CREDIT', 1000000.00, 0.00, 1000000.00, 'Top up approved', 4, '{"batch":"seed"}'),
-(15, 8, 8, NULL, NULL, 'FEE', 'PREMIUM_UPGRADE', 'DEBIT', 70000.00, 1000000.00, 930000.00, 'Premium POI fee', 4, '{"batch":"seed"}'),
-(16, 8, 8, NULL, NULL, 'MANUAL', 'MANUAL_ADJUSTMENT', 'CREDIT', 30000.00, 900000.00, 930000.00, 'Commission correction', 4, '{"batch":"seed"}'),
-(17, 1, 1, NULL, NULL, 'FEE', 'WEBAPP_MONTHLY_RENT', 'DEBIT', 30000.00, 450000.00, 420000.00, 'Campaign reserve', 4, '{"batch":"seed"}'),
-(18, 2, 2, NULL, NULL, 'FEE', 'WEBAPP_MONTHLY_RENT', 'DEBIT', 20000.00, 620000.00, 600000.00, 'Storage reserve', 4, '{"batch":"seed"}'),
-(19, 4, 4, NULL, NULL, 'MANUAL', 'MANUAL_ADJUSTMENT', 'CREDIT', 0.00, 0.00, 0.00, 'Trial wallet initialized', 4, '{"batch":"seed"}'),
-(20, 5, 5, NULL, NULL, 'MANUAL', 'MANUAL_ADJUSTMENT', 'CREDIT', 0.00, 0.00, 0.00, 'Rejected vendor wallet initialized', 4, '{"batch":"seed"}');
-
--- =============================================================================
--- COMMISSION EARNINGS
--- =============================================================================
-
-INSERT INTO commission_earnings (id, vendor_id, payment_id, qr_code_id, visitor_session_id, rate_percent, gross_amount, commission_amount, status, earned_at) VALUES
-(1, 1, 5, 1, 1, 10.00, 30000.00, 3000.00, 'APPROVED', '2026-06-11 09:00:00'),
-(2, 8, 6, 3, 3, 10.00, 30000.00, 3000.00, 'PENDING', '2026-06-11 10:00:00');
-
--- =============================================================================
--- ANALYTICS — Daily aggregated stall metrics (3 days)
--- =============================================================================
-
-INSERT INTO analytics_daily_stall (date, stall_id, vendor_id, qr_scans, visits, audio_plays, unique_visitors, premium_conversions, total_revenue) VALUES
-('2026-06-11', 1, 1, 14, 55, 31, 44, 2, 60000.00),
-('2026-06-11', 2, 2, 11, 42, 21, 35, 1, 30000.00),
-('2026-06-11', 3, 3, 7, 25, 14, 20, 0, 0.00),
-('2026-06-11', 4, 4, 3, 10, 0, 8, 0, 0.00),
-('2026-06-11', 5, 5, 1, 5, 0, 5, 0, 0.00),
-('2026-06-11', 6, 6, 19, 70, 36, 58, 3, 90000.00),
-('2026-06-11', 7, 7, 2, 8, 0, 7, 0, 0.00),
-('2026-06-11', 8, 8, 25, 88, 52, 75, 4, 120000.00),
-('2026-06-12', 1, 1, 18, 62, 35, 50, 2, 60000.00),
-('2026-06-12', 2, 2, 15, 49, 25, 40, 2, 60000.00),
-('2026-06-12', 3, 3, 9, 30, 17, 24, 1, 30000.00),
-('2026-06-12', 4, 4, 4, 13, 0, 11, 0, 0.00),
-('2026-06-12', 5, 5, 1, 4, 0, 4, 0, 0.00),
-('2026-06-12', 6, 6, 22, 76, 40, 63, 3, 90000.00),
-('2026-06-12', 7, 7, 2, 7, 0, 6, 0, 0.00),
-('2026-06-12', 8, 8, 30, 94, 58, 82, 5, 150000.00),
-('2026-06-13', 1, 1, 20, 68, 38, 55, 3, 90000.00),
-('2026-06-13', 2, 2, 17, 53, 29, 44, 2, 60000.00),
-('2026-06-13', 3, 3, 10, 34, 19, 28, 1, 30000.00),
-('2026-06-13', 4, 4, 5, 15, 0, 13, 0, 0.00),
-('2026-06-13', 5, 5, 1, 3, 0, 3, 0, 0.00),
-('2026-06-13', 6, 6, 26, 82, 47, 70, 4, 120000.00),
-('2026-06-13', 7, 7, 3, 9, 0, 8, 0, 0.00),
-('2026-06-13', 8, 8, 34, 101, 66, 90, 6, 180000.00);
-
--- =============================================================================
--- REVENUE DAILY — Aggregated revenue (3 days)
--- =============================================================================
-
-INSERT INTO revenue_daily (date, source, provider, gross_amount, net_amount, fees, transaction_count) VALUES
-('2026-06-11', 'VISITOR_PREMIUM', 'MOMO', 90000.00, 87000.00, 3000.00, 3),
-('2026-06-11', 'VENDOR_SUBSCRIPTION', 'BANK_QR', 1497000.00, 1497000.00, 0.00, 3),
-('2026-06-12', 'VISITOR_PREMIUM', 'STRIPE', 120000.00, 114000.00, 6000.00, 4),
-('2026-06-12', 'WALLET_TOP_UP', 'BANK_QR', 750000.00, 750000.00, 0.00, 2),
-('2026-06-13', 'VISITOR_PREMIUM', 'MOMO', 180000.00, 174000.00, 6000.00, 6),
-('2026-06-13', 'WALLET_TOP_UP', 'VNPAY', 400000.00, 394000.00, 6000.00, 1);
-
--- =============================================================================
--- SYSTEM TICKETS — Sample support requests
--- =============================================================================
-
-INSERT INTO system_tickets (id, sender_email, subject, message, status) VALUES
-(1, 'guest@example.com', 'Không nghe được audio tại Bến Thành', 'Tôi đã quét mã QR tại sạp Bến Thành nhưng không nghe được audio. Xin kiểm tra giúp.', 'PENDING'),
-(2, 'linh@banhmisaigon.vn', 'Xin đăng ký làm đối tác Vendor', 'Tôi muốn đăng ký tài khoản Vendor cho xe bánh mì trên Nguyễn Trãi. Xin hướng dẫn các bước cần thiết.', 'PROCESSED'),
-(3, 'tourist@gmail.com', 'Premium payment issue', 'I paid for premium via MoMo but my session still shows free. Token: vs_hcm_demo_002', 'IN_PROGRESS');
-
--- =============================================================================
--- AUDIT LOGS
--- =============================================================================
-
-INSERT INTO audit_logs (id, actor_user_id, action, target_type, target_id, before_data, after_data, ip_address) VALUES
-(1, 2, 'APPROVE_VENDOR', 'vendors', 1, '{"status":"PENDING"}', '{"status":"APPROVED"}', '127.0.0.1'),
-(2, 4, 'APPROVE_TOP_UP', 'top_up_requests', 1, '{"status":"PENDING"}', '{"status":"APPROVED"}', '127.0.0.1'),
-(3, 2, 'APPROVE_VENDOR', 'vendors', 6, '{"status":"PENDING"}', '{"status":"APPROVED"}', '127.0.0.1'),
-(4, 2, 'APPROVE_VENDOR', 'vendors', 8, '{"status":"PENDING"}', '{"status":"APPROVED"}', '127.0.0.1');
-
--- =============================================================================
--- APP SETTINGS
--- =============================================================================
-
-INSERT INTO app_settings (`key`, `value`) VALUES
-('PREMIUM_PAYMENT_QR', 'MOMO-PAY-PREMIUM-12345'),
-('DEFAULT_ACTIVATION_RADIUS', '25'),
-('MIN_PREMIUM_RADIUS', '10'),
-('PLATFORM_VERSION', '1.0.0');
+-- Sủi Cảo Như Ý (poi_id: 3)
+(11, 3, 'Súp sủi cảo da heo mực tro', 70000.00),
+(12, 3, 'Sủi cảo chiên sốt xí muội', 68000.00),
+(13, 3, 'Mì hoành thánh sủi cảo chiên', 75000.00),
+(14, 3, 'Bánh xếp chưng cách thủy', 60000.00),
+(15, 3, 'Sữa đậu nành lá dứa', 15000.00);

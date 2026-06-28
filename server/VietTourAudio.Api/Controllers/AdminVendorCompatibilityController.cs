@@ -26,7 +26,10 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
       v.vendor_code vendorCode, CAST(v.assigned_tour_id AS CHAR) assignedTourId
     FROM vendors v
     LEFT JOIN vendor_wallets vw ON vw.vendor_id=v.id
-    LEFT JOIN vendor_subscriptions vs ON vs.vendor_id=v.id
+    LEFT JOIN vendor_subscriptions vs ON vs.id=(
+      SELECT latest_vs.id FROM vendor_subscriptions latest_vs
+      WHERE latest_vs.vendor_id=v.id ORDER BY latest_vs.id DESC LIMIT 1
+    )
     LEFT JOIN subscription_plans sp ON sp.id=vs.plan_id
     """;
 
@@ -49,7 +52,7 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
   public async Task<IActionResult> Detail(ulong id)
   {
     var row = (await DatabaseSql.QueryRowsAsync(db, VendorSelect + " WHERE v.id=@id LIMIT 1",
-      new Dictionary<string, object?> { ["@id"] = id })).SingleOrDefault();
+      new Dictionary<string, object?> { ["@id"] = id })).FirstOrDefault();
     if (row is null) return NotFound(ApiResponseFactory.Fail("vendor.not_found"));
     var result = MapVendor(row);
     var transactions = await DatabaseSql.QueryRowsAsync(db, """
@@ -66,9 +69,30 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
         proof_url proofImageUrl,note rejectReason,created_at createdAt,updated_at updatedAt
       FROM top_up_requests WHERE vendor_id=@id ORDER BY created_at DESC
       """, new Dictionary<string, object?> { ["@id"] = id });
+    var stalls = (await DatabaseSql.QueryRowsAsync(db, """
+      SELECT CAST(id AS CHAR) id, name, description, latitude, longitude,
+        activation_radius activationRadius, status, approval_status approvalStatus,
+        zone_code zoneCode, is_premium isPremium,
+        is_premium_priority isPremiumPriority
+      FROM stalls WHERE vendor_id=@id ORDER BY id
+      """, new Dictionary<string, object?> { ["@id"] = id })).Select(s => new Dictionary<string, object?>
+      {
+        ["id"] = s["id"],
+        ["name"] = s["name"],
+        ["description"] = s["description"],
+        ["latitude"] = s["latitude"],
+        ["longitude"] = s["longitude"],
+        ["activationRadius"] = s["activationRadius"],
+        ["status"] = s["status"],
+        ["approvalStatus"] = s["approvalStatus"],
+        ["zoneCode"] = s["zoneCode"],
+        ["isPremium"] = s["isPremium"] != null && Convert.ToBoolean(s["isPremium"]),
+        ["isPremiumPriority"] = s["isPremiumPriority"] != null && Convert.ToBoolean(s["isPremiumPriority"])
+      }).ToList();
     result["wallet"] = new { id = row.GetValueOrDefault("id"), balance = row.GetValueOrDefault("walletBalance"),
       totalTopUp = row.GetValueOrDefault("totalTopUp"), transactions };
     result["topUpRequests"] = topups;
+    result["stalls"] = stalls;
     return Ok(ApiResponseFactory.Ok(result));
   }
 
@@ -101,20 +125,43 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
     insert.AddParameter("@name", tradeName); insert.AddParameter("@slug", Slugify(tradeName));
     insert.AddParameter("@code", vendorCode); insert.AddParameter("@tour", assignedTourId); insert.AddParameter("@email", email);
     await insert.ExecuteNonQueryAsync();
-    var id = ulong.Parse((string)(await DatabaseSql.QueryRowsAsync(db, "SELECT CAST(LAST_INSERT_ID() AS CHAR) id")).Single()["id"]!);
-    await DatabaseSql.ExecuteAsync(db, """
+    await using var identity = connection.CreateCommand();
+    identity.Transaction = transaction.GetDbTransaction();
+    identity.CommandText = "SELECT LAST_INSERT_ID()";
+    var id = Convert.ToUInt64(await identity.ExecuteScalarAsync());
+
+    await using var provision = connection.CreateCommand();
+    provision.Transaction = transaction.GetDbTransaction();
+    provision.CommandText = """
       INSERT INTO vendor_portal_users(vendor_id,email,pass_hash,full_name,status) VALUES(@id,@email,@hash,@name,'ACTIVE');
       INSERT INTO vendor_wallets(vendor_id,balance,total_top_up,total_spent,total_commission) VALUES(@id,0,0,0,0);
-      INSERT INTO stalls(vendor_id,name,slug,latitude,longitude,status,zone_code,approval_status)
-      SELECT @id,@name,@slug,
+      INSERT INTO stalls
+        (vendor_id,name,slug,description,latitude,longitude,activation_radius,status,
+         is_premium,is_premium_priority,priority_score,zone_code,approval_status)
+      VALUES
+        (@id,@name,@slug,'Vui lòng cập nhật mô tả sạp hàng của bạn.',
+         COALESCE((SELECT latitude FROM tours WHERE id=@tour),10.776076),
+         COALESCE((SELECT longitude FROM tours WHERE id=@tour),106.700948),
+         10,'PENDING',0,1,100,CONCAT('STALL-',@id),'PENDING');
+
+      SET @stallId = LAST_INSERT_ID();
+
+      INSERT INTO zones(tour_id,stall_id,name,slug,description,latitude,longitude,activation_radius,status,approval_status)
+      SELECT COALESCE(@tour,(SELECT id FROM tours WHERE status!='ARCHIVED' ORDER BY id LIMIT 1)),
+        @stallId,@name,@slug,'Vui lòng cập nhật mô tả sạp hàng của bạn.',
         COALESCE(t.latitude,(SELECT AVG(z.latitude) FROM zones z WHERE z.tour_id=t.id)),
         COALESCE(t.longitude,(SELECT AVG(z.longitude) FROM zones z WHERE z.tour_id=t.id)),
-        'PENDING',CONCAT('STALL-',@id),'APPROVED'
+        10,'ACTIVE','PENDING'
       FROM tours t
       WHERE t.id=COALESCE(@tour,(SELECT id FROM tours WHERE status!='ARCHIVED' ORDER BY id LIMIT 1));
-      """, new Dictionary<string, object?> { ["@id"] = id, ["@email"] = email,
-        ["@hash"] = BCrypt.Net.BCrypt.HashPassword(password, 12), ["@name"] = tradeName,
-        ["@slug"] = Slugify(tradeName), ["@tour"] = assignedTourId });
+      """;
+    provision.AddParameter("@id", id);
+    provision.AddParameter("@email", email);
+    provision.AddParameter("@hash", BCrypt.Net.BCrypt.HashPassword(password, 12));
+    provision.AddParameter("@name", tradeName);
+    provision.AddParameter("@slug", Slugify(tradeName));
+    provision.AddParameter("@tour", assignedTourId);
+    await provision.ExecuteNonQueryAsync();
     await transaction.CommitAsync();
     return await Detail(id);
   }

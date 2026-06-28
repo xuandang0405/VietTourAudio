@@ -46,5 +46,103 @@ public static class PaymentSchemaInitializer
         ('VISA', 'VietTourAudio Card Gateway', 'VISA', 'VTA VISA [Id]', 1)
       ON DUPLICATE KEY UPDATE gateway_type = VALUES(gateway_type)
       """);
+
+    if (await db.PaymentTransactions.CountAsync() < 6)
+    {
+      db.PaymentTransactions.RemoveRange(db.PaymentTransactions);
+      await db.SaveChangesAsync();
+
+      var now = DateTime.UtcNow;
+      var transactions = new List<Domain.PaymentTransaction>
+      {
+        // Today (USER)
+        new Domain.PaymentTransaction
+        {
+          Id = Guid.NewGuid(),
+          SenderId = "user1",
+          SenderType = "USER",
+          PaymentMethod = "MOMO",
+          TransactionType = "PREMIUM_UPGRADE",
+          Amount = 30000,
+          TransferMemo = "VTA USER TODAY",
+          Status = "APPROVED",
+          CreatedAt = now,
+          UpdatedAt = now
+        },
+        // Today (VENDOR)
+        new Domain.PaymentTransaction
+        {
+          Id = Guid.NewGuid(),
+          SenderId = "vendor1",
+          SenderType = "VENDOR",
+          PaymentMethod = "BANK",
+          TransactionType = "STALL_RENEWAL",
+          Amount = 150000,
+          TransferMemo = "VTA VENDOR TODAY",
+          Status = "APPROVED",
+          CreatedAt = now,
+          UpdatedAt = now
+        },
+        // Yesterday (USER - count in Month/Year/All-Time)
+        new Domain.PaymentTransaction
+        {
+          Id = Guid.NewGuid(),
+          SenderId = "user2",
+          SenderType = "USER",
+          PaymentMethod = "VISA",
+          TransactionType = "PREMIUM_UPGRADE",
+          Amount = 30000,
+          TransferMemo = "VTA USER YESTERDAY",
+          Status = "APPROVED",
+          CreatedAt = now.AddDays(-1),
+          UpdatedAt = now.AddDays(-1)
+        },
+        // Last Month (VENDOR - count in Year/All-Time)
+        new Domain.PaymentTransaction
+        {
+          Id = Guid.NewGuid(),
+          SenderId = "vendor2",
+          SenderType = "VENDOR",
+          PaymentMethod = "MOMO",
+          TransactionType = "STALL_RENEWAL",
+          Amount = 250000,
+          TransferMemo = "VTA VENDOR LASTMONTH",
+          Status = "APPROVED",
+          CreatedAt = now.AddMonths(-1),
+          UpdatedAt = now.AddMonths(-1)
+        },
+        // Last Month (USER)
+        new Domain.PaymentTransaction
+        {
+          Id = Guid.NewGuid(),
+          SenderId = "user3",
+          SenderType = "USER",
+          PaymentMethod = "BANK",
+          TransactionType = "PREMIUM_UPGRADE",
+          Amount = 30000,
+          TransferMemo = "VTA USER LASTMONTH",
+          Status = "APPROVED",
+          CreatedAt = now.AddMonths(-1),
+          UpdatedAt = now.AddMonths(-1)
+        },
+        // Last Year (USER - count in All-Time only)
+        new Domain.PaymentTransaction
+        {
+          Id = Guid.NewGuid(),
+          SenderId = "user4",
+          SenderType = "USER",
+          PaymentMethod = "VISA",
+          TransactionType = "PREMIUM_UPGRADE",
+          Amount = 30000,
+          TransferMemo = "VTA USER LASTYEAR",
+          Status = "APPROVED",
+          CreatedAt = now.AddYears(-1),
+          UpdatedAt = now.AddYears(-1)
+        }
+      };
+
+      await db.PaymentTransactions.AddRangeAsync(transactions);
+      await db.SaveChangesAsync();
+    }
   }
 }

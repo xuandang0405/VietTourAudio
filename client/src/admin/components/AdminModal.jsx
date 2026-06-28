@@ -58,15 +58,17 @@ export function AdminModal({ open, title, description, confirmLabel = 'Xác nh�
                 onClick={onClose}
                 className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 transition duration-200 ease-out hover:bg-slate-50"
               >
-                Hủy
+                {onConfirm && confirmLabel ? 'Hủy' : 'Đóng'}
               </button>
-              <button
-                type="button"
-                onClick={onConfirm}
-                className={`rounded-xl px-4 py-2.5 text-sm font-bold text-white shadow-sm transition duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-offset-2 ${confirmClass}`}
-              >
-                {confirmLabel}
-              </button>
+              {onConfirm && confirmLabel && (
+                <button
+                  type="button"
+                  onClick={onConfirm}
+                  className={`rounded-xl px-4 py-2.5 text-sm font-bold text-white shadow-sm transition duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-offset-2 ${confirmClass}`}
+                >
+                  {confirmLabel}
+                </button>
+              )}
             </div>
           </motion.section>
         </div>

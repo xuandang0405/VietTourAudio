@@ -55,14 +55,18 @@ public sealed class Poi : IEntity
   public ulong Id { get; set; }
   public ulong TourId { get; set; }
   public ulong StallId { get; set; }
+  public ulong? VendorId { get; set; }
   public string Name { get; set; } = "";
   public string Slug { get; set; } = "";
   public string? Description { get; set; }
   public decimal Latitude { get; set; }
   public decimal Longitude { get; set; }
   public int ActivationRadius { get; set; }
+  public string? CoverUrl { get; set; }
   public string Status { get; set; } = "ACTIVE";
   public ApprovalStatus ApprovalStatus { get; set; }
+  public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+  public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
   public FestivalZone FestivalZone { get; set; } = null!;
   public ICollection<PoiProduct> Products { get; set; } = [];
 }

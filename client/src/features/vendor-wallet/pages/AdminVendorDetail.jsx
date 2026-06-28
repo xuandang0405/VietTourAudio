@@ -1,7 +1,7 @@
 import { ArrowLeft, Ban, CheckCircle2, FileText, PauseCircle, Copy } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useVendor, useVendorAction, useResetStallQr, useToggleStallPremium } from '../../../admin/api/adminQueries';
+import { useVendor, useVendorAction, useResetStallQr, useToggleStallPremium, useGrantMultiPremium, useSetPremiumPriority, useAdminCreateStallForVendor } from '../../../admin/api/adminQueries';
 import { AdminBadge } from '../../../admin/components/AdminBadge';
 import { AdminModal } from '../../../admin/components/AdminModal';
 import { AdminPageHeader } from '../../../admin/components/AdminPageHeader';
@@ -27,6 +27,59 @@ export function AdminVendorDetail() {
   const resetQrMutation = useResetStallQr();
   const togglePremiumMutation = useToggleStallPremium();
   const [copiedStallCode, setCopiedStallCode] = useState(false);
+
+  // Admin overrides state & mutations
+  const [showAddStallModal, setShowAddStallModal] = useState(false);
+  const [newStallName, setNewStallName] = useState('');
+  const [newStallDesc, setNewStallDesc] = useState('');
+  const [newStallLat, setNewStallLat] = useState('10.77582');
+  const [newStallLng, setNewStallLng] = useState('106.70208');
+
+  const grantMultiPremiumMutation = useGrantMultiPremium();
+  const setPremiumPriorityMutation = useSetPremiumPriority();
+  const createStallForVendorMutation = useAdminCreateStallForVendor();
+
+  async function handleGrantMultiPremium() {
+    if (!window.confirm("Xác nhận kích hoạt trạng thái Premium (bán kính 10m) cho TẤT CẢ các sạp hàng của Vendor này?")) return;
+    try {
+      await grantMultiPremiumMutation.mutateAsync(vendor.id);
+      alert("Đã cấp Premium thành công cho tất cả các sạp!");
+    } catch (err) {
+      alert(err.response?.data?.error ?? "Không thể cấp Premium.");
+    }
+  }
+
+  async function handleSetPremiumPriority(stallId) {
+    try {
+      await setPremiumPriorityMutation.mutateAsync({ stallId, vendorId: vendor.id });
+    } catch (err) {
+      alert(err.response?.data?.error ?? "Không thể thay đổi ưu tiên Premium.");
+    }
+  }
+
+  async function handleCreateStallForVendor() {
+    if (!newStallName.trim()) {
+      alert("Vui lòng điền tên sạp hàng.");
+      return;
+    }
+    try {
+      await createStallForVendorMutation.mutateAsync({
+        vendorId: vendor.id,
+        data: {
+          name: newStallName.trim(),
+          description: newStallDesc.trim(),
+          latitude: parseFloat(newStallLat),
+          longitude: parseFloat(newStallLng)
+        }
+      });
+      setShowAddStallModal(false);
+      setNewStallName('');
+      setNewStallDesc('');
+      alert("Đã tạo sạp thành công!");
+    } catch (err) {
+      alert(err.response?.data?.error ?? "Không thể tạo sạp.");
+    }
+  }
 
   async function handleResetQr(stallId) {
     try {
@@ -142,22 +195,50 @@ export function AdminVendorDetail() {
           </article>
 
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-black text-slate-950">Stalls</h2>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-black text-slate-950">Stalls</h2>
+              {(vendor.stalls ?? []).length < 3 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddStallModal(true)}
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-black text-white hover:bg-indigo-700 transition"
+                >
+                  + Thêm sạp phụ
+                </button>
+              )}
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
               {(vendor.stalls ?? []).map((stall) => (
                 <div
                   key={stall.id}
                   onClick={() => setSelectedStall(stall)}
-                  className="rounded-xl border border-slate-100 bg-slate-50 p-3 cursor-pointer hover:bg-slate-100 hover:border-slate-200 transition duration-150"
+                  className="rounded-xl border border-slate-100 bg-slate-50 p-3 cursor-pointer hover:bg-slate-100 hover:border-slate-200 transition duration-150 flex flex-col justify-between"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-slate-950">{stall.name}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">
-                        {stall.latitude ?? '-'}, {stall.longitude ?? '-'} | radius {stall.activationRadius}m
-                      </p>
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-slate-950">{stall.name}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                          {stall.latitude ?? '-'}, {stall.longitude ?? '-'} | bán kính {stall.activationRadius}m
+                        </p>
+                      </div>
+                      <AdminBadge status={stall.status} />
                     </div>
-                    <AdminBadge status={stall.status} />
+                  </div>
+
+                  {/* Priority Swapper */}
+                  <div className="mt-4 border-t border-slate-200/60 pt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="radio"
+                      id={`priority-${stall.id}`}
+                      name="premium-priority-group"
+                      checked={Boolean(stall.isPremiumPriority)}
+                      onChange={() => handleSetPremiumPriority(stall.id)}
+                      className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-slate-300"
+                    />
+                    <label htmlFor={`priority-${stall.id}`} className="text-xs font-bold text-slate-700 cursor-pointer">
+                      Sắp đặt Đặc quyền Phát Premium
+                    </label>
                   </div>
                 </div>
               ))}
@@ -209,6 +290,14 @@ export function AdminVendorDetail() {
             </div>
             <p className="mt-4 text-3xl font-black text-slate-950">{formatCurrency(vendor.wallet?.balance)}</p>
             <p className="text-sm font-semibold text-slate-500">Số dư ví vendor</p>
+
+            <button
+              type="button"
+              onClick={handleGrantMultiPremium}
+              className="mt-4 w-full bg-amber-500 hover:bg-amber-600 text-white py-2 px-4 rounded-xl text-sm font-bold transition shadow-[0_0_10px_rgba(245,158,11,0.3)]"
+            >
+              ★ Cấp Đặc Quyền Multi-Premium
+            </button>
           </article>
 
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -403,6 +492,60 @@ export function AdminVendorDetail() {
           }
         }}
       />
+
+      <AdminModal
+        open={showAddStallModal}
+        title="Admin Thêm Sạp Phụ"
+        description="Thêm sạp phụ trực tiếp cho Vendor (bỏ qua giới hạn Premium/Thanh toán)."
+        confirmLabel="Tạo sạp hàng"
+        tone="success"
+        onClose={() => setShowAddStallModal(false)}
+        onConfirm={handleCreateStallForVendor}
+      >
+        <div className="space-y-4 py-2">
+          <div>
+            <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Tên sạp hàng</label>
+            <input
+              type="text"
+              value={newStallName}
+              onChange={(e) => setNewStallName(e.target.value)}
+              placeholder="VD: Sạp Bánh Mì Cô Ba"
+              className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Mô tả</label>
+            <textarea
+              value={newStallDesc}
+              onChange={(e) => setNewStallDesc(e.target.value)}
+              placeholder="Nhập mô tả ngắn về sạp hàng..."
+              className="w-full h-20 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold outline-none focus:border-blue-500 resize-none"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Vĩ độ (Latitude)</label>
+              <input
+                type="number"
+                step="any"
+                value={newStallLat}
+                onChange={(e) => setNewStallLat(e.target.value)}
+                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Kinh độ (Longitude)</label>
+              <input
+                type="number"
+                step="any"
+                value={newStallLng}
+                onChange={(e) => setNewStallLng(e.target.value)}
+                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+      </AdminModal>
     </div>
   );
 }

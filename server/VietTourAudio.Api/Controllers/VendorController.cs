@@ -15,7 +15,7 @@ namespace VietTourAudio.Api.Controllers;
 [ApiController]
 [Route("api/vendor")]
 [Authorize(Roles = "VENDOR")]
-public sealed class VendorController(AppDbContext db, IWebHostEnvironment environment, Microsoft.AspNetCore.SignalR.IHubContext<VietTourAudio.Api.Hubs.NotificationHub> hubContext) : ControllerBase
+public sealed class VendorController(AppDbContext db, IWebHostEnvironment environment, Microsoft.AspNetCore.SignalR.IHubContext<VietTourAudio.Api.Hubs.NotificationHub> hubContext, System.Net.Http.IHttpClientFactory clients) : ControllerBase
 {
   private ulong VendorId => ulong.Parse(User.FindFirstValue("vendor_id") ?? throw new UnauthorizedAccessException());
 
@@ -29,6 +29,27 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
       ownerEmail = vendor.ContactEmail, verificationStatus = vendor.Status,
       assignedTourId = vendor.AssignedTourId?.ToString()
     }));
+  }
+
+  [HttpPost("translate")]
+  public async Task<IActionResult> Translate([FromBody] VendorTranslationRequest request)
+  {
+    if (string.IsNullOrWhiteSpace(request.Text) || request.TargetLangs.Length == 0)
+      return BadRequest(ApiResponseFactory.Fail("translation.invalid"));
+    var supported = new HashSet<string>(["vi", "en", "ja", "ko", "zh"]);
+    var result = new Dictionary<string, string>();
+    var client = clients.CreateClient();
+    foreach (var language in request.TargetLangs.Distinct())
+    {
+      if (!supported.Contains(language)) continue;
+      var url = $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=vi&tl={Uri.EscapeDataString(language)}&dt=t&q={Uri.EscapeDataString(request.Text)}";
+      using var response = await client.GetAsync(url);
+      if (!response.IsSuccessStatusCode) { result[language] = ""; continue; }
+      using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+      result[language] = string.Concat(document.RootElement[0].EnumerateArray()
+        .Select(item => item[0].ValueKind == System.Text.Json.JsonValueKind.String ? item[0].GetString() : ""));
+    }
+    return Ok(ApiResponseFactory.Ok(result));
   }
 
   [HttpGet("dashboard")]
@@ -224,6 +245,56 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
     return await Profile();
   }
 
+  [HttpGet("my-stalls")]
+  public async Task<IActionResult> MyStalls()
+  {
+    var connection = await DatabaseSql.OpenConnectionAsync(db);
+    await using var command = connection.CreateCommand();
+    command.CommandText = """
+      SELECT s.*, t.name AS assigned_zone_name,
+        (SELECT file_name FROM media_files mf WHERE mf.stall_id=s.id AND mf.file_type='IMAGE'
+         AND mf.moderation_status='APPROVED' ORDER BY mf.id DESC LIMIT 1) AS image_file
+      FROM stalls s JOIN vendors v ON v.id=s.vendor_id
+      LEFT JOIN tours t ON t.id=v.assigned_tour_id
+      WHERE s.vendor_id=@vendorId ORDER BY s.id
+      """;
+    command.AddParameter("@vendorId", VendorId);
+    await using var reader = await command.ExecuteReaderAsync();
+    var list = new List<object>();
+    while (await reader.ReadAsync())
+    {
+      string? pendingFile = reader.NullableString("pending_cover_image_url");
+      string? imageFile = reader.NullableString("image_file");
+      var premiumActivationOrd = reader.GetOrdinal("premium_activation_date");
+      var premiumExpiryOrd = reader.GetOrdinal("premium_expiry_date");
+      list.Add(new
+      {
+        id = reader.UInt64("id").ToString(),
+        name = reader.GetString(reader.GetOrdinal("name")),
+        description = reader.NullableString("description"),
+        latitude = reader.Decimal("latitude"),
+        longitude = reader.Decimal("longitude"),
+        activationRadius = reader.Int32("activation_radius"),
+        status = reader.GetString(reader.GetOrdinal("status")),
+        isPremium = reader.Boolean("is_premium"),
+        isPremiumPriority = reader.Boolean("is_premium_priority"),
+        premiumActivationDate = reader.IsDBNull(premiumActivationOrd) ? (DateTime?)null : reader.GetDateTime(premiumActivationOrd),
+        premiumExpiryDate = reader.IsDBNull(premiumExpiryOrd) ? (DateTime?)null : reader.GetDateTime(premiumExpiryOrd),
+        zoneCode = reader.NullableString("zone_code"),
+        assignedZoneName = reader.NullableString("assigned_zone_name"),
+        imageUrl = imageFile is null ? null : $"/uploads/vendor/{imageFile}",
+        pendingName = reader.NullableString("pending_name"),
+        pendingDescription = reader.NullableString("pending_description"),
+        pendingLatitude = reader.IsDBNull(reader.GetOrdinal("pending_latitude")) ? null : (decimal?)reader.Decimal("pending_latitude"),
+        pendingLongitude = reader.IsDBNull(reader.GetOrdinal("pending_longitude")) ? null : (decimal?)reader.Decimal("pending_longitude"),
+        pendingCoverImageUrl = pendingFile is null ? null : $"/uploads/vendor/{pendingFile}",
+        approvalStatus = reader.GetString(reader.GetOrdinal("approval_status")),
+        stallLimit = 3
+      });
+    }
+    return Ok(ApiResponseFactory.Ok(list));
+  }
+
   [HttpGet("stall")]
   public async Task<IActionResult> Stall()
   {
@@ -242,6 +313,8 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
     if (!await reader.ReadAsync()) return Ok(ApiResponseFactory.Ok(new { stall = (object?)null }));
     string? pendingFile = reader.NullableString("pending_cover_image_url");
     string? imageFile = reader.NullableString("image_file");
+    var pActivationOrd = reader.GetOrdinal("premium_activation_date");
+    var pExpiryOrd = reader.GetOrdinal("premium_expiry_date");
     return Ok(ApiResponseFactory.Ok(new
     {
       stall = new
@@ -253,6 +326,9 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
         activationRadius = reader.Int32("activation_radius"),
         status = reader.GetString(reader.GetOrdinal("status")),
         isPremium = reader.Boolean("is_premium"),
+        isPremiumPriority = reader.Boolean("is_premium_priority"),
+        premiumActivationDate = reader.IsDBNull(pActivationOrd) ? (DateTime?)null : reader.GetDateTime(pActivationOrd),
+        premiumExpiryDate = reader.IsDBNull(pExpiryOrd) ? (DateTime?)null : reader.GetDateTime(pExpiryOrd),
         zoneCode = reader.NullableString("zone_code"),
         assignedZoneName = reader.NullableString("assigned_zone_name"),
         imageUrl = imageFile is null ? null : $"/uploads/vendor/{imageFile}",
@@ -261,13 +337,14 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
         pendingLatitude = reader.IsDBNull(reader.GetOrdinal("pending_latitude")) ? null : (decimal?)reader.Decimal("pending_latitude"),
         pendingLongitude = reader.IsDBNull(reader.GetOrdinal("pending_longitude")) ? null : (decimal?)reader.Decimal("pending_longitude"),
         pendingCoverImageUrl = pendingFile is null ? null : $"/uploads/vendor/{pendingFile}",
-        approvalStatus = reader.GetString(reader.GetOrdinal("approval_status"))
+        approvalStatus = reader.GetString(reader.GetOrdinal("approval_status")),
+        stallLimit = 3
       }
     }));
   }
 
-  [HttpPut("stall")]
-  [RequestSizeLimit(5 * 1024 * 1024 + 32_768)]
+  [HttpPut("stall/submit")]
+  [RequestSizeLimit(10 * 1024 * 1024 + 32_768)]
   public async Task<IActionResult> UpdateStall([FromForm] VendorStallRequest request)
   {
     if (!decimal.TryParse(request.Latitude, NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude) ||
@@ -280,36 +357,179 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
     {
       storedName = await StoreFileAsync(request.Image, ["image/png", "image/jpeg"], [".png", ".jpg", ".jpeg"], "vendor");
     }
-    var connection = await DatabaseSql.OpenConnectionAsync(db);
-    await using var command = connection.CreateCommand();
-    command.CommandText = """
-      UPDATE stalls SET pending_name=@name, pending_description=@description,
-        pending_latitude=@latitude, pending_longitude=@longitude,
-        pending_cover_image_url=COALESCE(@fileName,pending_cover_image_url),
-        approval_status='PENDING', updated_at=NOW()
-      WHERE vendor_id=@vendorId ORDER BY id LIMIT 1
-      """;
-    command.AddParameter("@name", request.Name.Trim());
-    command.AddParameter("@description", request.Description);
-    command.AddParameter("@latitude", latitude);
-    command.AddParameter("@longitude", longitude);
-    command.AddParameter("@fileName", storedName);
-    command.AddParameter("@vendorId", VendorId);
-    await command.ExecuteNonQueryAsync();
-    if (storedName is not null)
+
+    var poi = await db.Pois.FirstOrDefaultAsync(p => p.VendorId == VendorId);
+    if (poi == null)
     {
-      await using var media = connection.CreateCommand();
-      media.CommandText = """
-        INSERT INTO media_files
-          (vendor_id,stall_id,file_type,storage_provider,file_name,file_path,public_url,mime_type,file_size,moderation_status)
-        SELECT @vendorId,id,'IMAGE','LOCAL',@fileName,@fileName,@fileName,@mime,@size,'PENDING'
-        FROM stalls WHERE vendor_id=@vendorId ORDER BY id LIMIT 1
-        """;
-      media.AddParameter("@vendorId", VendorId); media.AddParameter("@fileName", storedName);
-      media.AddParameter("@mime", request.Image!.ContentType); media.AddParameter("@size", request.Image.Length);
-      await media.ExecuteNonQueryAsync();
+      var stallId = await PrimaryStallIdAsync();
+      poi = new Poi
+      {
+        VendorId = VendorId,
+        StallId = stallId,
+        Name = request.Name.Trim(),
+        Description = request.Description,
+        Latitude = latitude,
+        Longitude = longitude,
+        Status = "ACTIVE",
+        ApprovalStatus = ApprovalStatus.PENDING,
+        CoverUrl = storedName is null ? null : $"/uploads/vendor/{storedName}",
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+      };
+      db.Pois.Add(poi);
     }
+    else
+    {
+      poi.Name = request.Name.Trim();
+      poi.Description = request.Description;
+      poi.Latitude = latitude;
+      poi.Longitude = longitude;
+      poi.ApprovalStatus = ApprovalStatus.PENDING;
+      if (storedName is not null)
+      {
+        poi.CoverUrl = $"/uploads/vendor/{storedName}";
+      }
+      poi.UpdatedAt = DateTime.UtcNow;
+    }
+    await db.SaveChangesAsync();
+
+    // Background auto-translation chain
+    try
+    {
+      var connection = await DatabaseSql.OpenConnectionAsync(db);
+      // 1. Save Vietnamese content
+      await using var viCmd = connection.CreateCommand();
+      viCmd.CommandText = """
+        INSERT INTO poi_contents(poi_id,lang,title,tts_script,approval_status)
+        VALUES(@poiId,'vi',@title,@script,'pending')
+        ON DUPLICATE KEY UPDATE title=VALUES(title),tts_script=VALUES(tts_script),approval_status='pending',updated_at=NOW()
+        """;
+      viCmd.AddParameter("@poiId", poi.Id);
+      viCmd.AddParameter("@title", request.Name.Trim());
+      viCmd.AddParameter("@script", request.Description ?? "");
+      await viCmd.ExecuteNonQueryAsync();
+
+      // 2. Generate and save translations for en, ja, ko, zh
+      var langs = new[] { "en", "ja", "ko", "zh" };
+      foreach (var lang in langs)
+      {
+        var translatedName = await TranslateTextAsync(request.Name, lang);
+        var translatedDesc = await TranslateTextAsync(request.Description ?? "", lang);
+        
+        await using var transCmd = connection.CreateCommand();
+        transCmd.CommandText = """
+          INSERT INTO poi_contents(poi_id,lang,title,tts_script,approval_status)
+          VALUES(@poiId,@lang,@title,@script,'pending')
+          ON DUPLICATE KEY UPDATE title=VALUES(title),tts_script=VALUES(tts_script),approval_status='pending',updated_at=NOW()
+          """;
+        transCmd.AddParameter("@poiId", poi.Id);
+        transCmd.AddParameter("@lang", lang);
+        transCmd.AddParameter("@title", string.IsNullOrWhiteSpace(translatedName) ? $"Stall - {lang}" : translatedName);
+        transCmd.AddParameter("@script", translatedDesc);
+        await transCmd.ExecuteNonQueryAsync();
+      }
+    }
+    catch (Exception ex)
+    {
+      System.Console.WriteLine($"Stall translation failure: {ex.Message}");
+    }
+
     return Ok(ApiResponseFactory.Ok(new { submitted = true, approvalStatus = "PENDING", pendingImageUrl = storedName is null ? null : $"/uploads/vendor/{storedName}" }));
+  }
+
+  [HttpPost("stalls")]
+  public async Task<IActionResult> CreateStall([FromBody] VendorStallCreateRequest request)
+  {
+    if (string.IsNullOrWhiteSpace(request.Name) ||
+        request.Latitude is < -90 or > 90 ||
+        request.Longitude is < -180 or > 180)
+      return BadRequest(ApiResponseFactory.Fail("stall.invalid_coordinates"));
+
+    var connection = await DatabaseSql.OpenConnectionAsync(db);
+    await using var transaction = await connection.BeginTransactionAsync();
+    await using var countCommand = connection.CreateCommand();
+    countCommand.Transaction = transaction;
+    countCommand.CommandText = "SELECT COUNT(*) FROM stalls WHERE vendor_id=@vendorId FOR UPDATE";
+    countCommand.AddParameter("@vendorId", VendorId);
+    var existingCount = Convert.ToInt32(await countCommand.ExecuteScalarAsync());
+    if (existingCount >= 3)
+    {
+      await transaction.RollbackAsync();
+      return Conflict(new
+      {
+        success = false,
+        message = "Tài khoản Premium chỉ cho phép tạo tối đa 3 sạp hàng!"
+      });
+    }
+    await using var premiumCommand = connection.CreateCommand();
+    premiumCommand.Transaction = transaction;
+    premiumCommand.CommandText = "SELECT COALESCE(MAX(is_premium),0) FROM stalls WHERE vendor_id=@vendorId";
+    premiumCommand.AddParameter("@vendorId", VendorId);
+    var vendorIsPremium = Convert.ToBoolean(await premiumCommand.ExecuteScalarAsync());
+    if (existingCount >= 1 && !vendorIsPremium)
+    {
+      await transaction.RollbackAsync();
+      return StatusCode(StatusCodes.Status403Forbidden, new
+      {
+        success = false,
+        message = "Chỉ tài khoản Premium mới có thể tạo thêm sạp phụ."
+      });
+    }
+
+    var isPrimary = existingCount == 0;
+    var slug = $"{Slugify(request.Name)}-{Guid.NewGuid():N}"[..Math.Min(80, Slugify(request.Name).Length + 33)];
+    var zoneCode = Guid.NewGuid().ToString("N");
+    await using var insert = connection.CreateCommand();
+    insert.Transaction = transaction;
+    insert.CommandText = """
+      INSERT INTO stalls
+        (vendor_id,name,slug,description,latitude,longitude,activation_radius,status,
+         is_premium,is_premium_priority,priority_score,zone_code,approval_status)
+      VALUES
+        (@vendorId,@name,@slug,@description,@latitude,@longitude,@radius,'PENDING',
+         @priority,@priority,@score,@zoneCode,'PENDING')
+      """;
+    insert.AddParameter("@vendorId", VendorId);
+    insert.AddParameter("@name", request.Name.Trim());
+    insert.AddParameter("@slug", slug);
+    insert.AddParameter("@description", request.Description);
+    insert.AddParameter("@latitude", request.Latitude);
+    insert.AddParameter("@longitude", request.Longitude);
+    insert.AddParameter("@radius", isPrimary ? 10 : 3);
+    insert.AddParameter("@priority", isPrimary);
+    insert.AddParameter("@score", isPrimary ? 100 : 0);
+    insert.AddParameter("@zoneCode", zoneCode);
+    await insert.ExecuteNonQueryAsync();
+    await using var createPoi = connection.CreateCommand();
+    createPoi.Transaction = transaction;
+    createPoi.CommandText = """
+      INSERT INTO zones
+        (tour_id,stall_id,name,slug,description,latitude,longitude,
+         activation_radius,status,approval_status)
+      SELECT COALESCE(v.assigned_tour_id,(SELECT id FROM tours WHERE status!='ARCHIVED' ORDER BY id LIMIT 1)),
+        LAST_INSERT_ID(),@name,CONCAT(@slug,'-poi'),@description,@latitude,@longitude,
+        @radius,'ACTIVE','PENDING'
+      FROM vendors v
+      WHERE v.id=@vendorId
+        AND COALESCE(v.assigned_tour_id,(SELECT id FROM tours WHERE status!='ARCHIVED' ORDER BY id LIMIT 1)) IS NOT NULL
+      """;
+    createPoi.AddParameter("@vendorId", VendorId);
+    createPoi.AddParameter("@name", request.Name.Trim());
+    createPoi.AddParameter("@slug", slug);
+    createPoi.AddParameter("@description", request.Description);
+    createPoi.AddParameter("@latitude", request.Latitude);
+    createPoi.AddParameter("@longitude", request.Longitude);
+    createPoi.AddParameter("@radius", isPrimary ? 10 : 3);
+    await createPoi.ExecuteNonQueryAsync();
+    await transaction.CommitAsync();
+    return Ok(ApiResponseFactory.Ok(new
+    {
+      created = true,
+      approvalStatus = "PENDING",
+      isPremiumPriority = isPrimary,
+      triggerRadius = isPrimary ? 10 : 3,
+      zoneCode
+    }));
   }
 
   [HttpPut("location")]
@@ -420,7 +640,7 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
       CreatedAt = DateTime.UtcNow
     });
     if (category == "PREMIUM_UPGRADE")
-      await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE stalls SET is_premium=1,activation_radius=GREATEST(activation_radius,10),priority_score=100 WHERE vendor_id={VendorId}");
+      await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE stalls SET is_premium=1,activation_radius=GREATEST(activation_radius,10),priority_score=100,premium_activation_date=NOW(),premium_expiry_date=DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE vendor_id={VendorId}");
     else
       await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE vendor_subscriptions SET status='ACTIVE',payment_status='paid',next_billing_date=DATE_ADD(COALESCE(next_billing_date,CURDATE()),INTERVAL 1 MONTH) WHERE vendor_id={VendorId} ORDER BY id DESC LIMIT 1");
     await db.SaveChangesAsync(); await transaction.CommitAsync();
@@ -429,6 +649,10 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
 
   private async Task<ulong> PrimaryStallIdAsync() =>
     await db.Database.SqlQuery<ulong>($"SELECT id AS Value FROM stalls WHERE vendor_id={VendorId} ORDER BY id LIMIT 1").SingleAsync();
+
+  private static string Slugify(string value) => string.Join('-',
+    value.Trim().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries))
+    .Replace("đ", "d");
 
   private async Task EnsureOwnedPoiAsync(ulong poiId)
   {
@@ -456,12 +680,33 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
     await file.CopyToAsync(stream);
     return name;
   }
+
+  private async Task<string> TranslateTextAsync(string text, string targetLang)
+  {
+    try
+    {
+      if (string.IsNullOrWhiteSpace(text)) return "";
+      var client = clients.CreateClient();
+      var url = $"https://translate.googleapis.com/translate_a/single?client=gtx&sl=vi&tl={Uri.EscapeDataString(targetLang)}&dt=t&q={Uri.EscapeDataString(text)}";
+      using var response = await client.GetAsync(url);
+      if (!response.IsSuccessStatusCode) return "";
+      using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+      return string.Concat(document.RootElement[0].EnumerateArray()
+        .Select(item => item[0].ValueKind == System.Text.Json.JsonValueKind.String ? item[0].GetString() : ""));
+    }
+    catch
+    {
+      return "";
+    }
+  }
 }
 
 public sealed record VendorProfileRequest(string TradeName, string ContactEmail);
 public sealed record VendorStallRequest(string Name, string? Description, string Latitude, string Longitude, IFormFile? Image);
+public sealed record VendorStallCreateRequest(string Name, string? Description, decimal Latitude, decimal Longitude);
 public sealed record ProductRequest(string Name, decimal Price);
 public sealed record TopUpRequest(decimal Amount, string? Note, IFormFile Proof);
 public sealed record VendorContentRequest(string TtsScript, string Language = "vi");
 public sealed record LocationRequest(decimal Latitude, decimal Longitude);
 public sealed record PoiUpdateRequest(ulong? PoiId, string? Name, string? Description, decimal? Latitude, decimal? Longitude);
+public sealed record VendorTranslationRequest(string Text, string[] TargetLangs);

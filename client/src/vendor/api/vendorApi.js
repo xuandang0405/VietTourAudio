@@ -156,7 +156,15 @@ export async function requestPremiumUpgrade(payload) {
 // --- Stall Management ---
 
 export async function fetchVendorStall() {
-  return unwrap(await vendorApiClient.get('/stall'));
+  return unwrap(await vendorApiClient.get('/my-stalls'));
+}
+
+export async function createVendorStall(data) {
+  return unwrap(await vendorApiClient.post('/stalls', data));
+}
+
+export async function fetchVendorMyStalls() {
+  return unwrap(await vendorApiClient.get('/my-stalls'));
 }
 
 export async function updateStallLocation(latitude, longitude) {
@@ -168,7 +176,7 @@ export async function updateStallInfo(data) {
 }
 
 export async function submitVendorStallUpdate(formData) {
-  return unwrap(await vendorApiClient.put('/stall', formData));
+  return unwrap(await vendorApiClient.put('/stall/submit', formData));
 }
 
 // --- Content & TTS ---

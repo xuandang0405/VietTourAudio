@@ -244,6 +244,7 @@ using (var schemaScope = app.Services.CreateScope())
 {
   var schemaDb = schemaScope.ServiceProvider.GetRequiredService<AppDbContext>();
   await PaymentSchemaInitializer.InitializeAsync(schemaDb);
+  await StallSchemaInitializer.InitializeAsync(schemaDb);
 }
 
 var uploadsPath = Path.GetFullPath(Path.Combine(
@@ -282,6 +283,7 @@ app.UseRouting();
 app.UseCors("AllowReactClients");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<PremiumExpiryMiddleware>();
 app.MapHub<VietTourAudio.Api.Hubs.NotificationHub>("/hub/notifications");
 app.MapControllers();
 app.MapGet("/health", async (AppDbContext db) =>

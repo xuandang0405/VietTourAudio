@@ -173,6 +173,10 @@ export async function fetchRevenueTimeline(params = {}) {
   return unwrap(await adminApiClient.get('/admin/revenue/timeline', { params }));
 }
 
+export async function fetchPaymentRevenueStats() {
+  return unwrap(await adminApiClient.get('/admin/revenue/payment-stats'));
+}
+
 export async function exportRevenueCsv(params = {}) {
   const response = await adminApiClient.get('/admin/revenue/export', {
     params,
@@ -247,15 +251,15 @@ export async function deleteAdminPoi(arg) {
 }
 
 export async function fetchAdminApprovals() {
-  return unwrap(await adminApiClient.get('/admin/pois/approvals'));
+  return unwrap(await adminApiClient.get('/admin/stalls/pending'));
 }
 
 export async function approveAdminPoi(id) {
-  return unwrap(await adminApiClient.post(`/admin/pois/${id}/approve`));
+  return unwrap(await adminApiClient.post(`/admin/stalls/${id}/approve`));
 }
 
 export async function rejectAdminPoi(id) {
-  return unwrap(await adminApiClient.post(`/admin/pois/${id}/reject`));
+  return unwrap(await adminApiClient.post(`/admin/stalls/${id}/reject`));
 }
 
 export async function fetchGeofenceAllData() {
@@ -358,8 +362,21 @@ export async function resolveTicket(id) {
   return unwrap(await adminApiClient.post(`/admin/tickets/${id}/resolve`));
 }
 
+
 export async function toggleStallPremium(stallId, isPremium) {
   return unwrap(await adminApiClient.put(`/admin/stalls/${stallId}/premium`, { isPremium }));
+}
+
+export async function grantMultiPremium(vendorId) {
+  return unwrap(await adminApiClient.post('/admin/stalls/grant-multi-premium', { vendorId }));
+}
+
+export async function setPremiumPriority(stallId, vendorId) {
+  return unwrap(await adminApiClient.put(`/admin/stalls/${stallId}/premium-priority`, { vendorId }));
+}
+
+export async function adminCreateStallForVendor(vendorId, data) {
+  return unwrap(await adminApiClient.post('/admin/stalls/create-for-vendor', { vendorId, ...data }));
 }
 
 export async function fetchAdminUsers() {

@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Building2, CreditCard, DollarSign, FileText, LayoutDashboard, LogOut, MapPin, MapPinned } from 'lucide-react';
+import { Building2, CreditCard, DollarSign, LayoutDashboard, LogOut, MapPinned } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { vendorLogout } from '../api/vendorApi';
 import { useVendorAuthStore } from '../store/vendorAuthStore';
@@ -12,7 +12,13 @@ export function VendorLayout() {
   const user = useVendorAuthStore((state) => state.user);
   const clearSession = useVendorAuthStore((state) => state.clearSession);
   const { data: stallData } = useVendorStall();
-  const assignedZoneName = stallData?.stall?.assignedZoneName;
+  
+  const stalls = Array.isArray(stallData) ? stallData : (stallData?.stall ? [stallData.stall] : []);
+  const primaryStall = stalls[0];
+  const isPremium = primaryStall?.isPremium;
+  const premiumExpiryDate = primaryStall?.premiumExpiryDate;
+  const assignedZoneName = primaryStall?.assignedZoneName;
+  const daysRemaining = premiumExpiryDate ? Math.ceil((new Date(premiumExpiryDate) - new Date()) / (1000 * 60 * 60 * 24)) : 0;
 
   async function handleLogout() {
     try {
@@ -39,15 +45,23 @@ export function VendorLayout() {
           <p className="mt-2 text-xs text-slate-500">{t('vendor.management_description', 'Quản lý sạp, nội dung TTS và ví tiền & thanh toán.')}</p>
         </div>
 
-        <div className="border-b border-slate-100 px-6 py-5">
-          <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-50 text-teal-600">
-              <Building2 size={20} />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-black text-slate-900">{user?.vendorName ?? 'Vendor'}</p>
-              <p className="truncate text-xs font-semibold text-slate-500">{user?.email ?? 'vendor@viettouraudio.vn'}</p>
+        <div className="border-b border-slate-100 px-4 py-5">
+          <div className={`rounded-2xl p-4 transition-all duration-300 ${isPremium ? 'border-2 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.65)] bg-gradient-to-br from-slate-900 via-slate-950 to-amber-950 text-amber-100 animate-pulse' : 'border border-slate-200 bg-white text-slate-800'}`}>
+            <div className="flex items-center gap-3">
+              <span className={`grid h-11 w-11 place-items-center rounded-2xl ${isPremium ? 'bg-amber-400/20 text-amber-300' : 'bg-teal-50 text-teal-600'}`}>
+                <Building2 size={20} />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black">{user?.vendorName ?? 'Vendor'}</p>
+                <p className={`truncate text-xs font-semibold ${isPremium ? 'text-amber-200/80' : 'text-slate-500'}`}>{user?.email ?? 'vendor@viettouraudio.vn'}</p>
+              </div>
             </div>
+            {isPremium && (
+              <div className="mt-3 border-t border-amber-500/30 pt-2 flex items-center justify-between text-[11px] font-bold text-amber-200">
+                <span>★ PREMIUM GOLD</span>
+                <span>{daysRemaining > 0 ? `${daysRemaining} ngày` : 'Hết hạn hôm nay'}</span>
+              </div>
+            )}
           </div>
         </div>
         
@@ -58,15 +72,7 @@ export function VendorLayout() {
           </NavLink>
           <NavLink to="/vendor/stall" className={navLinkClass}>
             <MapPinned size={20} />
-            {t('sidebar.stall_location')}
-          </NavLink>
-          <NavLink to="/vendor/content" className={navLinkClass}>
-            <FileText size={20} />
-            {t('sidebar.tts_content')}
-          </NavLink>
-          <NavLink to="/vendor/pois" className={navLinkClass}>
-            <MapPin size={20} />
-            {t('sidebar.poi_management')}
+            {t('sidebar.stall_poi_management', { defaultValue: 'Quản lý sạp hàng (POI)' })}
           </NavLink>
           <NavLink to="/vendor/revenue" className={navLinkClass}>
             <DollarSign size={20} />
