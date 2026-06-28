@@ -144,7 +144,9 @@ public sealed class ZoneController(AppDbContext db, IWebHostEnvironment env) : C
       SortOrder = request.SortOrder 
     };
     db.FestivalZones.Add(entity); 
-    await db.SaveChangesAsync();
+    var created = await db.SaveChangesAsync();
+    if (created == 0)
+      return StatusCode(500, new { success = false, message = "Khong the luu khu vuc vao database." });
     return Ok(new
     {
       success = true,
@@ -196,7 +198,9 @@ public sealed class ZoneController(AppDbContext db, IWebHostEnvironment env) : C
     entity.Longitude = longitude;
     entity.Status = request.Status; 
     entity.SortOrder = request.SortOrder; 
-    await db.SaveChangesAsync();
+    var updated = await db.SaveChangesAsync();
+    if (updated == 0)
+      return StatusCode(500, new { success = false, message = "Khong the cap nhat khu vuc vao database." });
     return Ok(ApiResponseFactory.Ok(new { id = entity.Id.ToString(), entity.Name, entity.Slug }));
   }
 
@@ -206,7 +210,9 @@ public sealed class ZoneController(AppDbContext db, IWebHostEnvironment env) : C
     var zone = await db.FestivalZones.SingleOrDefaultAsync(x => x.Id == id);
     if (zone is null) return NotFound(ApiResponseFactory.Fail("zone.not_found"));
     zone.Status = "ARCHIVED";
-    await db.SaveChangesAsync();
+    var archived = await db.SaveChangesAsync();
+    if (archived == 0)
+      return StatusCode(500, ApiResponseFactory.Fail("zone.not_archived"));
     return Ok(ApiResponseFactory.Ok(true));
   }
 
@@ -334,8 +340,7 @@ public sealed class ZoneController(AppDbContext db, IWebHostEnvironment env) : C
       && longitude is >= -180 and <= 180;
   }
 
-  private static string Slugify(string value) => string.Join('-', value.Trim().ToLowerInvariant()
-    .Split(' ', StringSplitOptions.RemoveEmptyEntries)).Replace("đ", "d");
+  private static string Slugify(string value) => StringHelpers.Slugify(value);
 }
 
 public sealed record ZoneRequest(

@@ -41,7 +41,12 @@ public sealed class AdminTopUpController(AppDbContext db, Microsoft.AspNetCore.S
       TransactionType = "TOP_UP", TransactionCategory = "WALLET_TOP_UP", Direction = "CREDIT",
       Amount = request.Amount, BalanceBefore = before, BalanceAfter = wallet.Balance,
       Description = "Admin approved wallet top-up", CreatedAt = DateTime.UtcNow });
-    await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE top_up_requests SET status='APPROVED',reviewed_at=NOW() WHERE id={id}");
+    var requestUpdateRows = await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE top_up_requests SET status='APPROVED',reviewed_at=NOW() WHERE id={id} AND status='PENDING'");
+    if (requestUpdateRows == 0)
+    {
+      await transaction.RollbackAsync();
+      return Conflict(ApiResponseFactory.Fail("topup.not_pending"));
+    }
     await db.SaveChangesAsync(); await transaction.CommitAsync();
 
     try
@@ -64,7 +69,8 @@ public sealed class AdminTopUpController(AppDbContext db, Microsoft.AspNetCore.S
   [HttpPost("requests/{id:long}/reject")]
   public async Task<IActionResult> Reject(ulong id, [FromBody] RejectRequest request)
   {
-    await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE top_up_requests SET status='REJECTED',note={request.Reason},reviewed_at=NOW() WHERE id={id} AND status='PENDING'");
+    var affected = await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE top_up_requests SET status='REJECTED',note={request.Reason},reviewed_at=NOW() WHERE id={id} AND status='PENDING'");
+    if (affected == 0) return Conflict(ApiResponseFactory.Fail("topup.not_pending"));
 
     try
     {

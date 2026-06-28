@@ -136,7 +136,9 @@ public sealed class AdminPoiController(
       UpdatedAt = DateTime.UtcNow
     };
     db.Pois.Add(entity);
-    await db.SaveChangesAsync();
+    var created = await db.SaveChangesAsync();
+    if (created == 0)
+      return StatusCode(500, ApiResponseFactory.Fail("poi.create_failed"));
     var poiId = entity.Id;
 
     var translationsList = ParseTranslations(body);
@@ -151,7 +153,7 @@ public sealed class AdminPoiController(
     var name = body.GetProperty("name").GetString()?.Trim() ?? throw new ArgumentException("poi.name_required");
     var description = body.TryGetProperty("description", out var desc) && desc.ValueKind != JsonValueKind.Null ? desc.GetString() : null;
 
-    await DatabaseSql.ExecuteAsync(db, """
+    var updated = await DatabaseSql.ExecuteAsync(db, """
       UPDATE zones SET tour_id=@tour,stall_id=@stall,name=@name,slug=@slug,description=@description,
         latitude=@lat,longitude=@lng,activation_radius=@radius,is_premium_content=@premium,status=@status
       WHERE id=@id
@@ -164,6 +166,8 @@ public sealed class AdminPoiController(
         ["@radius"] = body.GetProperty("activationRadius").GetInt32(),
         ["@premium"] = body.GetProperty("isPremiumContent").GetBoolean(), ["@status"] = body.GetProperty("status").GetString()
       });
+    if (updated == 0)
+      return NotFound(ApiResponseFactory.Fail("poi.not_found"));
 
     var translationsList = ParseTranslations(body);
     await SavePoiTranslationsAsync(id, name, description ?? "", translationsList);
@@ -252,7 +256,9 @@ public sealed class AdminPoiController(
     command.AddParameter("@audioUrl", DBNull.Value);
     command.AddParameter("@voiceProfile", "BROWSER_TTS");
     command.AddParameter("@approvalStatus", approvalStatus);
-    await command.ExecuteNonQueryAsync();
+    var rows = await command.ExecuteNonQueryAsync();
+    if (rows == 0)
+      throw new InvalidOperationException("poi.translation_failed");
   }
 
   private async Task<string> TranslateTextAsync(string text, string targetLang)
@@ -362,7 +368,10 @@ public sealed class AdminPoiController(
         UPDATE {table} SET pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,
           pending_latitude=NULL,pending_longitude=NULL,approval_status='REJECTED',updated_at=NOW() WHERE id=@id
         """);
-    command.AddParameter("@id", numericId); await command.ExecuteNonQueryAsync();
+    command.AddParameter("@id", numericId);
+    var rows = await command.ExecuteNonQueryAsync();
+    if (rows == 0)
+      return NotFound(ApiResponseFactory.Fail("poi.not_found"));
     if (isStall)
       await hubContext.Clients.All.SendAsync(
         "StallStatusUpdated",
@@ -371,6 +380,5 @@ public sealed class AdminPoiController(
     return Ok(ApiResponseFactory.Ok(new { id, approved = approve }));
   }
 
-  private static string Slugify(string value) => string.Join('-', value.Trim().ToLowerInvariant()
-    .Split(' ', StringSplitOptions.RemoveEmptyEntries)).Replace("đ", "d");
+  private static string Slugify(string value) => StringHelpers.Slugify(value);
 }

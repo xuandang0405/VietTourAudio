@@ -168,7 +168,9 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
       """;
     command.AddParameter("@poiId", poiId); command.AddParameter("@lang", request.Language);
     command.AddParameter("@title", $"TTS Content - {request.Language}"); command.AddParameter("@script", request.TtsScript.Trim());
-    await command.ExecuteNonQueryAsync();
+    var inserted = await command.ExecuteNonQueryAsync();
+    if (inserted == 0)
+      return StatusCode(500, ApiResponseFactory.Fail("topup.create_failed"));
     return Ok(ApiResponseFactory.Ok(new { submitted = true, approvalStatus = "pending" }));
   }
 
@@ -213,7 +215,9 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
   {
     await EnsureOwnedPoiAsync(poiId);
     var product = new PoiProduct { PoiId = poiId, Name = request.Name.Trim(), Price = request.Price };
-    db.PoiProducts.Add(product); await db.SaveChangesAsync();
+    db.PoiProducts.Add(product);
+    var saved = await db.SaveChangesAsync();
+    if (saved == 0) return StatusCode(500, ApiResponseFactory.Fail("product.create_failed"));
     return Ok(ApiResponseFactory.Ok(new { id = product.Id.ToString(), product.Name, product.Price }));
   }
 
@@ -222,7 +226,10 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
   {
     await EnsureOwnedPoiAsync(poiId);
     var product = await db.PoiProducts.SingleAsync(x => x.Id == id && x.PoiId == poiId);
-    product.Name = request.Name.Trim(); product.Price = request.Price; await db.SaveChangesAsync();
+    product.Name = request.Name.Trim();
+    product.Price = request.Price;
+    var saved = await db.SaveChangesAsync();
+    if (saved == 0) return StatusCode(500, ApiResponseFactory.Fail("product.update_failed"));
     return Ok(ApiResponseFactory.Ok(new { id = product.Id.ToString(), product.Name, product.Price }));
   }
 
@@ -231,7 +238,9 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
   {
     await EnsureOwnedPoiAsync(poiId);
     var product = await db.PoiProducts.SingleAsync(x => x.Id == id && x.PoiId == poiId);
-    db.PoiProducts.Remove(product); await db.SaveChangesAsync();
+    db.PoiProducts.Remove(product);
+    var saved = await db.SaveChangesAsync();
+    if (saved == 0) return StatusCode(500, ApiResponseFactory.Fail("product.delete_failed"));
     return Ok(ApiResponseFactory.Ok(true));
   }
 
@@ -241,7 +250,8 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
     var vendor = await db.Vendors.SingleAsync(x => x.Id == VendorId);
     vendor.TradeName = request.TradeName.Trim();
     vendor.ContactEmail = request.ContactEmail.Trim().ToLowerInvariant();
-    await db.SaveChangesAsync();
+    var saved = await db.SaveChangesAsync();
+    if (saved == 0) return StatusCode(500, ApiResponseFactory.Fail("vendor.profile_not_saved"));
     return await Profile();
   }
 
@@ -359,6 +369,20 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
     }
 
     var stallId = await PrimaryStallIdAsync();
+    ulong tourId;
+    var vendor = await db.Vendors.AsNoTracking().SingleOrDefaultAsync(v => v.Id == VendorId);
+    if (vendor == null) return NotFound(ApiResponseFactory.Fail("vendor.not_found"));
+    if (vendor.FestivalZoneId.HasValue)
+    {
+      tourId = vendor.FestivalZoneId.Value;
+    }
+    else
+    {
+      var firstTour = await db.FestivalZones.AsNoTracking().OrderBy(t => t.Id).FirstOrDefaultAsync();
+      if (firstTour == null) return BadRequest(ApiResponseFactory.Fail("tour.no_active_tours"));
+      tourId = firstTour.Id;
+    }
+
     var poi = await db.Pois.FirstOrDefaultAsync(p => p.VendorId == VendorId);
     if (poi == null)
     {
@@ -366,6 +390,7 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
       {
         VendorId = VendorId,
         StallId = stallId,
+        TourId = tourId,
         Name = request.Name.Trim(),
         Description = request.Description,
         Latitude = latitude,
@@ -380,19 +405,13 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
     }
     else
     {
-      poi.Name = request.Name.Trim();
-      poi.Description = request.Description;
-      poi.Latitude = latitude;
-      poi.Longitude = longitude;
+      poi.TourId = tourId;
       poi.ApprovalStatus = ApprovalStatus.PENDING;
-      if (storedName is not null)
-      {
-        poi.CoverUrl = $"/uploads/vendor/{storedName}";
-      }
       poi.UpdatedAt = DateTime.UtcNow;
     }
-    await db.SaveChangesAsync();
-    await DatabaseSql.ExecuteAsync(db, """
+    var saved = await db.SaveChangesAsync();
+    if (saved == 0) return StatusCode(500, ApiResponseFactory.Fail("stall.update_failed"));
+    var updated = await DatabaseSql.ExecuteAsync(db, """
       UPDATE stalls
       SET pending_name=@name,pending_description=@description,
           pending_latitude=@latitude,pending_longitude=@longitude,
@@ -408,6 +427,25 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
       ["@image"] = storedName,
       ["@stallId"] = stallId,
       ["@vendorId"] = VendorId
+    });
+    if (updated == 0)
+      return NotFound(ApiResponseFactory.Fail("stall.not_found"));
+
+    await DatabaseSql.ExecuteAsync(db, """
+      UPDATE zones
+      SET pending_name=@name,pending_description=@description,
+          pending_latitude=@latitude,pending_longitude=@longitude,
+          pending_cover_image_url=COALESCE(@imagePath,pending_cover_image_url),
+          approval_status='PENDING',updated_at=NOW()
+      WHERE stall_id=@stallId
+      """, new Dictionary<string, object?>
+    {
+      ["@name"] = request.Name.Trim(),
+      ["@description"] = request.Description,
+      ["@latitude"] = latitude,
+      ["@longitude"] = longitude,
+      ["@imagePath"] = storedName is null ? null : $"/uploads/vendor/{storedName}",
+      ["@stallId"] = stallId
     });
 
     if (storedName is not null)
@@ -428,11 +466,11 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
         ["@vendorId"] = VendorId,
         ["@stallId"] = stallId,
         ["@poiId"] = poi.Id,
-        ["@fileName"] = request.Image!.FileName,
+        ["@fileName"] = storedName,
         ["@filePath"] = relativePath,
         ["@publicUrl"] = publicUrl,
-        ["@mimeType"] = request.Image.ContentType,
-        ["@fileSize"] = (ulong)request.Image.Length
+        ["@mimeType"] = request.Image!.ContentType,
+        ["@fileSize"] = (ulong)request.Image!.Length
       });
     }
 
@@ -450,7 +488,8 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
       viCmd.AddParameter("@poiId", poi.Id);
       viCmd.AddParameter("@title", request.Name.Trim());
       viCmd.AddParameter("@script", request.Description ?? "");
-      await viCmd.ExecuteNonQueryAsync();
+      var viRows = await viCmd.ExecuteNonQueryAsync();
+      if (viRows == 0) throw new InvalidOperationException("stall.translation_failed");
 
       // 2. Generate and save translations for en, ja, ko, zh
       var langs = new[] { "en", "ja", "ko", "zh" };
@@ -469,7 +508,8 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
         transCmd.AddParameter("@lang", lang);
         transCmd.AddParameter("@title", string.IsNullOrWhiteSpace(translatedName) ? $"Stall - {lang}" : translatedName);
         transCmd.AddParameter("@script", translatedDesc);
-        await transCmd.ExecuteNonQueryAsync();
+        var transRows = await transCmd.ExecuteNonQueryAsync();
+        if (transRows == 0) throw new InvalidOperationException("stall.translation_failed");
       }
     }
     catch (Exception ex)
@@ -557,7 +597,12 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
     insert.AddParameter("@priority", isPrimary);
     insert.AddParameter("@score", isPrimary ? 100 : 0);
     insert.AddParameter("@zoneCode", zoneCode);
-    await insert.ExecuteNonQueryAsync();
+    var inserted = await insert.ExecuteNonQueryAsync();
+    if (inserted == 0)
+    {
+      await transaction.RollbackAsync();
+      return StatusCode(500, ApiResponseFactory.Fail("stall.create_failed"));
+    }
     await using var createPoi = connection.CreateCommand();
     createPoi.Transaction = transaction;
     createPoi.CommandText = """
@@ -578,7 +623,12 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
     createPoi.AddParameter("@latitude", request.Latitude);
     createPoi.AddParameter("@longitude", request.Longitude);
     createPoi.AddParameter("@radius", isPrimary ? 10 : 3);
-    await createPoi.ExecuteNonQueryAsync();
+    var poiCreated = await createPoi.ExecuteNonQueryAsync();
+    if (poiCreated == 0)
+    {
+      await transaction.RollbackAsync();
+      return StatusCode(500, ApiResponseFactory.Fail("poi.create_failed"));
+    }
     await transaction.CommitAsync();
     return Ok(ApiResponseFactory.Ok(new
     {
@@ -701,16 +751,20 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
       await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE stalls SET is_premium=1,activation_radius=GREATEST(activation_radius,10),priority_score=100,premium_activation_date=NOW(),premium_expiry_date=DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE vendor_id={VendorId}");
     else
       await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE vendor_subscriptions SET status='ACTIVE',payment_status='paid',next_billing_date=DATE_ADD(COALESCE(next_billing_date,CURDATE()),INTERVAL 1 MONTH) WHERE vendor_id={VendorId} ORDER BY id DESC LIMIT 1");
-    await db.SaveChangesAsync(); await transaction.CommitAsync();
+    var saved = await db.SaveChangesAsync();
+    if (saved == 0)
+    {
+      await transaction.RollbackAsync();
+      return StatusCode(500, ApiResponseFactory.Fail("wallet.transaction_not_saved"));
+    }
+    await transaction.CommitAsync();
     return new { paid = true, category, amount = fee, balanceAfter = wallet.Balance };
   }
 
   private async Task<ulong> PrimaryStallIdAsync() =>
     await db.Database.SqlQuery<ulong>($"SELECT id AS Value FROM stalls WHERE vendor_id={VendorId} ORDER BY id LIMIT 1").SingleAsync();
 
-  private static string Slugify(string value) => string.Join('-',
-    value.Trim().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries))
-    .Replace("đ", "d");
+  private static string Slugify(string value) => StringHelpers.Slugify(value);
 
   private async Task EnsureOwnedPoiAsync(ulong poiId)
   {

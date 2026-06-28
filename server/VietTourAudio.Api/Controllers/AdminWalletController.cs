@@ -45,7 +45,8 @@ public sealed class AdminWalletController(
       config.QrCodeUrl = await SaveImageAsync(request.QrCode, "admin");
 
     if (config.Id == 0) db.AdminPaymentConfigs.Add(config);
-    await db.SaveChangesAsync();
+    var affected = await db.SaveChangesAsync();
+    if (affected == 0) return StatusCode(500, ApiResponseFactory.Fail("payment.config_not_saved"));
     return Ok(ApiResponseFactory.Ok(config));
   }
 
@@ -71,7 +72,12 @@ public sealed class AdminWalletController(
     if (status == "APPROVED") await entitlements.ApplyAsync(ledger);
     ledger.Status = status;
     ledger.UpdatedAt = DateTime.UtcNow;
-    await db.SaveChangesAsync();
+    var affected = await db.SaveChangesAsync();
+    if (affected == 0)
+    {
+      await transaction.RollbackAsync();
+      return StatusCode(500, ApiResponseFactory.Fail("payment.transaction_not_saved"));
+    }
     await transaction.CommitAsync();
     try
     {

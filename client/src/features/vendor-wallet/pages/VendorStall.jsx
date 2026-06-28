@@ -226,11 +226,12 @@ export function VendorStall() {
     e.preventDefault();
     if (!newProdName.trim() || !newProdPrice) return;
     try {
-      const newProd = await createPoiProduct(stall.id, {
+      await createPoiProduct(stall.id, {
         name: newProdName.trim(),
         price: Number(newProdPrice)
       });
-      setProducts((prev) => [...prev, newProd]);
+      const refreshed = await fetchPoiProducts(stall.id);
+      setProducts(refreshed.products ?? []);
       setNewProdName('');
       setNewProdPrice('30000');
     } catch (err) {
@@ -247,11 +248,12 @@ export function VendorStall() {
   const handleUpdateProduct = async (productId) => {
     if (!editProdName.trim() || !editProdPrice) return;
     try {
-      const updated = await updatePoiProduct(stall.id, productId, {
+      await updatePoiProduct(stall.id, productId, {
         name: editProdName.trim(),
         price: Number(editProdPrice)
       });
-      setProducts((prev) => prev.map((p) => (p.id === productId ? updated : p)));
+      const refreshed = await fetchPoiProducts(stall.id);
+      setProducts(refreshed.products ?? []);
       setEditingProdId(null);
     } catch (err) {
       alert(t('poi.product_update_error', { defaultValue: 'Lỗi khi cập nhật sản phẩm' }));
@@ -262,7 +264,8 @@ export function VendorStall() {
     if (!window.confirm(t('poi.product_delete_confirm', { defaultValue: 'Bạn có chắc chắn muốn xoá sản phẩm này?' }))) return;
     try {
       await deletePoiProduct(stall.id, productId);
-      setProducts((prev) => prev.filter((p) => p.id !== productId));
+      const refreshed = await fetchPoiProducts(stall.id);
+      setProducts(refreshed.products ?? []);
     } catch (err) {
       alert(t('poi.product_delete_error', { defaultValue: 'Lỗi khi xoá sản phẩm' }));
     }

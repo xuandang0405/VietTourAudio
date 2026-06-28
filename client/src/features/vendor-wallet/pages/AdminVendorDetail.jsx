@@ -1,5 +1,5 @@
 import { ArrowLeft, Ban, CheckCircle2, FileText, PauseCircle, Copy } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useVendor, useVendorAction, useResetStallQr, useToggleStallPremium, useGrantMultiPremium, useSetPremiumPriority, useAdminCreateStallForVendor } from '../../../admin/api/adminQueries';
 import { AdminBadge } from '../../../admin/components/AdminBadge';
@@ -38,6 +38,14 @@ export function AdminVendorDetail() {
   const grantMultiPremiumMutation = useGrantMultiPremium();
   const setPremiumPriorityMutation = useSetPremiumPriority();
   const createStallForVendorMutation = useAdminCreateStallForVendor();
+
+  useEffect(() => {
+    if (!selectedStall || !vendor?.stalls) return;
+    const refreshed = vendor.stalls.find((stall) => String(stall.id) === String(selectedStall.id));
+    if (refreshed) {
+      setSelectedStall(refreshed);
+    }
+  }, [vendor?.stalls, selectedStall]);
 
   async function handleGrantMultiPremium() {
     if (!window.confirm("Xác nhận kích hoạt trạng thái Premium (bán kính 10m) cho TẤT CẢ các sạp hàng của Vendor này?")) return;
@@ -83,10 +91,7 @@ export function AdminVendorDetail() {
 
   async function handleResetQr(stallId) {
     try {
-      const response = await resetQrMutation.mutateAsync(stallId);
-      if (response && response.zoneCode) {
-        setSelectedStall((prev) => prev ? { ...prev, zoneCode: response.zoneCode } : null);
-      }
+      await resetQrMutation.mutateAsync(stallId);
       setShowResetConfirm(false);
     } catch (err) {
       alert(err.response?.data?.error ?? 'Không thể reset mã QR.');
@@ -399,7 +404,6 @@ export function AdminVendorDetail() {
                           isPremium: targetPremium,
                           vendorId: vendor.id
                         });
-                        setSelectedStall(prev => prev ? { ...prev, isPremium: targetPremium } : null);
                       } catch (err) {
                         alert('Không thể cập nhật trạng thái Premium.');
                       }

@@ -124,7 +124,12 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
       """;
     insert.AddParameter("@name", tradeName); insert.AddParameter("@slug", Slugify(tradeName));
     insert.AddParameter("@code", vendorCode); insert.AddParameter("@tour", assignedTourId); insert.AddParameter("@email", email);
-    await insert.ExecuteNonQueryAsync();
+    var insertedVendorRows = await insert.ExecuteNonQueryAsync();
+    if (insertedVendorRows == 0)
+    {
+      await transaction.RollbackAsync();
+      return StatusCode(500, ApiResponseFactory.Fail("vendor.create_failed"));
+    }
     await using var identity = connection.CreateCommand();
     identity.Transaction = transaction.GetDbTransaction();
     identity.CommandText = "SELECT LAST_INSERT_ID()";
@@ -161,7 +166,12 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
     provision.AddParameter("@name", tradeName);
     provision.AddParameter("@slug", Slugify(tradeName));
     provision.AddParameter("@tour", assignedTourId);
-    await provision.ExecuteNonQueryAsync();
+    var provisionRows = await provision.ExecuteNonQueryAsync();
+    if (provisionRows == 0)
+    {
+      await transaction.RollbackAsync();
+      return StatusCode(500, ApiResponseFactory.Fail("vendor.provision_failed"));
+    }
     await transaction.CommitAsync();
     return await Detail(id);
   }
@@ -169,13 +179,14 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
   [HttpPut("{id:long}")]
   public async Task<IActionResult> Update(ulong id, [FromBody] JsonElement body)
   {
-    await DatabaseSql.ExecuteAsync(db, """
+    var affected = await DatabaseSql.ExecuteAsync(db, """
       UPDATE vendors SET legal_name=COALESCE(@legal,legal_name),trade_name=COALESCE(@trade,trade_name),
         contact_email=COALESCE(@email,contact_email),vendor_code=COALESCE(@code,vendor_code),
         assigned_tour_id=@tour WHERE id=@id
       """, new Dictionary<string, object?> { ["@id"] = id, ["@legal"] = Optional(body, "legalName") ?? Optional(body, "tradeName"),
         ["@trade"] = Optional(body, "tradeName"), ["@email"] = Optional(body, "contactEmail"),
         ["@code"] = Optional(body, "vendorCode"), ["@tour"] = OptionalUlong(body, "assignedTourId") });
+    if (affected == 0) return NotFound(ApiResponseFactory.Fail("vendor.not_found"));
     return await Detail(id);
   }
 
@@ -223,8 +234,7 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
   private static ulong? OptionalUlong(JsonElement body, string key) =>
     body.TryGetProperty(key, out var value) && value.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined &&
     ulong.TryParse(value.ToString(), out var result) ? result : null;
-  private static string Slugify(string value) => string.Join('-', value.Trim().ToLowerInvariant()
-    .Split(' ', StringSplitOptions.RemoveEmptyEntries)).Replace("đ", "d");
+  private static string Slugify(string value) => StringHelpers.Slugify(value);
 }
 
 public sealed record ReasonRequest(string? Reason);

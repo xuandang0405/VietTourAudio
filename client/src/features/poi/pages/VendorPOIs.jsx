@@ -49,11 +49,12 @@ export function VendorPOIs() {
     e.preventDefault();
     if (!newProdName.trim() || !newProdPrice) return;
     try {
-      const newProd = await createPoiProduct(poi.id, {
+      await createPoiProduct(poi.id, {
         name: newProdName.trim(),
         price: Number(newProdPrice)
       });
-      setProducts((prev) => [...prev, newProd]);
+      const refreshed = await fetchPoiProducts(poi.id);
+      setProducts(refreshed.products ?? []);
       setNewProdName('');
       setNewProdPrice('30000');
     } catch (err) {
@@ -70,11 +71,12 @@ export function VendorPOIs() {
   const handleUpdateProduct = async (productId) => {
     if (!editProdName.trim() || !editProdPrice) return;
     try {
-      const updated = await updatePoiProduct(poi.id, productId, {
+      await updatePoiProduct(poi.id, productId, {
         name: editProdName.trim(),
         price: Number(editProdPrice)
       });
-      setProducts((prev) => prev.map((p) => (p.id === productId ? updated : p)));
+      const refreshed = await fetchPoiProducts(poi.id);
+      setProducts(refreshed.products ?? []);
       setEditingProdId(null);
     } catch (err) {
       alert(t('poi.product_update_error'));
@@ -85,7 +87,8 @@ export function VendorPOIs() {
     if (!window.confirm(t('poi.product_delete_confirm'))) return;
     try {
       await deletePoiProduct(poi.id, productId);
-      setProducts((prev) => prev.filter((p) => p.id !== productId));
+      const refreshed = await fetchPoiProducts(poi.id);
+      setProducts(refreshed.products ?? []);
     } catch (err) {
       alert(t('poi.product_delete_error'));
     }

@@ -109,10 +109,10 @@ export function useVendorAction(action) {
       return forceCancelVendor(id, reason);
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(variables.id) });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.wallets });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.geofences });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'vendors'] });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.vendor(variables.id) });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.wallets });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.geofences });
     }
   });
 }
@@ -141,9 +141,9 @@ export function useWalletMutation(type) {
       return debitVendorWallet(vendorId, payload);
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.wallets });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.wallet(variables.vendorId) });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'revenue'] });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.wallets });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.wallet(variables.vendorId) });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'revenue'] });
     }
   });
 }
@@ -161,9 +161,9 @@ export function useApproveTopUp() {
   return useMutation({
     mutationFn: approveTopUpRequest,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'topups'] });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.wallets });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'revenue'] });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'topups'] });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.wallets });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'revenue'] });
     }
   });
 }
@@ -174,7 +174,7 @@ export function useRejectTopUp() {
   return useMutation({
     mutationFn: ({ id, reason }) => rejectTopUpRequest(id, reason),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'topups'] });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'topups'] });
     }
   });
 }
@@ -218,7 +218,7 @@ export function useContentMutation(action) {
       return bulkApproveContent(ids);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'content'] });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'content'] });
     }
   });
 }
@@ -255,8 +255,8 @@ export function useApprovePoi() {
   return useMutation({
     mutationFn: approveAdminPoi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'approvals'] });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.pois });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'approvals'] });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.pois });
     }
   });
 }
@@ -266,8 +266,8 @@ export function useRejectPoi() {
   return useMutation({
     mutationFn: rejectAdminPoi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'approvals'] });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.pois });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'approvals'] });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.pois });
     }
   });
 }
@@ -299,8 +299,8 @@ export function useCreatePoi() {
   return useMutation({
     mutationFn: createAdminPoi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.pois });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'tours'] });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.pois });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'tours'] });
     }
   });
 }
@@ -310,8 +310,8 @@ export function useUpdatePoi() {
   return useMutation({
     mutationFn: ({ id, data }) => updateAdminPoi(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.pois });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'tours'] });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.pois });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'tours'] });
     }
   });
 }
@@ -321,8 +321,8 @@ export function useDeletePoi() {
   return useMutation({
     mutationFn: deleteAdminPoi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin_pois'] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'tours'] });
+      void queryClient.refetchQueries({ queryKey: ['admin_pois'] });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'tours'] });
     }
   });
 }
@@ -353,7 +353,7 @@ export function useCreateVendor() {
   return useMutation({
     mutationFn: createVendorAccount,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'vendors'] });
     }
   });
 }
@@ -363,8 +363,8 @@ export function useUpdateVendor() {
   return useMutation({
     mutationFn: ({ id, data }) => updateVendor(id, data),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(variables.id) });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'vendors'] });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.vendor(variables.id) });
     }
   });
 }
@@ -374,9 +374,9 @@ export function useUpdateVendorStatus() {
   return useMutation({
     mutationFn: ({ id, status, reason }) => updateVendorStatus(id, status, reason),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(variables.id) });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.wallets });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'vendors'] });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.vendor(variables.id) });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.wallets });
     }
   });
 }
@@ -386,7 +386,7 @@ export function useCreateZoneAdmin() {
   return useMutation({
     mutationFn: createZoneAdminAccount,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'users'] });
     }
   });
 }
@@ -396,7 +396,7 @@ export function useResetStallQr() {
   return useMutation({
     mutationFn: (id) => resetStallQr(id),
     onSuccess: (_data, id) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'vendors'] });
     }
   });
 }
@@ -437,8 +437,8 @@ export function useCreateTour() {
   return useMutation({
     mutationFn: createTour,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.tours });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.dashboardAnalytics });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.tours });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.dashboardAnalytics });
     }
   });
 }
@@ -448,8 +448,8 @@ export function useUpdateTour() {
   return useMutation({
     mutationFn: ({ id, data }) => updateTour(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.tours });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.dashboardAnalytics });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.tours });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.dashboardAnalytics });
     }
   });
 }
@@ -459,8 +459,8 @@ export function useDeleteTour() {
   return useMutation({
     mutationFn: deleteTour,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.tours });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.dashboardAnalytics });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.tours });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.dashboardAnalytics });
     }
   });
 }
@@ -470,8 +470,8 @@ export function useArchiveTour() {
   return useMutation({
     mutationFn: archiveTour,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.tours });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.dashboardAnalytics });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.tours });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.dashboardAnalytics });
     }
   });
 }
@@ -481,7 +481,7 @@ export function useResetTourQr() {
   return useMutation({
     mutationFn: (id) => resetTourQr(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.tours });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.tours });
     }
   });
 }
@@ -491,8 +491,8 @@ export function useUnsuspendVendor() {
   return useMutation({
     mutationFn: (id) => unsuspendVendor(id),
     onSuccess: (_data, id) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(id) });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'vendors'] });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.vendor(id) });
     }
   });
 }
@@ -509,7 +509,7 @@ export function useResolveTicket() {
   return useMutation({
     mutationFn: (id) => resolveTicket(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.tickets });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.tickets });
     }
   });
 }
@@ -519,9 +519,9 @@ export function useToggleStallPremium() {
   return useMutation({
     mutationFn: ({ stallId, isPremium }) => toggleStallPremium(stallId, isPremium),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'vendors'] });
       if (variables.vendorId) {
-        queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(variables.vendorId) });
+        void queryClient.refetchQueries({ queryKey: adminQueryKeys.vendor(variables.vendorId) });
       }
     }
   });
@@ -546,8 +546,8 @@ export function useGrantMultiPremium() {
   return useMutation({
     mutationFn: (vendorId) => grantMultiPremium(vendorId),
     onSuccess: (_data, vendorId) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(vendorId) });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'vendors'] });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.vendor(vendorId) });
     }
   });
 }
@@ -557,8 +557,8 @@ export function useSetPremiumPriority() {
   return useMutation({
     mutationFn: ({ stallId, vendorId }) => setPremiumPriority(stallId, vendorId),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(variables.vendorId) });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'vendors'] });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.vendor(variables.vendorId) });
     }
   });
 }
@@ -568,8 +568,8 @@ export function useAdminCreateStallForVendor() {
   return useMutation({
     mutationFn: ({ vendorId, data }) => adminCreateStallForVendor(vendorId, data),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'vendors'] });
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(variables.vendorId) });
+      void queryClient.refetchQueries({ queryKey: ['admin', 'vendors'] });
+      void queryClient.refetchQueries({ queryKey: adminQueryKeys.vendor(variables.vendorId) });
     }
   });
 }

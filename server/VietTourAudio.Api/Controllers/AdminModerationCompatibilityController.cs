@@ -30,6 +30,7 @@ public sealed class AdminContentCompatibilityController(
         LEFT JOIN stalls s ON s.id=m.stall_id 
         LEFT JOIN zones p ON p.id=m.poi_id
         WHERE (@status='ALL' OR m.moderation_status=@status)
+          AND m.stall_id IS NULL
 
         UNION ALL
 
@@ -49,26 +50,6 @@ public sealed class AdminContentCompatibilityController(
         FROM stalls s
         JOIN vendors v ON v.id=s.vendor_id
         WHERE (@status='ALL' OR s.approval_status=@status)
-
-        UNION ALL
-
-        SELECT CAST(z.id + 1000000000 AS CHAR) id,CAST(s.vendor_id AS CHAR) vendorId,CAST(z.stall_id AS CHAR) stallId,
-          CAST(z.id AS CHAR) poiId,
-          'STALL' mediaType,
-          COALESCE(z.pending_cover_image_url, z.cover_url, '') storagePath,
-          COALESCE(z.pending_cover_image_url, z.cover_url, '') publicUrl,
-          'text/plain' mimeType,
-          CAST(0 AS UNSIGNED) sizeBytes,
-          z.approval_status moderationStatus,
-          NULL rejectionReason,
-          z.updated_at createdAt,
-          v.trade_name vendorName,
-          s.name stallName,
-          z.name poiName
-        FROM zones z
-        JOIN stalls s ON s.id=z.stall_id
-        JOIN vendors v ON v.id=s.vendor_id
-        WHERE (@status='ALL' OR z.approval_status=@status)
       ) q ORDER BY q.createdAt DESC
       """, new Dictionary<string, object?> { ["@status"] = status });
     foreach (var row in rows)
@@ -104,7 +85,13 @@ public sealed class AdminContentCompatibilityController(
           UPDATE stalls SET name=COALESCE(pending_name,name),description=COALESCE(pending_description,description),
             latitude=COALESCE(pending_latitude,latitude),longitude=COALESCE(pending_longitude,longitude),
             pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,pending_latitude=NULL,pending_longitude=NULL,
-            approval_status='APPROVED',status='APPROVED',updated_at=NOW() WHERE id=@id
+            approval_status='APPROVED',status='APPROVED',updated_at=NOW() WHERE id=@id;
+
+          UPDATE zones SET name=COALESCE(pending_name,name),description=COALESCE(pending_description,description),
+            latitude=COALESCE(pending_latitude,latitude),longitude=COALESCE(pending_longitude,longitude),
+            cover_url=COALESCE(pending_cover_image_url,cover_url),
+            pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,pending_latitude=NULL,pending_longitude=NULL,
+            approval_status='APPROVED',status='ACTIVE',updated_at=NOW() WHERE stall_id=@id;
           """;
         var connection = await DatabaseSql.OpenConnectionAsync(db);
         await using (var command = connection.CreateCommand())
@@ -125,7 +112,7 @@ public sealed class AdminContentCompatibilityController(
         var mediaUpdateSql = """
           UPDATE media_files m JOIN zones z ON z.id=m.poi_id
           SET m.moderation_status='APPROVED',m.moderated_at=NOW()
-          WHERE z.id=@id AND m.file_name=z.pending_cover_image_url AND m.moderation_status='PENDING';
+          WHERE z.id=@id AND m.file_path=z.pending_cover_image_url AND m.moderation_status='PENDING';
           """;
         var updateZoneSql = """
           UPDATE zones SET name=COALESCE(pending_name,name),description=COALESCE(pending_description,description),
@@ -172,11 +159,20 @@ public sealed class AdminContentCompatibilityController(
           UPDATE stalls SET name=COALESCE(pending_name,name),description=COALESCE(pending_description,description),
             latitude=COALESCE(pending_latitude,latitude),longitude=COALESCE(pending_longitude,longitude),
             pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,pending_latitude=NULL,pending_longitude=NULL,
-            approval_status='APPROVED',status='APPROVED',updated_at=NOW() WHERE id=@id
+            approval_status='APPROVED',status='APPROVED',updated_at=NOW() WHERE id=@id;
+
+          UPDATE zones SET name=COALESCE(pending_name,name),description=COALESCE(pending_description,description),
+            latitude=COALESCE(pending_latitude,latitude),longitude=COALESCE(pending_longitude,longitude),
+            cover_url=COALESCE(pending_cover_image_url,cover_url),
+            pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,pending_latitude=NULL,pending_longitude=NULL,
+            approval_status='APPROVED',status='ACTIVE',updated_at=NOW() WHERE stall_id=@id;
           """
         : """
           UPDATE stalls SET pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,
-            pending_latitude=NULL,pending_longitude=NULL,approval_status='REJECTED',updated_at=NOW() WHERE id=@id
+            pending_latitude=NULL,pending_longitude=NULL,approval_status='REJECTED',updated_at=NOW() WHERE id=@id;
+
+          UPDATE zones SET pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,
+            pending_latitude=NULL,pending_longitude=NULL,approval_status='REJECTED',updated_at=NOW() WHERE stall_id=@id;
           """;
 
       var connection = await DatabaseSql.OpenConnectionAsync(db);
@@ -210,12 +206,12 @@ public sealed class AdminContentCompatibilityController(
         ? """
           UPDATE media_files m JOIN zones z ON z.id=m.poi_id
           SET m.moderation_status='APPROVED',m.moderated_at=NOW()
-          WHERE z.id=@id AND m.file_name=z.pending_cover_image_url AND m.moderation_status='PENDING';
+          WHERE z.id=@id AND m.file_path=z.pending_cover_image_url AND m.moderation_status='PENDING';
           """
         : """
           UPDATE media_files m JOIN zones z ON z.id=m.poi_id
           SET m.moderation_status='REJECTED',m.moderated_at=NOW(),m.rejection_reason='poi_update_rejected'
-          WHERE z.id=@id AND m.file_name=z.pending_cover_image_url AND m.moderation_status='PENDING';
+          WHERE z.id=@id AND m.file_path=z.pending_cover_image_url AND m.moderation_status='PENDING';
           """;
 
       var updateZoneSql = approve

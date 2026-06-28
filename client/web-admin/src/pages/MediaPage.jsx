@@ -33,7 +33,8 @@ export function MediaPage() {
                 type="button"
                 onClick={async () => {
                   await approveNarration(r.id);
-                  setReports((prev) => prev.filter((x) => x.id !== r.id));
+                  const items = await fetchPendingNarrations();
+                  setReports((items || []).map((n) => ({ id: n.id, media: `Narration #${n.id}`, reason: n.text, status: n.approvalStatus || 'PENDING' })));
                   toast.success('Approved');
                 }}
               >
@@ -44,7 +45,8 @@ export function MediaPage() {
                 type="button"
                 onClick={async () => {
                   await rejectNarration(r.id, 'Rejected by moderator');
-                  setReports((prev) => prev.filter((x) => x.id !== r.id));
+                  const items = await fetchPendingNarrations();
+                  setReports((items || []).map((n) => ({ id: n.id, media: `Narration #${n.id}`, reason: n.text, status: n.approvalStatus || 'PENDING' })));
                   toast.success('Rejected');
                 }}
               >

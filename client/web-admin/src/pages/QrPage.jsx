@@ -27,7 +27,8 @@ export function QrPage() {
             onClick={async () => {
               try {
                 const created = await createQr({ targetType: 'tour', targetId, label: `Tour ${targetId}` });
-                setRows((prev) => [created, ...prev]);
+                const items = await fetchQrList();
+                setRows(items || []);
                 toast.success('QR created');
               } catch (e) {
                 toast.error(e.message);

@@ -35,7 +35,8 @@ export function NarrationPage() {
                 type="button"
                 onClick={async () => {
                   await approveNarration(n.id);
-                  setPending((prev) => prev.filter((x) => x.id !== n.id));
+                  const items = await fetchPendingNarrations();
+                  setPending(items || []);
                   toast.success('Approved');
                 }}
               >
@@ -46,7 +47,8 @@ export function NarrationPage() {
                 type="button"
                 onClick={async () => {
                   await rejectNarration(n.id, 'Need revision');
-                  setPending((prev) => prev.filter((x) => x.id !== n.id));
+                  const items = await fetchPendingNarrations();
+                  setPending(items || []);
                   toast.success('Rejected');
                 }}
               >

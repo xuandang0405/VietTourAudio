@@ -34,6 +34,8 @@ public sealed class AdminStallController(AppDbContext db) : ControllerBase
           updated_at = NOW()
       WHERE vendor_id = @vendorId
       """, new Dictionary<string, object?> { ["@vendorId"] = request.VendorId });
+    if (affected == 0)
+      return NotFound(ApiResponseFactory.Fail("stall.not_found"));
 
     return Ok(ApiResponseFactory.Ok(new
     {
@@ -51,16 +53,18 @@ public sealed class AdminStallController(AppDbContext db) : ControllerBase
   public async Task<IActionResult> SetPremiumPriority(ulong stallId, [FromBody] PremiumPriorityRequest request)
   {
     // First, unset priority on all stalls for this vendor
-    await DatabaseSql.ExecuteAsync(db, """
+    var cleared = await DatabaseSql.ExecuteAsync(db, """
       UPDATE stalls
       SET is_premium_priority = 0,
           activation_radius = 3,
           updated_at = NOW()
       WHERE vendor_id = @vendorId
       """, new Dictionary<string, object?> { ["@vendorId"] = request.VendorId });
+    if (cleared == 0)
+      return NotFound(ApiResponseFactory.Fail("stall.not_found"));
 
     // Then set priority on the selected stall
-    await DatabaseSql.ExecuteAsync(db, """
+    var setPriority = await DatabaseSql.ExecuteAsync(db, """
       UPDATE stalls
       SET is_premium_priority = 1,
           activation_radius = 10,
@@ -71,6 +75,8 @@ public sealed class AdminStallController(AppDbContext db) : ControllerBase
       ["@stallId"] = stallId,
       ["@vendorId"] = request.VendorId
     });
+    if (setPriority == 0)
+      return NotFound(ApiResponseFactory.Fail("stall.not_found"));
 
     return Ok(ApiResponseFactory.Ok(new
     {
@@ -121,7 +127,11 @@ public sealed class AdminStallController(AppDbContext db) : ControllerBase
     insert.AddParameter("@latitude", request.Latitude);
     insert.AddParameter("@longitude", request.Longitude);
     insert.AddParameter("@zoneCode", zoneCode);
-    await insert.ExecuteNonQueryAsync();
+    var inserted = await insert.ExecuteNonQueryAsync();
+    if (inserted == 0)
+    {
+      return StatusCode(500, ApiResponseFactory.Fail("stall.create_failed"));
+    }
 
     // Auto-create a POI (zone) for the new stall
     await using var createPoi = connection.CreateCommand();
@@ -142,7 +152,11 @@ public sealed class AdminStallController(AppDbContext db) : ControllerBase
     createPoi.AddParameter("@description", request.Description ?? "Sạp phụ được Admin tạo.");
     createPoi.AddParameter("@latitude", request.Latitude);
     createPoi.AddParameter("@longitude", request.Longitude);
-    await createPoi.ExecuteNonQueryAsync();
+    var poiCreated = await createPoi.ExecuteNonQueryAsync();
+    if (poiCreated == 0)
+    {
+      return StatusCode(500, ApiResponseFactory.Fail("poi.create_failed"));
+    }
 
     return Ok(ApiResponseFactory.Ok(new
     {
@@ -192,7 +206,9 @@ public sealed class AdminStallController(AppDbContext db) : ControllerBase
 
     stall.ApprovalStatus = ApprovalStatus.APPROVED;
     stall.UpdatedAt = DateTime.UtcNow;
-    await db.SaveChangesAsync();
+    var saved = await db.SaveChangesAsync();
+    if (saved == 0)
+      return StatusCode(500, ApiResponseFactory.Fail("stall.approve_failed"));
 
     return Ok(ApiResponseFactory.Ok(new { success = true, id = id.ToString(), approvalStatus = "APPROVED" }));
   }
@@ -209,14 +225,14 @@ public sealed class AdminStallController(AppDbContext db) : ControllerBase
 
     stall.ApprovalStatus = ApprovalStatus.REJECTED;
     stall.UpdatedAt = DateTime.UtcNow;
-    await db.SaveChangesAsync();
+    var saved = await db.SaveChangesAsync();
+    if (saved == 0)
+      return StatusCode(500, ApiResponseFactory.Fail("stall.reject_failed"));
 
     return Ok(ApiResponseFactory.Ok(new { success = true, id = id.ToString(), approvalStatus = "REJECTED" }));
   }
 
-  private static string Slugify(string value) => string.Join('-',
-    value.Trim().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries))
-    .Replace("đ", "d");
+  private static string Slugify(string value) => StringHelpers.Slugify(value);
 }
 
 public sealed record GrantMultiPremiumRequest(ulong VendorId);
