@@ -1,8 +1,11 @@
 import { Edit3, MapPin, Plus, Search, Trash2, Store } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams, Link } from 'react-router-dom';
 import axios from 'axios';
+import { adminApiClient } from '../../../admin/api/adminApi';
 import toast from 'react-hot-toast';
+import { QRCodeCanvas } from 'qrcode.react';
 import { AdminBadge } from '../../../admin/components/AdminBadge';
 import { AdminDataTable } from '../../../admin/components/AdminDataTable';
 import { AdminPageHeader } from '../../../admin/components/AdminPageHeader';
@@ -18,7 +21,8 @@ import {
   useStallsList,
   useCreatePoi,
   useUpdatePoi,
-  useDeletePoi
+  useDeletePoi,
+  useVendors
 } from '../../../admin/api/adminQueries';
 
 function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -38,7 +42,18 @@ function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number) 
 
 export function ZoneManagement() {
   const { t } = useTranslation();
-  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(() => {
+    return searchParams.get('id') || null;
+  });
+
+  useEffect(() => {
+    const urlId = searchParams.get('id');
+    if (urlId) {
+      setSelectedZoneId(urlId);
+    }
+  }, [searchParams]);
+
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState<any>(null); // { type: 'add' | 'edit' | 'delete' | 'add-poi' | 'edit-poi' | 'delete-poi', zone?: any, poi?: any }
   const [stallsModalZone, setStallsModalZone] = useState<any>(null);
@@ -76,7 +91,15 @@ export function ZoneManagement() {
   // Queries & Mutations
   const { data: tours = [], isLoading, error: fetchError, refetch } = useTours();
   const { data: stalls = [] } = useStallsList();
+  const { data: vendorsList = [] } = useVendors({ status: 'ALL' });
   const { data: selectedTourDetail, isLoading: selectedTourLoading, refetch: refetchTourDetail } = useTour(selectedZoneId);
+
+  const assignedVendor = useMemo(() => {
+    if (!selectedTourDetail?.vendorId) return null;
+    return vendorsList.find((v: any) => String(v.id) === String(selectedTourDetail.vendorId));
+  }, [vendorsList, selectedTourDetail]);
+
+
 
   const createMutation = useCreateTour();
   const updateMutation = useUpdateTour();
@@ -96,7 +119,7 @@ export function ZoneManagement() {
     if (!targetId) return;
     try {
       setIsResetting(true);
-      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/zones/reset-qr/${targetId}`);
+      const response = await adminApiClient.post(`/admin/zones/reset-qr/${targetId}`);
       if (response.data.success || response.status === 200) {
         toast.success(t('notifications.reset_qr_success', { defaultValue: 'Cập nhật mã QR thành công!' }));
         refreshData();
@@ -107,6 +130,107 @@ export function ZoneManagement() {
     } finally {
       setIsResetting(false);
     }
+  };
+
+  const downloadQrCode = () => {
+    if (!selectedTourDetail) return;
+    const canvas = document.getElementById(`qr-canvas-${selectedTourDetail.id}`);
+    if (!canvas) {
+      toast.error("Không tìm thấy QR code canvas.");
+      return;
+    }
+    const url = canvas.toDataURL("image/png");
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `qr-zone-${selectedTourDetail.slug}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const printQrCode = () => {
+    if (!selectedTourDetail) return;
+    const canvas = document.getElementById(`qr-canvas-${selectedTourDetail.id}`);
+    if (!canvas) {
+      toast.error("Không tìm thấy QR code canvas.");
+      return;
+    }
+    const url = canvas.toDataURL("image/png");
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("Không thể mở cửa sổ in. Vui lòng kiểm tra cài đặt popup blocker.");
+      return;
+    }
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>In mã QR Code - ${selectedTourDetail.name}</title>
+          <style>
+            body {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              height: 90vh;
+              margin: 0;
+              font-family: system-ui, -apple-system, sans-serif;
+              text-align: center;
+            }
+            .card {
+              border: 2px solid #e2e8f0;
+              border-radius: 16px;
+              padding: 24px;
+              max-width: 320px;
+              box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+              background: #ffffff;
+            }
+            img {
+              width: 220px;
+              height: 220px;
+              margin-bottom: 12px;
+            }
+            .code-badge {
+              font-family: monospace;
+              font-size: 0.95rem;
+              font-weight: bold;
+              background-color: #f1f5f9;
+              color: #0f172a;
+              padding: 6px 12px;
+              border-radius: 8px;
+              margin-bottom: 14px;
+              border: 1px dashed #cbd5e1;
+              display: inline-block;
+            }
+            h1 {
+              font-size: 1.25rem;
+              margin: 0 0 8px 0;
+              color: #0f172a;
+            }
+            p {
+              font-size: 0.875rem;
+              margin: 0;
+              color: #64748b;
+              word-break: break-all;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <img src="${url}" alt="QR Code" />
+            <div class="code-badge">Mã QR Code: ${selectedTourDetail.qrCode}</div>
+            <h1>${selectedTourDetail.name}</h1>
+            <p>${window.location.origin}/zone/${selectedTourDetail.slug}</p>
+          </div>
+          <script>
+            window.onload = () => {
+              window.print();
+              window.close();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const handleArchiveZone = async (zoneId: string) => {
@@ -445,6 +569,18 @@ export function ZoneManagement() {
                     <div>
                       <h2 className="text-xl font-black text-slate-900">{selectedTourDetail.name}</h2>
                       <p className="text-xs font-mono text-slate-500 mt-1">ID: #{selectedTourDetail.id} | Slug: {selectedTourDetail.slug}</p>
+                      {assignedVendor && (
+                        <p className="text-xs font-semibold text-indigo-600 mt-2 flex items-center gap-1">
+                          <Store size={13} className="text-indigo-500" />
+                          <span>{t('zone.assigned_vendor', { defaultValue: 'Nhà cung cấp phụ trách' })}:</span>
+                          <Link
+                            to={`/admin/vendors/${assignedVendor.id}`}
+                            className="font-bold underline hover:text-indigo-800"
+                          >
+                            {assignedVendor.businessName}
+                          </Link>
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <button
@@ -455,15 +591,7 @@ export function ZoneManagement() {
                       >
                         {t('common.reset_qr', { defaultValue: 'Reset QR' })}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setStallsModalZone(selectedTourDetail)}
-                        className="grid h-9 w-9 place-items-center rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50"
-                        title={t('zone.stalls_list', { defaultValue: 'Danh sách sạp' })}
-                      >
-                        <Store size={16} />
-                      </button>
-                      <button
+                       <button
                         type="button"
                         onClick={() => openEditModal(selectedTourDetail)}
                         className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
@@ -504,6 +632,44 @@ export function ZoneManagement() {
                       <p className="mt-1 font-mono text-slate-900 text-sm">{selectedTourDetail.qrCode || 'Chưa có'}</p>
                     </div>
                   </div>
+
+                  {selectedTourDetail.qrCode && (
+                    <div className="border-t border-slate-100 pt-4 flex flex-col sm:flex-row items-center gap-6">
+                      <div className="bg-white p-3 border border-slate-200 rounded-xl shadow-sm">
+                        <QRCodeCanvas
+                          id={`qr-canvas-${selectedTourDetail.id}`}
+                          value={`${window.location.origin}/zone/${selectedTourDetail.slug}`}
+                          size={140}
+                          bgColor="#ffffff"
+                          fgColor="#1e3a8a"
+                          level="Q"
+                          includeMargin={true}
+                        />
+                      </div>
+                      <div className="space-y-2 text-center sm:text-left">
+                        <h4 className="font-black text-slate-950 text-sm">Quét để truy cập Web App</h4>
+                        <p className="text-xs text-slate-500 max-w-[240px]">
+                          Quét mã này để xem thuyết minh tự động và thông tin sạp hàng của khu vực {selectedTourDetail.name}.
+                        </p>
+                        <div className="pt-2 flex flex-wrap gap-2 justify-center sm:justify-start">
+                          <button
+                            type="button"
+                            onClick={downloadQrCode}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white hover:bg-slate-800 transition"
+                          >
+                            Tải xuống QR
+                          </button>
+                          <button
+                            type="button"
+                            onClick={printQrCode}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                          >
+                            In mã QR
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </section>
 
                 {/* POI List in Zone */}
@@ -660,12 +826,13 @@ export function ZoneManagement() {
       </AdminModal>
 
       {/* Add / Edit POI Modal */}
-      <AdminModal
+       <AdminModal
         open={Boolean(modal) && (modal?.type === 'add-poi' || modal?.type === 'edit-poi')}
         title={modal?.type === 'add-poi' ? 'Thêm Điểm tham quan mới (POI)' : 'Chỉnh sửa Điểm tham quan (POI)'}
         description="Nhập thông tin chi tiết và bản dịch thuyết minh cho POI."
         confirmLabel={modal?.type === 'add-poi' ? t('common.add') : t('common.save')}
         tone="success"
+        size="5xl"
         onClose={() => setModal(null)}
         onConfirm={handleConfirm}
       >
@@ -690,6 +857,7 @@ export function ZoneManagement() {
           setFormStatus={setPoiFormStatus}
           stalls={stalls}
           tours={tours}
+          vendors={vendorsList}
           error={error}
           translations={poiFormTranslations}
           setTranslations={setPoiFormTranslations}

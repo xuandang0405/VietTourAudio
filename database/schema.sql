@@ -5,7 +5,8 @@
 -- Charset: utf8mb4 / utf8mb4_unicode_ci
 -- =============================================================================
 
-CREATE DATABASE IF NOT EXISTS viettuoraudio
+DROP DATABASE IF EXISTS viettuoraudio;
+CREATE DATABASE viettuoraudio
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
@@ -958,5 +959,47 @@ CREATE TABLE app_settings (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- TRIGGERS TO SYNCHRONIZE zones -> pois (compatibility)
+-- =============================================================================
+
+DROP TRIGGER IF EXISTS after_zone_insert;
+CREATE TRIGGER after_zone_insert
+AFTER INSERT ON zones
+FOR EACH ROW
+INSERT INTO pois (id, stall_id, zone_code, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order, pending_name, pending_description, pending_cover_image_url, pending_latitude, pending_longitude, approval_status, created_at, updated_at)
+VALUES (NEW.id, NEW.stall_id, CONCAT('ZONE-', NEW.id), NEW.free_listens_allowed, NEW.name, NEW.slug, NEW.description, NEW.latitude, NEW.longitude, NEW.activation_radius, NEW.is_premium_content, NEW.status, NEW.sort_order, NEW.pending_name, NEW.pending_description, NEW.pending_cover_image_url, NEW.pending_latitude, NEW.pending_longitude, NEW.approval_status, NEW.created_at, NEW.updated_at);
+
+DROP TRIGGER IF EXISTS after_zone_update;
+CREATE TRIGGER after_zone_update
+AFTER UPDATE ON zones
+FOR EACH ROW
+UPDATE pois SET
+  stall_id = NEW.stall_id,
+  free_listens_allowed = NEW.free_listens_allowed,
+  name = NEW.name,
+  slug = NEW.slug,
+  description = NEW.description,
+  latitude = NEW.latitude,
+  longitude = NEW.longitude,
+  activation_radius = NEW.activation_radius,
+  is_premium_content = NEW.is_premium_content,
+  status = NEW.status,
+  sort_order = NEW.sort_order,
+  pending_name = NEW.pending_name,
+  pending_description = NEW.pending_description,
+  pending_cover_image_url = NEW.pending_cover_image_url,
+  pending_latitude = NEW.pending_latitude,
+  pending_longitude = NEW.pending_longitude,
+  approval_status = NEW.approval_status,
+  updated_at = NEW.updated_at
+WHERE id = NEW.id;
+
+DROP TRIGGER IF EXISTS after_zone_delete;
+CREATE TRIGGER after_zone_delete
+AFTER DELETE ON zones
+FOR EACH ROW
+DELETE FROM pois WHERE id = OLD.id;
 
 SET FOREIGN_KEY_CHECKS = 1;

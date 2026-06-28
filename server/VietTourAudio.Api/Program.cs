@@ -129,7 +129,7 @@ builder.Services
 
 var allowedOrigins = builder.Configuration
   .GetSection("Cors:AllowedOrigins")
-  .Get<string[]>() ?? ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174"];
+  .Get<string[]>() ?? ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174", "http://localhost:5175", "http://127.0.0.1:5175", "http://localhost:5176", "http://127.0.0.1:5176", "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"];
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
   ?? "server=localhost;port=3306;database=viettuoraudio;user=root;password=;SslMode=None;AllowPublicKeyRetrieval=True;";
@@ -271,6 +271,7 @@ app.UseStaticFiles(new StaticFileOptions
   RequestPath = "/uploads"
 });
 app.UseStaticFiles();
+app.UseRouting();
 app.UseCors("ClientApp");
 app.UseAuthentication();
 app.UseAuthorization();

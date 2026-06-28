@@ -340,4 +340,12 @@ export async function toggleStallPremium(stallId, isPremium) {
   return unwrap(await adminApiClient.put(`/admin/stalls/${stallId}/premium`, { isPremium }));
 }
 
+export async function fetchAdminUsers() {
+  return unwrap(await adminApiClient.get('/admin/users'));
+}
+
+export async function fetchCommissions() {
+  return unwrap(await adminApiClient.get('/admin/revenue/commissions'));
+}
+
 // Force Vite HMR reload to pick up the new port 5002 configuration from appConfig.js

@@ -52,7 +52,9 @@ import {
   unsuspendVendor,
   fetchTickets,
   resolveTicket,
-  toggleStallPremium
+  toggleStallPremium,
+  fetchAdminUsers,
+  fetchCommissions
 } from './adminApi';
 
 export const adminQueryKeys = {
@@ -61,6 +63,7 @@ export const adminQueryKeys = {
   wallets: ['admin', 'wallets'],
   wallet: (vendorId) => ['admin', 'wallets', vendorId],
   topUps: (params = {}) => ['admin', 'topups', params],
+  commissions: ['admin', 'commissions'],
   revenueOverview: (params = {}) => ['admin', 'revenue', 'overview', params],
   revenueTimeline: (params = {}) => ['admin', 'revenue', 'timeline', params],
   contentQueue: (params = {}) => ['admin', 'content', params],
@@ -72,7 +75,8 @@ export const adminQueryKeys = {
   dashboardAnalytics: ['admin', 'analytics', 'dashboard'],
   tours: ['admin', 'tours'],
   tour: (id) => ['admin', 'tours', id],
-  tickets: ['admin', 'tickets']
+  tickets: ['admin', 'tickets'],
+  users: ['admin', 'users']
 };
 
 export function useVendors(params) {
@@ -285,6 +289,7 @@ export function useCreatePoi() {
     mutationFn: createAdminPoi,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminQueryKeys.pois });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'tours'] });
     }
   });
 }
@@ -295,6 +300,7 @@ export function useUpdatePoi() {
     mutationFn: ({ id, data }) => updateAdminPoi(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminQueryKeys.pois });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'tours'] });
     }
   });
 }
@@ -507,5 +513,19 @@ export function useToggleStallPremium() {
         queryClient.invalidateQueries({ queryKey: adminQueryKeys.vendor(variables.vendorId) });
       }
     }
+  });
+}
+
+export function useAdminUsers() {
+  return useQuery({
+    queryKey: adminQueryKeys.users,
+    queryFn: fetchAdminUsers
+  });
+}
+
+export function useCommissions() {
+  return useQuery({
+    queryKey: adminQueryKeys.commissions,
+    queryFn: fetchCommissions
   });
 }

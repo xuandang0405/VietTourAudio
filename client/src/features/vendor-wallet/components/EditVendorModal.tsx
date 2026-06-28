@@ -23,7 +23,6 @@ export function EditVendorModal({ open, vendor, onClose, onConfirm, isSubmitting
 
   const [vendorCode, setVendorCode] = useState('');
   const [assignedTourId, setAssignedTourId] = useState('');
-  const [legalName, setLegalName] = useState('');
   const [tradeName, setTradeName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [validationError, setValidationError] = useState('');
@@ -32,7 +31,6 @@ export function EditVendorModal({ open, vendor, onClose, onConfirm, isSubmitting
     if (vendor && open) {
       setVendorCode(vendor.vendorCode ?? '');
       setAssignedTourId(vendor.assignedTourId ? String(vendor.assignedTourId) : '');
-      setLegalName(vendor.legalName ?? '');
       setTradeName(vendor.businessName ?? vendor.tradeName ?? '');
       setContactEmail(vendor.ownerEmail ?? vendor.contactEmail ?? '');
       setValidationError('');
@@ -48,10 +46,6 @@ export function EditVendorModal({ open, vendor, onClose, onConfirm, isSubmitting
     }
     if (!/^[a-zA-Z0-9_-]+$/.test(vendorCode.trim())) {
       setValidationError(t('admin.vendors.validation.code_invalid', { defaultValue: 'Mã vendor chỉ được chứa chữ cái, số, dấu gạch ngang hoặc gạch dưới.' }));
-      return;
-    }
-    if (!legalName.trim()) {
-      setValidationError(t('admin.vendors.validation.legal_name_required', { defaultValue: 'Tên pháp lý không được để trống.' }));
       return;
     }
     if (!tradeName.trim()) {
@@ -70,7 +64,7 @@ export function EditVendorModal({ open, vendor, onClose, onConfirm, isSubmitting
     onConfirm({
       vendorCode: vendorCode.trim(),
       assignedTourId: assignedTourId ? String(assignedTourId) : null,
-      legalName: legalName.trim(),
+      legalName: tradeName.trim(), // Use tradeName as legalName fallback
       tradeName: tradeName.trim(),
       contactEmail: contactEmail.trim(),
     });
@@ -121,17 +115,7 @@ export function EditVendorModal({ open, vendor, onClose, onConfirm, isSubmitting
           </select>
         </div>
 
-        <div>
-          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
-            {t('admin.vendors.form.legal_name', { defaultValue: 'Tên pháp lý' })}
-          </label>
-          <input
-            type="text"
-            value={legalName}
-            onChange={(e) => setLegalName(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-semibold text-slate-900 focus:bg-white focus:border-blue-500 focus:outline-none transition duration-200"
-          />
-        </div>
+
 
         <div>
           <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">

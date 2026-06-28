@@ -7,7 +7,7 @@ import { AdminStatCard } from '../../../admin/components/AdminStatCard';
 import { AdminDataTable } from '../../../admin/components/AdminDataTable';
 import { AdminBadge } from '../../../admin/components/AdminBadge';
 import { useHourlyActiveUsers, useDashboardAnalytics } from '../../../admin/api/adminQueries';
-import { formatCurrency } from '../../../admin/data/adminMockData';
+import { formatCurrency } from '../../../admin/utils/formatters';
 
 export function AdminAnalytics() {
   const { t } = useTranslation();

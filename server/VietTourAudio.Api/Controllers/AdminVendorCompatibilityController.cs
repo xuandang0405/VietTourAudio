@@ -22,7 +22,8 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
       vw.balance walletBalance,vw.total_top_up totalTopUp,
       vs.status subscriptionStatus,vs.period_end periodEnd,
       CAST(sp.id AS CHAR) planId,sp.name planName,sp.price monthlyPrice,
-      (SELECT COUNT(*) FROM stalls s WHERE s.vendor_id=v.id) stallCount
+      (SELECT COUNT(*) FROM stalls s WHERE s.vendor_id=v.id) stallCount,
+      v.vendor_code vendorCode, CAST(v.assigned_tour_id AS CHAR) assignedTourId
     FROM vendors v
     LEFT JOIN vendor_wallets vw ON vw.vendor_id=v.id
     LEFT JOIN vendor_subscriptions vs ON vs.vendor_id=v.id
@@ -77,7 +78,17 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
     var tradeName = Required(body, "tradeName");
     var email = Required(body, "contactEmail").Trim().ToLowerInvariant();
     var password = Required(body, "password");
-    var vendorCode = Required(body, "vendorCode");
+    var vendorCode = Optional(body, "vendorCode");
+    if (string.IsNullOrWhiteSpace(vendorCode))
+    {
+      var maxIdRow = await DatabaseSql.QueryRowsAsync(db, "SELECT MAX(id) AS maxId FROM vendors");
+      var nextId = 1ul;
+      if (maxIdRow.Count > 0 && maxIdRow[0]["maxId"] != null && maxIdRow[0]["maxId"] != DBNull.Value)
+      {
+        nextId = Convert.ToUInt64(maxIdRow[0]["maxId"]) + 1;
+      }
+      vendorCode = $"VND-{nextId:D4}";
+    }
     var assignedTourId = OptionalUlong(body, "assignedTourId");
     await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
     var connection = await DatabaseSql.OpenConnectionAsync(db);
@@ -115,7 +126,7 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
       UPDATE vendors SET legal_name=COALESCE(@legal,legal_name),trade_name=COALESCE(@trade,trade_name),
         contact_email=COALESCE(@email,contact_email),vendor_code=COALESCE(@code,vendor_code),
         assigned_tour_id=@tour WHERE id=@id
-      """, new Dictionary<string, object?> { ["@id"] = id, ["@legal"] = Optional(body, "legalName"),
+      """, new Dictionary<string, object?> { ["@id"] = id, ["@legal"] = Optional(body, "legalName") ?? Optional(body, "tradeName"),
         ["@trade"] = Optional(body, "tradeName"), ["@email"] = Optional(body, "contactEmail"),
         ["@code"] = Optional(body, "vendorCode"), ["@tour"] = OptionalUlong(body, "assignedTourId") });
     return await Detail(id);
@@ -152,7 +163,9 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
     ["wallet"] = row["walletBalance"] is null ? null : new { id = row["id"], balance = row["walletBalance"], totalTopUp = row["totalTopUp"], transactions = Array.Empty<object>() },
     ["subscription"] = row["subscriptionStatus"] is null ? null : new { status = row["subscriptionStatus"], periodEnd = row["periodEnd"],
       plan = new { id = row["planId"], name = row["planName"], monthlyPrice = row["monthlyPrice"] } },
-    ["stalls"] = Enumerable.Range(1, Convert.ToInt32(row["stallCount"] ?? 0)).Select(i => new { id = $"{row["id"]}-{i}" }).ToArray()
+    ["stalls"] = Enumerable.Range(1, Convert.ToInt32(row["stallCount"] ?? 0)).Select(i => new { id = $"{row["id"]}-{i}" }).ToArray(),
+    ["vendorCode"] = row.GetValueOrDefault("vendorCode"),
+    ["assignedTourId"] = row.GetValueOrDefault("assignedTourId")
   };
 
   private static string Required(JsonElement body, string key) =>

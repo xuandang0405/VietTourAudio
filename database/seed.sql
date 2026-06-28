@@ -66,15 +66,15 @@ INSERT INTO subscription_plans (id, code, name, price, max_stalls, max_pois_per_
 -- VENDORS — 8 vendors, all HCMC-based businesses
 -- =============================================================================
 
-INSERT INTO vendors (id, legal_name, trade_name, slug, vendor_code, contact_name, contact_email, phone, address, status, rejection_reason, approved_by_user_id, approved_at) VALUES
-(1, 'Công ty TNHH Ẩm Thực Bến Thành', 'Ẩm Thực Bến Thành', 'am-thuc-ben-thanh', 'VND-0001', 'Nguyễn Văn Hùng', 'hung@amthucbenthanh.vn', '0901100001', '23 Phan Bội Châu, Quận 1, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 09:00:00'),
-(2, 'Hộ Kinh Doanh Cà Phê Nguyễn Huệ', 'Cà Phê Nguyễn Huệ', 'ca-phe-nguyen-hue', 'VND-0002', 'Trần Thị Mai', 'mai@caphenguyenhue.vn', '0901100002', '68 Nguyễn Huệ, Quận 1, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 09:10:00'),
-(3, 'Công ty Thủ Công Mỹ Nghệ Sài Gòn', 'Thủ Công Sài Gòn', 'thu-cong-sai-gon', 'VND-0003', 'Lê Quốc Bảo', 'bao@thucongsg.vn', '0901100003', '45 Lê Lợi, Quận 1, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 09:20:00'),
-(4, 'Hộ Kinh Doanh Bánh Mì Sài Gòn', 'Bánh Mì Sài Gòn', 'banh-mi-sai-gon', 'VND-0004', 'Phạm Hoài Linh', 'linh@banhmisaigon.vn', '0901100004', '120 Nguyễn Trãi, Quận 1, TP.HCM', 'PENDING', NULL, NULL, NULL),
-(5, 'Quán Nước Ép Tươi Quận 1', 'Nước Ép Tươi Q1', 'nuoc-ep-tuoi-q1', 'VND-0005', 'Võ Thanh Tâm', 'tam@nuoceptuoi.vn', '0901100005', '90 Đề Thám, Quận 1, TP.HCM', 'REJECTED', 'Thiếu giấy phép kinh doanh hợp lệ.', 3, NULL),
-(6, 'Công ty Du Lịch Vĩnh Khánh Foods', 'Vĩnh Khánh Seafood', 'vinh-khanh-seafood', 'VND-0006', 'Đặng Mỹ Duyên', 'duyen@vinhkhanh.vn', '0901100006', '162 Vĩnh Khánh, Quận 4, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 10:00:00'),
-(7, 'Studio Áo Dài Đường Sách', 'Áo Dài Đường Sách', 'ao-dai-duong-sach', 'VND-0007', 'Hoàng Nhật Quang', 'quang@aodaids.vn', '0901100007', '44 Nguyễn Văn Bình, Quận 1, TP.HCM', 'SUSPENDED', 'Tạm dừng do quá hạn phí dịch vụ.', 4, NULL),
-(8, 'Hộ Kinh Doanh Phở Sài Gòn', 'Phở Gia Truyền Sài Gòn', 'pho-gia-truyen-sai-gon', 'VND-0008', 'Bùi Ngọc Hân', 'han@phosaigon.vn', '0901100008', '260 Pasteur, Quận 3, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 10:30:00');
+INSERT INTO vendors (id, legal_name, trade_name, slug, vendor_code, assigned_tour_id, contact_name, contact_email, phone, address, status, rejection_reason, approved_by_user_id, approved_at) VALUES
+(1, 'Công ty TNHH Ẩm Thực Bến Thành', 'Ẩm Thực Bến Thành', 'am-thuc-ben-thanh', 'VND-0001', 1, 'Nguyễn Văn Hùng', 'hung@amthucbenthanh.vn', '0901100001', '23 Phan Bội Châu, Quận 1, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 09:00:00'),
+(2, 'Hộ Kinh Doanh Cà Phê Nguyễn Huệ', 'Cà Phê Nguyễn Huệ', 'ca-phe-nguyen-hue', 'VND-0002', 1, 'Trần Thị Mai', 'mai@caphenguyenhue.vn', '0901100002', '68 Nguyễn Huệ, Quận 1, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 09:10:00'),
+(3, 'Công ty Thủ Công Mỹ Nghệ Sài Gòn', 'Thủ Công Sài Gòn', 'thu-cong-sai-gon', 'VND-0003', 1, 'Lê Quốc Bảo', 'bao@thucongsg.vn', '0901100003', '45 Lê Lợi, Quận 1, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 09:20:00'),
+(4, 'Hộ Kinh Doanh Bánh Mì Sài Gòn', 'Bánh Mì Sài Gòn', 'banh-mi-sai-gon', 'VND-0004', 1, 'Phạm Hoài Linh', 'linh@banhmisaigon.vn', '0901100004', '120 Nguyễn Trãi, Quận 1, TP.HCM', 'PENDING', NULL, NULL, NULL),
+(5, 'Quán Nước Ép Tươi Quận 1', 'Nước Ép Tươi Q1', 'nuoc-ep-tuoi-q1', 'VND-0005', 1, 'Võ Thanh Tâm', 'tam@nuoceptuoi.vn', '0901100005', '90 Đề Thám, Quận 1, TP.HCM', 'REJECTED', 'Thiếu giấy phép kinh doanh hợp lệ.', 3, NULL),
+(6, 'Công ty Du Lịch Vĩnh Khánh Foods', 'Vĩnh Khánh Seafood', 'vinh-khanh-seafood', 'VND-0006', 2, 'Đặng Mỹ Duyên', 'duyen@vinhkhanh.vn', '0901100006', '162 Vĩnh Khánh, Quận 4, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 10:00:00'),
+(7, 'Studio Áo Dài Đường Sách', 'Áo Dài Đường Sách', 'ao-dai-duong-sach', 'VND-0007', 1, 'Hoàng Nhật Quang', 'quang@aodaids.vn', '0901100007', '44 Nguyễn Văn Bình, Quận 1, TP.HCM', 'SUSPENDED', 'Tạm dừng do quá hạn phí dịch vụ.', 4, NULL),
+(8, 'Hộ Kinh Doanh Phở Sài Gòn', 'Phở Gia Truyền Sài Gòn', 'pho-gia-truyen-sai-gon', 'VND-0008', 3, 'Bùi Ngọc Hân', 'han@phosaigon.vn', '0901100008', '260 Pasteur, Quận 3, TP.HCM', 'APPROVED', NULL, 2, '2026-06-01 10:30:00');
 
 -- =============================================================================
 -- VENDOR PORTAL USERS — Password: Vendor123
@@ -138,56 +138,31 @@ INSERT INTO stalls (id, vendor_id, name, slug, description, address, latitude, l
 -- =============================================================================
 
 INSERT INTO zones (id, stall_id, tour_id, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order) VALUES
--- Stall 1: Sạp Ẩm Thực Bến Thành
-(1, 1, 1, 2, 'Quầy bánh mì chả lụa', 'quay-banh-mi-cha-lua', 'Bánh mì chả lụa truyền thống Sài Gòn.', 10.7722100, 106.6980200, 20, 0, 'ACTIVE', 1),
-(2, 1, 1, 2, 'Khu chè và nước giải khát', 'khu-che-nuoc-giai-khat', 'Chè Sài Gòn và nước mía.', 10.7721800, 106.6980500, 20, 1, 'ACTIVE', 2),
--- Stall 2: Quầy Cà Phê Nguyễn Huệ
-(3, 2, 1, 2, 'Bàn pha cà phê phin', 'ban-pha-ca-phe-phin', 'Quy trình pha cà phê phin truyền thống.', 10.7735100, 106.7032200, 22, 1, 'ACTIVE', 1),
-(4, 2, 1, 2, 'Góc trà đào cam sả', 'goc-tra-dao-cam-sa', 'Thức uống trà đào pha chế đặc biệt.', 10.7735400, 106.7032500, 22, 0, 'ACTIVE', 2),
--- Stall 3: Sạp Thủ Công Lê Lợi
-(5, 3, 1, 2, 'Kệ gốm sứ thủ công', 'ke-gom-su-thu-cong', 'Sản phẩm gốm sứ thủ công Bát Tràng tại Sài Gòn.', 10.7730100, 106.6990200, 25, 0, 'ACTIVE', 1),
-(6, 3, 1, 2, 'Quầy tranh sơn mài', 'quay-tranh-son-mai', 'Tranh sơn mài truyền thống Nam Bộ.', 10.7730400, 106.6990500, 20, 1, 'ACTIVE', 2),
--- Stall 4: Xe Bánh Mì (PENDING)
-(7, 4, 1, 2, 'Quầy nhân thịt', 'quay-nhan-thit', 'Khu chuẩn bị nhân thịt nướng.', 10.7700100, 106.6920200, 20, 0, 'ACTIVE', 1),
-(8, 4, 1, 2, 'Khu gia vị đặc biệt', 'khu-gia-vi-dac-biet', 'Nước sốt gia truyền và pate.', 10.7700400, 106.6920500, 20, 1, 'ACTIVE', 2),
--- Stall 5: Nước Ép (REJECTED)
-(9, 5, 1, 2, 'Quầy máy ép trái cây', 'quay-may-ep-trai-cay', 'Trái cây tươi ép tại chỗ.', 10.7690100, 106.6936200, 20, 0, 'INACTIVE', 1),
--- Stall 6: Hải Sản Vĩnh Khánh
-(10, 6, 2, 2, 'Bàn nướng hải sản', 'ban-nuong-hai-san', 'Hải sản tươi nướng trên than hồng.', 10.7580100, 106.6990200, 25, 0, 'ACTIVE', 1),
-(11, 6, 2, 2, 'Quầy ốc Sài Gòn', 'quay-oc-sai-gon', 'Ốc các loại đặc trưng Sài Gòn.', 10.7579800, 106.6990500, 25, 1, 'ACTIVE', 2),
--- Stall 7: Studio Áo Dài (SUSPENDED)
-(12, 7, 1, 2, 'Góc áo dài truyền thống', 'goc-ao-dai-truyen-thong', 'Bối cảnh chụp áo dài giữa phố sách.', 10.7790100, 106.7000200, 20, 0, 'INACTIVE', 1),
--- Stall 8: Phở Pasteur (Premium stall)
-(13, 8, 3, 2, 'Nồi nước phở gia truyền', 'noi-nuoc-pho-gia-truyen', 'Nước dùng phở hầm xương 12 tiếng.', 10.7830100, 106.6950200, 25, 1, 'ACTIVE', 1),
-(14, 8, 3, 2, 'Khu bánh phở tươi', 'khu-banh-pho-tuoi', 'Sợi phở tươi làm thủ công mỗi sáng.', 10.7830400, 106.6950500, 25, 1, 'ACTIVE', 2),
-(15, 8, 3, 2, 'Bàn gia đình truyền thống', 'ban-gia-dinh-truyen-thong', 'Không gian phục vụ kiểu gia đình.', 10.7829800, 106.6949800, 20, 0, 'ACTIVE', 3);
+(1, 1, 1, 2, 'Sạp Ẩm Thực Bến Thành', 'sap-am-thuc-ben-thanh', 'Quầy ẩm thực truyền thống ngay trước chợ Bến Thành.', 10.7722000, 106.6980000, 35, 0, 'ACTIVE', 1),
+(2, 2, 1, 2, 'Quầy Cà Phê Nguyễn Huệ', 'quay-ca-phe-nguyen-hue', 'Cà phê rang xay và trà truyền thống trên phố đi bộ.', 10.7735000, 106.7032000, 30, 0, 'ACTIVE', 2),
+(3, 3, 1, 2, 'Sạp Thủ Công Lê Lợi', 'sap-thu-cong-le-loi', 'Sản phẩm thủ công mỹ nghệ Sài Gòn trên phố Lê Lợi.', 10.7730000, 106.6990000, 40, 0, 'ACTIVE', 3),
+(4, 4, 1, 2, 'Xe Bánh Mì Nguyễn Trãi', 'xe-banh-mi-nguyen-trai', 'Xe bánh mì nổi tiếng trên đường Nguyễn Trãi.', 10.7700000, 106.6920000, 25, 0, 'ACTIVE', 4),
+(5, 5, 1, 2, 'Nước Ép Tươi Đề Thám', 'nuoc-ep-tuoi-de-tham', 'Nước ép trái cây tươi khu phố Tây.', 10.7690000, 106.6936000, 20, 0, 'INACTIVE', 5),
+(6, 6, 2, 2, 'Quầy Hải Sản Vĩnh Khánh', 'quay-hai-san-vinh-khanh', 'Hải sản tươi nướng trên vỉa hè Vĩnh Khánh.', 10.7580000, 106.6990000, 35, 0, 'ACTIVE', 1),
+(7, 7, 1, 2, 'Studio Áo Dài Đường Sách', 'studio-ao-dai-duong-sach', 'Không gian chụp ảnh áo dài giữa phố sách.', 10.7790000, 106.7000000, 30, 0, 'INACTIVE', 6),
+(8, 8, 3, 2, 'Tiệm Phở Pasteur', 'tiem-pho-pasteur', 'Phở gia truyền ba đời trên đường Pasteur.', 10.7830000, 106.6950000, 35, 1, 'ACTIVE', 1);
 
 -- =============================================================================
 -- POIs — Points of Interest (mirrors zone structure, HCMC coordinates)
 -- =============================================================================
 
-INSERT INTO pois (id, stall_id, zone_code, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order) VALUES
-(1,  1, 'HCM-01', 2, 'Quầy bánh mì chả lụa', 'quay-banh-mi-cha-lua', 'Bánh mì chả lụa truyền thống Sài Gòn.', 10.7722100, 106.6980200, 20, 0, 'ACTIVE', 1),
-(2,  1, 'HCM-01', 2, 'Khu chè và nước giải khát', 'khu-che-nuoc-giai-khat', 'Chè Sài Gòn và nước mía.', 10.7721800, 106.6980500, 20, 1, 'ACTIVE', 2),
-(3,  2, 'HCM-02', 2, 'Bàn pha cà phê phin', 'ban-pha-ca-phe-phin', 'Quy trình pha cà phê phin truyền thống.', 10.7735100, 106.7032200, 22, 1, 'ACTIVE', 1),
-(4,  2, 'HCM-02', 2, 'Góc trà đào cam sả', 'goc-tra-dao-cam-sa', 'Thức uống trà đào pha chế đặc biệt.', 10.7735400, 106.7032500, 22, 0, 'ACTIVE', 2),
-(5,  3, 'HCM-03', 2, 'Kệ gốm sứ thủ công', 'ke-gom-su-thu-cong', 'Sản phẩm gốm sứ thủ công Bát Tràng tại Sài Gòn.', 10.7730100, 106.6990200, 25, 0, 'ACTIVE', 1),
-(6,  3, 'HCM-03', 2, 'Quầy tranh sơn mài', 'quay-tranh-son-mai', 'Tranh sơn mài truyền thống Nam Bộ.', 10.7730400, 106.6990500, 20, 1, 'ACTIVE', 2),
-(7,  4, NULL,     2, 'Quầy nhân thịt', 'quay-nhan-thit', 'Khu chuẩn bị nhân thịt nướng.', 10.7700100, 106.6920200, 20, 0, 'ACTIVE', 1),
-(8,  4, NULL,     2, 'Khu gia vị đặc biệt', 'khu-gia-vi-dac-biet', 'Nước sốt gia truyền và pate.', 10.7700400, 106.6920500, 20, 1, 'ACTIVE', 2),
-(9,  5, NULL,     2, 'Quầy máy ép trái cây', 'quay-may-ep-trai-cay', 'Trái cây tươi ép tại chỗ.', 10.7690100, 106.6936200, 20, 0, 'INACTIVE', 1),
-(10, 6, 'HCM-06', 2, 'Bàn nướng hải sản', 'ban-nuong-hai-san', 'Hải sản tươi nướng trên than hồng.', 10.7580100, 106.6990200, 25, 0, 'ACTIVE', 1),
-(11, 6, 'HCM-06', 2, 'Quầy ốc Sài Gòn', 'quay-oc-sai-gon', 'Ốc các loại đặc trưng Sài Gòn.', 10.7579800, 106.6990500, 25, 1, 'ACTIVE', 2),
-(12, 7, NULL,     2, 'Góc áo dài truyền thống', 'goc-ao-dai-truyen-thong', 'Bối cảnh chụp áo dài giữa phố sách.', 10.7790100, 106.7000200, 20, 0, 'INACTIVE', 1),
-(13, 8, 'HCM-08', 2, 'Nồi nước phở gia truyền', 'noi-nuoc-pho-gia-truyen', 'Nước dùng phở hầm xương 12 tiếng.', 10.7830100, 106.6950200, 25, 1, 'ACTIVE', 1),
-(14, 8, 'HCM-08', 2, 'Khu bánh phở tươi', 'khu-banh-pho-tuoi', 'Sợi phở tươi làm thủ công mỗi sáng.', 10.7830400, 106.6950500, 25, 1, 'ACTIVE', 2),
-(15, 8, 'HCM-08', 2, 'Bàn gia đình truyền thống', 'ban-gia-dinh-truyen-thong', 'Không gian phục vụ kiểu gia đình.', 10.7829800, 106.6949800, 20, 0, 'ACTIVE', 3);
+INSERT IGNORE INTO pois (id, stall_id, zone_code, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order) VALUES
+(1, 1, 'HCM-01', 2, 'Sạp Ẩm Thực Bến Thành', 'sap-am-thuc-ben-thanh', 'Quầy ẩm thực truyền thống ngay trước chợ Bến Thành.', 10.7722000, 106.6980000, 35, 0, 'ACTIVE', 1),
+(2, 2, 'HCM-02', 2, 'Quầy Cà Phê Nguyễn Huệ', 'quay-ca-phe-nguyen-hue', 'Cà phê rang xay và trà truyền thống trên phố đi bộ.', 10.7735000, 106.7032000, 30, 0, 'ACTIVE', 2),
+(3, 3, 'HCM-03', 2, 'Sạp Thủ Công Lê Lợi', 'sap-thu-cong-le-loi', 'Sản phẩm thủ công mỹ nghệ Sài Gòn trên phố Lê Lợi.', 10.7730000, 106.6990000, 40, 0, 'ACTIVE', 3),
+(4, 4, NULL,     2, 'Xe Bánh Mì Nguyễn Trãi', 'xe-banh-mi-nguyen-trai', 'Xe bánh mì nổi tiếng trên đường Nguyễn Trãi.', 10.7700000, 106.6920000, 25, 0, 'ACTIVE', 4),
+(5, 5, NULL,     2, 'Nước Ép Tươi Đề Thám', 'nuoc-ep-tuoi-de-tham', 'Nước ép trái cây tươi khu phố Tây.', 10.7690000, 106.6936000, 20, 0, 'INACTIVE', 5),
+(6, 6, 'HCM-06', 2, 'Quầy Hải Sản Vĩnh Khánh', 'quay-hai-san-vinh-khanh', 'Hải sản tươi nướng trên vỉa hè Vĩnh Khánh.', 10.7580000, 106.6990000, 35, 0, 'ACTIVE', 1),
+(7, 7, NULL,     2, 'Studio Áo Dài Đường Sách', 'studio-ao-dai-duong-sach', 'Không gian chụp ảnh áo dài giữa phố sách.', 10.7790000, 106.7000000, 30, 0, 'INACTIVE', 6),
+(8, 8, 'HCM-08', 2, 'Tiệm Phở Pasteur', 'tiem-pho-pasteur', 'Phở gia truyền ba đời trên đường Pasteur.', 10.7830000, 106.6950000, 35, 1, 'ACTIVE', 1);
 
 -- =============================================================================
 -- TOUR ↔ POI JUNCTION
--- Tour 1 (Nguyễn Huệ): POIs 1-9 (Stalls 1,2,3,4,5)
--- Tour 2 (Vĩnh Khánh): POIs 10-11 (Stall 6)
--- Tour 3 (Pasteur Q3):  POIs 13-15 (Stall 8)
 -- =============================================================================
 
 INSERT INTO tour_pois (tour_id, poi_id, sort_order) VALUES
@@ -196,110 +171,54 @@ INSERT INTO tour_pois (tour_id, poi_id, sort_order) VALUES
 (1, 3, 3),
 (1, 4, 4),
 (1, 5, 5),
-(1, 6, 6),
-(1, 7, 7),
-(1, 8, 8),
-(1, 9, 9),
-(2, 10, 1),
-(2, 11, 2),
-(1, 12, 10),
-(3, 13, 1),
-(3, 14, 2),
-(3, 15, 3);
+(2, 6, 1),
+(1, 7, 6),
+(3, 8, 1);
 
 -- =============================================================================
 -- POI CONTENTS — Bilingual (vi + en) audio content for each POI
 -- =============================================================================
 
 INSERT INTO poi_contents (id, poi_id, lang, title, short_text, tts_script, audio_url, voice_profile, approval_status) VALUES
--- POI 1: Quầy bánh mì chả lụa
-(1, 1, 'vi', 'Quầy bánh mì chả lụa', 'Bánh mì Sài Gòn chính gốc.', 'Bạn đang đứng trước quầy bánh mì chả lụa. Lớp vỏ giòn rụm, nhân chả lụa mịn thơm, thêm đồ chua và rau thơm tạo nên hương vị đặc trưng Sài Gòn.', '/uploads/audio/poi-1-vi.mp3', 'vi-standard', 'approved'),
-(2, 1, 'en', 'Banh Mi Cha Lua Stand', 'Authentic Saigon banh mi.', 'You are standing at the banh mi cha lua stand. Crispy crust, smooth pork roll, pickled vegetables and fresh herbs create the authentic Saigon flavor.', '/uploads/audio/poi-1-en.mp3', 'en-standard', 'approved'),
-
--- POI 2: Khu chè
-(3, 2, 'vi', 'Khu chè và nước giải khát', 'Chè Sài Gòn mát lạnh.', 'Khu chè Sài Gòn với đủ loại chè thập cẩm, chè bưởi, chè đậu xanh. Ly nước mía đá bào giải khát giữa trưa nắng.', '/uploads/audio/poi-2-vi.mp3', 'vi-standard', 'approved'),
-(4, 2, 'en', 'Dessert & Drinks Corner', 'Cool Saigon sweet soups.', 'The dessert corner offers mixed sweet soup, pomelo sweet soup, and mung bean dessert. Fresh sugarcane juice cools you down under the midday sun.', '/uploads/audio/poi-2-en.mp3', 'en-standard', 'approved'),
-
--- POI 3: Cà phê phin
-(5, 3, 'vi', 'Bàn pha cà phê phin', 'Cà phê phin Sài Gòn.', 'Ly cà phê phin nhỏ giọt chậm rãi trên phố đi bộ Nguyễn Huệ. Vị đắng nhẹ hòa cùng sữa đặc tạo nên cà phê sữa đá đúng kiểu Sài Gòn.', '/uploads/audio/poi-3-vi.mp3', 'vi-premium', 'approved'),
-(6, 3, 'en', 'Vietnamese Drip Coffee', 'Slow drip Saigon coffee.', 'Vietnamese drip coffee slowly filters on Nguyen Hue walking street. The mild bitterness blends with condensed milk for the classic iced coffee.', '/uploads/audio/poi-3-en.mp3', 'en-premium', 'approved'),
-
--- POI 4: Trà đào cam sả
-(7, 4, 'vi', 'Góc trà đào cam sả', 'Trà đào thanh mát.', 'Trà đào cam sả pha chế từ đào tươi, vỏ cam và cọng sả. Vị chua ngọt tự nhiên, mùi thơm nhẹ của sả.', '/uploads/audio/poi-4-vi.mp3', 'vi-standard', 'approved'),
-
--- POI 5: Gốm sứ
-(8, 5, 'vi', 'Kệ gốm sứ thủ công', 'Gốm sứ Bát Tràng.', 'Những sản phẩm gốm sứ thủ công từ làng nghề Bát Tràng, được mang vào Sài Gòn phục vụ khách du lịch.', '/uploads/audio/poi-5-vi.mp3', 'vi-standard', 'approved'),
-(9, 5, 'en', 'Handmade Ceramics Shelf', 'Bat Trang pottery.', 'These handmade ceramic products come from the famous Bat Trang pottery village, brought to Saigon for tourists.', '/uploads/audio/poi-5-en.mp3', 'en-standard', 'approved'),
-
--- POI 6: Tranh sơn mài
-(10, 6, 'vi', 'Quầy tranh sơn mài', 'Sơn mài Nam Bộ.', 'Tranh sơn mài được tạo từ nhiều lớp sơn thiên nhiên, mài bóng thủ công, phản ánh nghệ thuật truyền thống miền Nam.', '/uploads/audio/poi-6-vi.mp3', 'vi-premium', 'approved'),
-(11, 6, 'en', 'Lacquer Art Gallery', 'Southern lacquer art.', 'Lacquer paintings are crafted from multiple layers of natural lacquer, hand-polished, reflecting traditional Southern Vietnamese art.', '/uploads/audio/poi-6-en.mp3', 'en-premium', 'approved'),
-
--- POI 7: Quầy nhân thịt (PENDING stall)
-(12, 7, 'vi', 'Quầy nhân thịt', 'Thịt nướng bánh mì.', 'Khu chuẩn bị nhân thịt nướng cho bánh mì. Thịt được ướp gia vị truyền thống và nướng trên than.', '/uploads/audio/poi-7-vi.mp3', 'vi-standard', 'approved'),
-
--- POI 8: Khu gia vị
-(13, 8, 'vi', 'Khu gia vị đặc biệt', 'Pate và nước sốt.', 'Nước sốt gia truyền và pate tự làm, hai thành phần không thể thiếu trong chiếc bánh mì Sài Gòn.', '/uploads/audio/poi-8-vi.mp3', 'vi-premium', 'approved'),
-(14, 8, 'en', 'Special Sauce Corner', 'Pate and sauces.', 'Homemade traditional sauce and pate, two essential ingredients in every Saigon banh mi.', '/uploads/audio/poi-8-en.mp3', 'en-premium', 'approved'),
-
--- POI 9: Nước ép (REJECTED stall)
-(15, 9, 'vi', 'Quầy máy ép trái cây', 'Nước ép tươi.', 'Trái cây nhiệt đới tươi được ép ngay tại chỗ: mãng cầu, dứa, dưa hấu.', '/uploads/audio/poi-9-vi.mp3', 'vi-standard', 'approved'),
-
--- POI 10: Bàn nướng hải sản
-(16, 10, 'vi', 'Bàn nướng hải sản', 'Hải sản tươi nướng.', 'Tôm, mực, cua được nướng trực tiếp trên than hồng. Vỉa hè Vĩnh Khánh sống động nhất vào buổi tối.', '/uploads/audio/poi-10-vi.mp3', 'vi-standard', 'approved'),
-(17, 10, 'en', 'Grilled Seafood Table', 'Fresh grilled seafood.', 'Shrimp, squid, and crab are grilled directly over hot charcoal. Vinh Khanh sidewalk is liveliest at night.', '/uploads/audio/poi-10-en.mp3', 'en-standard', 'approved'),
-
--- POI 11: Quầy ốc
-(18, 11, 'vi', 'Quầy ốc Sài Gòn', 'Ốc đặc trưng Sài Gòn.', 'Ốc hương rang muối ớt, ốc len xào dừa, ốc giác nướng mỡ hành — những món ốc đặc trưng Sài Gòn.', '/uploads/audio/poi-11-vi.mp3', 'vi-premium', 'approved'),
-(19, 11, 'en', 'Saigon Snail Stand', 'Saigon snail specialties.', 'Salt-chili snails, coconut snails, grilled conch with scallion oil — iconic Saigon snail dishes.', '/uploads/audio/poi-11-en.mp3', 'en-premium', 'approved'),
-
--- POI 12: Áo dài (SUSPENDED stall)
-(20, 12, 'vi', 'Góc áo dài truyền thống', 'Chụp ảnh áo dài.', 'Góc áo dài truyền thống giữa phố sách, nơi du khách có thể mặc áo dài và chụp ảnh lưu niệm.', '/uploads/audio/poi-12-vi.mp3', 'vi-standard', 'approved'),
-
--- POI 13: Nồi nước phở
-(21, 13, 'vi', 'Nồi nước phở gia truyền', 'Nước dùng hầm 12 tiếng.', 'Nồi nước phở hầm từ xương ống bò, gừng nướng, hoa hồi và quế — hương thơm đặc trưng phở Sài Gòn.', '/uploads/audio/poi-13-vi.mp3', 'vi-premium', 'approved'),
-(22, 13, 'en', 'Traditional Pho Broth', '12-hour bone broth.', 'The pho broth simmers from beef bones, grilled ginger, star anise and cinnamon — the signature aroma of Saigon pho.', '/uploads/audio/poi-13-en.mp3', 'en-premium', 'approved'),
-
--- POI 14: Bánh phở tươi
-(23, 14, 'vi', 'Khu bánh phở tươi', 'Sợi phở tươi mỗi sáng.', 'Sợi phở tươi được làm thủ công mỗi sáng, mỏng mềm và dai, khác hoàn toàn với phở khô.', '/uploads/audio/poi-14-vi.mp3', 'vi-premium', 'approved'),
-(24, 14, 'en', 'Fresh Pho Noodles', 'Handmade every morning.', 'Fresh pho noodles are handmade every morning, thin, soft and chewy, completely different from dried noodles.', '/uploads/audio/poi-14-en.mp3', 'en-premium', 'approved'),
-
--- POI 15: Bàn gia đình
-(25, 15, 'vi', 'Bàn gia đình truyền thống', 'Không gian dùng phở.', 'Bàn gia đình là nơi du khách ngồi lại, nghe câu chuyện ba đời nấu phở và cảm nhận sự hiếu khách Sài Gòn.', '/uploads/audio/poi-15-vi.mp3', 'vi-standard', 'approved');
+(1, 1, 'vi', 'Sạp Ẩm Thực Bến Thành', 'Bến Thành food stall.', 'Trải nghiệm ẩm thực truyền thống Việt Nam ngay tại chợ Bến Thành lâu đời.', '/uploads/audio/poi-1-vi.mp3', 'vi-standard', 'approved'),
+(2, 1, 'en', 'Ben Thanh Food Stall', 'Traditional food stand.', 'Experience authentic Vietnamese street food right outside the historical Ben Thanh Market.', '/uploads/audio/poi-1-en.mp3', 'en-standard', 'approved'),
+(3, 2, 'vi', 'Quầy Cà Phê Nguyễn Huệ', 'Cà phê phố đi bộ.', 'Cà phê rang xay chuẩn vị Sài Gòn, đặc biệt là cà phê sữa đá pha phin thơm béo.', '/uploads/audio/poi-2-vi.mp3', 'vi-standard', 'approved'),
+(4, 2, 'en', 'Nguyen Hue Coffee Stand', 'Sidewalk coffee corner.', 'Saigon-style roasted coffee, especially the rich and creamy Vietnamese iced milk coffee.', '/uploads/audio/poi-2-en.mp3', 'en-standard', 'approved'),
+(5, 3, 'vi', 'Sạp Thủ Công Lê Lợi', 'Mỹ nghệ thủ công.', 'Khám phá các tác phẩm gốm sứ Bát Tràng và tranh sơn mài Nam Bộ tinh xảo.', '/uploads/audio/poi-3-vi.mp3', 'vi-standard', 'approved'),
+(6, 3, 'en', 'Le Loi Handicrafts', 'Handmade arts and crafts.', 'Explore exquisite Bat Trang ceramics and fine lacquer art from Southern Vietnam.', '/uploads/audio/poi-3-en.mp3', 'en-standard', 'approved'),
+(7, 4, 'vi', 'Xe Bánh Mì Nguyễn Trãi', 'Bánh mì thịt nướng.', 'Xe bánh mì vỉa hè nổi tiếng với thịt nướng xiên thơm ngon và nước sốt đặc trưng.', '/uploads/audio/poi-4-vi.mp3', 'vi-standard', 'approved'),
+(8, 5, 'vi', 'Nước Ép Tươi Đề Thám', 'Nước ép khu phố Tây.', 'Nước ép trái cây tươi mát lạnh giúp giải nhiệt ngày hè nóng bức Sài Gòn.', '/uploads/audio/poi-5-vi.mp3', 'vi-standard', 'approved'),
+(9, 6, 'vi', 'Quầy Hải Sản Vĩnh Khánh', 'Hải sản nướng than.', 'Hải sản tươi ngon nướng trực tiếp tại chỗ trên con đường ẩm thực đêm Vĩnh Khánh.', '/uploads/audio/poi-6-vi.mp3', 'vi-standard', 'approved'),
+(10, 6, 'en', 'Vinh Khanh Seafood Stand', 'Grilled fresh seafood.', 'Freshly caught and grilled seafood along the lively Vinh Khanh street night market.', '/uploads/audio/poi-6-en.mp3', 'en-standard', 'approved'),
+(11, 7, 'vi', 'Studio Áo Dài Đường Sách', 'Không gian chụp ảnh áo dài.', 'Nơi gìn giữ và quảng bá trang phục áo dài truyền thống giữa phố sách yên bình.', '/uploads/audio/poi-7-vi.mp3', 'vi-standard', 'approved'),
+(12, 8, 'vi', 'Tiệm Phở Pasteur', 'Phở gia truyền Sài Gòn.', 'Thưởng thức hương vị phở bò gia truyền đậm đà nước dùng hầm xương bò 12 tiếng.', '/uploads/audio/poi-8-vi.mp3', 'vi-premium', 'approved'),
+(13, 8, 'en', 'Pasteur Pho House', 'Legacy beef noodle soup.', 'Enjoy traditional beef pho with rich broth simmered from beef bones for 12 hours.', '/uploads/audio/poi-8-en.mp3', 'en-premium', 'approved');
 
 -- =============================================================================
 -- POI PRODUCTS — Menu items with VND pricing
 -- =============================================================================
 
 INSERT INTO poi_products (id, poi_id, name, price) VALUES
--- Stall 1: Bến Thành
 (1, 1, 'Bánh mì chả lụa', 25000.00),
 (2, 1, 'Bánh mì thịt nướng', 30000.00),
-(3, 2, 'Chè thập cẩm', 20000.00),
-(4, 2, 'Nước mía đá bào', 15000.00),
--- Stall 2: Cà Phê Nguyễn Huệ
-(5, 3, 'Cà phê sữa đá', 35000.00),
-(6, 3, 'Cà phê đen đá', 30000.00),
-(7, 4, 'Trà đào cam sả', 40000.00),
-(8, 4, 'Trà vải', 38000.00),
--- Stall 3: Thủ Công Lê Lợi
-(9, 5, 'Chén gốm Bát Tràng', 120000.00),
-(10, 5, 'Bình hoa gốm men ngọc', 250000.00),
-(11, 6, 'Tranh sơn mài nhỏ (20x30)', 350000.00),
-(12, 6, 'Tranh sơn mài lớn (50x70)', 1200000.00),
--- Stall 6: Hải Sản Vĩnh Khánh
-(13, 10, 'Tôm nướng muối ớt (1kg)', 250000.00),
-(14, 10, 'Mực nướng sa tế', 180000.00),
-(15, 10, 'Cua rang me', 350000.00),
-(16, 11, 'Ốc hương rang muối ớt', 120000.00),
-(17, 11, 'Ốc len xào dừa', 80000.00),
-(18, 11, 'Ốc giác nướng mỡ hành', 100000.00),
--- Stall 8: Phở Pasteur
-(19, 13, 'Phở bò tái nạm', 65000.00),
-(20, 13, 'Phở bò viên', 60000.00),
-(21, 14, 'Phở gà', 55000.00),
-(22, 15, 'Nước chanh đá', 15000.00),
-(23, 15, 'Trà đá miễn phí', 0.00);
+(3, 1, 'Chè thập cẩm', 20000.00),
+(4, 1, 'Nước mía đá bào', 15000.00),
+(5, 2, 'Cà phê sữa đá', 35000.00),
+(6, 2, 'Cà phê đen đá', 30000.00),
+(7, 2, 'Trà đào cam sả', 40000.00),
+(8, 2, 'Trà vải', 38000.00),
+(9, 3, 'Chén gốm Bát Tràng', 120000.00),
+(10, 3, 'Bình hoa gốm men ngọc', 250000.00),
+(11, 3, 'Tranh sơn mài nhỏ', 350000.00),
+(12, 4, 'Bánh mì đặc biệt', 35000.00),
+(13, 5, 'Nước ép dứa tươi', 25000.00),
+(14, 6, 'Tôm nướng muối ớt (1kg)', 250000.00),
+(15, 6, 'Mực nướng sa tế', 180000.00),
+(16, 6, 'Ốc hương rang muối', 120000.00),
+(17, 7, 'Thuê áo dài truyền thống (1h)', 150000.00),
+(18, 8, 'Phở bò tái nạm', 65000.00),
+(19, 8, 'Phở bò viên', 60000.00),
+(20, 8, 'Nước chanh đá', 15000.00);
 
 -- =============================================================================
 -- MEDIA FILES
@@ -308,8 +227,8 @@ INSERT INTO poi_products (id, poi_id, name, price) VALUES
 INSERT INTO media_files (id, vendor_id, stall_id, poi_id, uploaded_by_user_id, file_type, storage_provider, file_name, file_path, public_url, mime_type, file_size, moderation_status) VALUES
 (1, 1, 1, NULL, 2, 'IMAGE', 'LOCAL', 'ben-thanh-stall.jpg', '/uploads/vendors/1/stalls/1/ben-thanh-stall.jpg', '/media/ben-thanh-stall.jpg', 'image/jpeg', 245000, 'APPROVED'),
 (2, 2, 2, NULL, 2, 'IMAGE', 'LOCAL', 'nguyen-hue-coffee.jpg', '/uploads/vendors/2/stalls/2/nguyen-hue-coffee.jpg', '/media/nguyen-hue-coffee.jpg', 'image/jpeg', 310000, 'APPROVED'),
-(3, 8, 8, 13, 2, 'AUDIO', 'LOCAL', 'pho-vi.mp3', '/uploads/audio/poi-13-vi.mp3', '/media/audio/poi-13-vi.mp3', 'audio/mpeg', 1200000, 'APPROVED'),
-(4, 6, 6, 10, 2, 'IMAGE', 'LOCAL', 'vinh-khanh-seafood.jpg', '/uploads/vendors/6/stalls/6/vinh-khanh-seafood.jpg', '/media/vinh-khanh-seafood.jpg', 'image/jpeg', 280000, 'APPROVED');
+(3, 8, 8, 8, 2, 'AUDIO', 'LOCAL', 'pho-vi.mp3', '/uploads/audio/poi-8-vi.mp3', '/media/audio/poi-8-vi.mp3', 'audio/mpeg', 1200000, 'APPROVED'),
+(4, 6, 6, 6, 2, 'IMAGE', 'LOCAL', 'vinh-khanh-seafood.jpg', '/uploads/vendors/6/stalls/6/vinh-khanh-seafood.jpg', '/media/vinh-khanh-seafood.jpg', 'image/jpeg', 280000, 'APPROVED');
 
 -- =============================================================================
 -- QR CODES
@@ -318,7 +237,7 @@ INSERT INTO media_files (id, vendor_id, stall_id, poi_id, uploaded_by_user_id, f
 INSERT INTO qr_codes (id, vendor_id, tour_id, stall_id, poi_id, code, qr_type, target_url, image_url, is_active) VALUES
 (1, 1, NULL, 1, NULL, 'VTA-ST-0001', 'STALL', 'https://app.viettouraudio.vn/map?stall=1', '/qr/stall-1.png', 1),
 (2, 2, NULL, 2, NULL, 'VTA-ST-0002', 'STALL', 'https://app.viettouraudio.vn/map?stall=2', '/qr/stall-2.png', 1),
-(3, 8, NULL, 8, 13, 'VTA-POI-0013', 'POI', 'https://app.viettouraudio.vn/map?poi=13', '/qr/poi-13.png', 1),
+(3, 8, NULL, 8, 8, 'VTA-POI-0008', 'POI', 'https://app.viettouraudio.vn/map?poi=8', '/qr/poi-8.png', 1),
 (4, 8, NULL, 8, NULL, 'VTA-PAY-0008', 'PAYMENT', 'https://app.viettouraudio.vn/pay?vendor=8', '/qr/pay-8.png', 1),
 (5, 1, 1, NULL, NULL, 'VTA-TOUR-0001', 'TOUR', 'https://app.viettouraudio.vn/tour/nguyen-hue', '/qr/tour-1.png', 1),
 (6, 6, 2, NULL, NULL, 'VTA-TOUR-0002', 'TOUR', 'https://app.viettouraudio.vn/tour/vinh-khanh', '/qr/tour-2.png', 1),
@@ -341,7 +260,7 @@ INSERT INTO qr_scan_events (id, qr_code_id, vendor_id, tour_id, stall_id, poi_id
 (1, 5, 1, 1, NULL, NULL, 1, 'VN', '2026-06-11 08:30:00'),
 (2, 1, 1, NULL, 1, NULL, 1, 'VN', '2026-06-11 09:00:00'),
 (3, 2, 2, NULL, 2, NULL, 2, 'VN', '2026-06-11 09:15:00'),
-(4, 3, 8, NULL, 8, 13, 3, 'US', '2026-06-11 10:00:00'),
+(4, 3, 8, NULL, 8, 8, 3, 'US', '2026-06-11 10:00:00'),
 (5, 6, 6, 2, NULL, NULL, 2, 'VN', '2026-06-11 18:30:00');
 
 -- =============================================================================
@@ -350,9 +269,9 @@ INSERT INTO qr_scan_events (id, qr_code_id, vendor_id, tour_id, stall_id, poi_id
 
 INSERT INTO visit_events (id, vendor_id, stall_id, poi_id, visitor_session_id, source, latitude, longitude, distance_meters, visited_at) VALUES
 (1, 1, 1, 1, 1, 'GPS', 10.7722100, 106.6980200, 5.30, '2026-06-11 09:03:00'),
-(2, 2, 2, 3, 2, 'QR', 10.7735100, 106.7032200, 0.00, '2026-06-11 09:16:00'),
-(3, 8, 8, 13, 3, 'GPS', 10.7830100, 106.6950200, 4.80, '2026-06-11 10:04:00'),
-(4, 6, 6, 10, 2, 'GPS', 10.7580100, 106.6990200, 3.20, '2026-06-11 18:35:00');
+(2, 2, 2, 2, 2, 'QR', 10.7735100, 106.7032200, 0.00, '2026-06-11 09:16:00'),
+(3, 8, 8, 8, 3, 'GPS', 10.7830100, 106.6950200, 4.80, '2026-06-11 10:04:00'),
+(4, 6, 6, 6, 2, 'GPS', 10.7580100, 106.6990200, 3.20, '2026-06-11 18:35:00');
 
 -- =============================================================================
 -- PLAY HISTORY
@@ -360,8 +279,8 @@ INSERT INTO visit_events (id, vendor_id, stall_id, poi_id, visitor_session_id, s
 
 INSERT INTO play_history (id, visitor_session_id, poi_id, poi_content_id, lang, source, started_at, completed_at, duration_seconds) VALUES
 (1, 1, 1, 1, 'vi', 'AUTO_GPS', '2026-06-11 09:04:00', '2026-06-11 09:05:20', 80),
-(2, 3, 13, 21, 'vi', 'AUTO_GPS', '2026-06-11 10:05:00', '2026-06-11 10:06:35', 95),
-(3, 2, 10, 16, 'vi', 'MANUAL', '2026-06-11 18:36:00', '2026-06-11 18:37:30', 90);
+(2, 3, 8, 12, 'vi', 'AUTO_GPS', '2026-06-11 10:05:00', '2026-06-11 10:06:35', 95),
+(3, 2, 6, 9, 'vi', 'MANUAL', '2026-06-11 18:36:00', '2026-06-11 18:37:30', 90);
 
 -- =============================================================================
 -- PAYMENTS

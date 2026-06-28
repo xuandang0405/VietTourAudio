@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { AdminBadge } from '../../../admin/components/AdminBadge';
 import { AdminDataTable } from '../../../admin/components/AdminDataTable';
 import { AdminPageHeader } from '../../../admin/components/AdminPageHeader';
-import { adminUsers } from '../../../admin/data/adminMockData';
-import { useCreateVendor, useCreateZoneAdmin, useToursList, useZonesList } from '../../../admin/api/adminQueries';
+import { useCreateVendor, useCreateZoneAdmin, useToursList, useZonesList, useAdminUsers } from '../../../admin/api/adminQueries';
+import { formatDate } from '../../../admin/utils/formatters';
 
 export function AdminUsers() {
   const { t } = useTranslation();
@@ -27,12 +27,22 @@ export function AdminUsers() {
   // Hooks
   const { data: tours = [] } = useToursList();
   const { data: zones = [] } = useZonesList();
+  const { data: dbUsers = [], isLoading: usersLoading } = useAdminUsers();
   const createVendorMutation = useCreateVendor();
   const createZoneAdminMutation = useCreateZoneAdmin();
   const zoneOptions = useMemo(() => zones.map((zone) => ({ value: zone.id, label: zone.name })), [zones]);
 
+  const rows = useMemo(() => dbUsers.map((u) => ({
+    id: u.id,
+    displayName: u.fullName || u.displayName,
+    email: u.email,
+    role: u.role,
+    createdAt: u.createdAt ? new Date(u.createdAt).toLocaleDateString('vi-VN') : '—',
+    status: u.status
+  })), [dbUsers]);
+
   const columns = useMemo(() => [
-    { key: 'id', label: t('admin_users.col_id'), render: (row) => <span className="font-black text-slate-950">{row.id}</span> },
+    { key: 'id', label: t('admin_users.col_id'), render: (row) => <span className="font-black text-slate-950">#{row.id}</span> },
     { key: 'displayName', label: t('admin_users.col_name') },
     { key: 'email', label: t('admin_users.col_email') },
     { key: 'role', label: t('admin_users.col_role') },
@@ -168,7 +178,11 @@ export function AdminUsers() {
               {t('admin_users.create_admin')}
             </button>
           </div>
-          <AdminDataTable columns={columns} rows={adminUsers} />
+          <AdminDataTable
+            columns={columns}
+            rows={rows}
+            emptyText={usersLoading ? t('common.loading') : t('admin_users.empty', { defaultValue: 'Không tìm thấy tài khoản quản trị nào.' })}
+          />
         </div>
       )}
 

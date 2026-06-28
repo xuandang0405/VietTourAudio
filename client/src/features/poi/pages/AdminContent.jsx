@@ -51,12 +51,8 @@ export function AdminContent() {
         await bulkMutation.mutateAsync({ ids: selectedIds });
         setSelectedIds([]);
       } else {
-        if (!reason.trim()) {
-          setError(t('content.modals.reason_required'));
-          return;
-        }
         const mutation = modal.type === 'reject' ? rejectMutation : hideMutation;
-        await mutation.mutateAsync({ id: modal.item.id, reason: reason.trim() });
+        await mutation.mutateAsync({ id: modal.item.id, reason: reason.trim() || '' });
       }
       setReason('');
       setModal(null);

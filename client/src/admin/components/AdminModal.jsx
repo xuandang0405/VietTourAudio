@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 
-export function AdminModal({ open, title, description, confirmLabel = 'Xác nhận', tone = 'blue', onClose, onConfirm, children }) {
+export function AdminModal({ open, title, description, confirmLabel = 'Xác nhận', tone = 'blue', onClose, onConfirm, children, size = 'lg' }) {
   const confirmClass =
     tone === 'danger'
       ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
@@ -9,10 +9,22 @@ export function AdminModal({ open, title, description, confirmLabel = 'Xác nh�
         ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
         : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500';
 
+  const sizeClasses = {
+    sm: 'max-w-sm',
+    md: 'max-w-md',
+    lg: 'max-w-lg',
+    xl: 'max-w-xl',
+    '3xl': 'max-w-3xl',
+    '5xl': 'max-w-5xl',
+    '6xl': 'max-w-6xl',
+    '7xl': 'max-w-7xl'
+  };
+  const widthClass = sizeClasses[size] || 'max-w-lg';
+
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[2000] grid place-items-center px-4 py-6">
+        <div className="fixed inset-0 z-[2000] grid place-items-center px-4 py-6 overflow-y-auto">
           <motion.button
             type="button"
             aria-label="Đóng modal"
@@ -27,7 +39,7 @@ export function AdminModal({ open, title, description, confirmLabel = 'Xác nh�
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 18, scale: 0.97 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="relative w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl"
+            className={`relative w-full ${widthClass} rounded-2xl bg-white p-5 shadow-2xl my-auto`}
           >
             <button
               type="button"

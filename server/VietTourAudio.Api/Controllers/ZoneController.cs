@@ -131,7 +131,17 @@ public sealed class ZoneController(AppDbContext db) : ControllerBase
     zone.Slug = slugCode;
     await db.SaveChangesAsync();
 
-    var qrCodeStr = $"TOUR-{id}-{Guid.NewGuid():N}".ToUpperInvariant();
+    string qrCodeStr;
+    bool exists;
+    do
+    {
+      var shortHash = Guid.NewGuid().ToString("N")[..4].ToUpperInvariant();
+      qrCodeStr = $"TOUR-{id}-{shortHash}";
+      var count = await DatabaseSql.QueryRowsAsync(db,
+        "SELECT id FROM qr_codes WHERE code = @code LIMIT 1",
+        new Dictionary<string, object?> { ["@code"] = qrCodeStr });
+      exists = count.Count > 0;
+    } while (exists);
     await DatabaseSql.ExecuteAsync(db, """
       UPDATE qr_codes SET is_active=0 WHERE tour_id=@id AND qr_type='TOUR';
       INSERT INTO qr_codes(vendor_id,tour_id,code,qr_type,target_url,is_active)

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AdminModal } from '../../../admin/components/AdminModal';
 import { useToursList } from '../../../admin/api/adminQueries';
@@ -22,10 +22,19 @@ export function CreateVendorModal({ open, onClose, onConfirm, isSubmitting }: Cr
 
   const [vendorCode, setVendorCode] = useState('');
   const [assignedTourId, setAssignedTourId] = useState('');
-  const [legalName, setLegalName] = useState('');
   const [tradeName, setTradeName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [validationError, setValidationError] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setVendorCode('VND-' + Math.floor(100000 + Math.random() * 900000));
+      setAssignedTourId('');
+      setTradeName('');
+      setContactEmail('');
+      setValidationError('');
+    }
+  }, [open]);
 
   const handleSubmit = () => {
     setValidationError('');
@@ -36,10 +45,6 @@ export function CreateVendorModal({ open, onClose, onConfirm, isSubmitting }: Cr
     }
     if (!/^[a-zA-Z0-9_-]+$/.test(vendorCode.trim())) {
       setValidationError(t('admin.vendors.validation.code_invalid', { defaultValue: 'Mã vendor chỉ được chứa chữ cái, số, dấu gạch ngang hoặc gạch dưới.' }));
-      return;
-    }
-    if (!legalName.trim()) {
-      setValidationError(t('admin.vendors.validation.legal_name_required', { defaultValue: 'Tên pháp lý không được để trống.' }));
       return;
     }
     if (!tradeName.trim()) {
@@ -58,7 +63,7 @@ export function CreateVendorModal({ open, onClose, onConfirm, isSubmitting }: Cr
     onConfirm({
       vendorCode: vendorCode.trim(),
       assignedTourId: assignedTourId ? String(assignedTourId) : null,
-      legalName: legalName.trim(),
+      legalName: tradeName.trim(), // Use tradeName as legalName fallback
       tradeName: tradeName.trim(),
       contactEmail: contactEmail.trim(),
     });
@@ -110,18 +115,7 @@ export function CreateVendorModal({ open, onClose, onConfirm, isSubmitting }: Cr
           </select>
         </div>
 
-        <div>
-          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
-            {t('vendor.legal_name', { defaultValue: 'Tên pháp lý' })}
-          </label>
-          <input
-            type="text"
-            value={legalName}
-            onChange={(e) => setLegalName(e.target.value)}
-            placeholder="Công ty TNHH Du lịch Hội An"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-semibold text-slate-900 focus:bg-white focus:border-blue-500 focus:outline-none transition duration-200"
-          />
-        </div>
+
 
         <div>
           <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">

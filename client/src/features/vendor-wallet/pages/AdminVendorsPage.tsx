@@ -131,7 +131,16 @@ export function AdminVendorsPage() {
       label: t('admin.vendors.table.zone'),
       render: (vendor: any) => {
         const tour = tours.find((t: any) => String(t.id) === String(vendor.assignedTourId));
-        return <span className="text-slate-700 font-semibold">{tour ? tour.name : '-'}</span>;
+        return tour ? (
+          <Link
+            to={`/admin/zones?id=${tour.id}`}
+            className="text-indigo-600 font-bold underline hover:text-indigo-800"
+          >
+            {tour.name}
+          </Link>
+        ) : (
+          <span className="text-slate-400 font-medium">-</span>
+        );
       }
     },
     {

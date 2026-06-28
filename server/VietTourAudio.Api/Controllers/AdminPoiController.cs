@@ -44,8 +44,32 @@ public sealed class AdminPoiController(AppDbContext db, IHttpClientFactory clien
   }
 
   [HttpGet("stalls")]
-  public async Task<IActionResult> Stalls() => Ok(ApiResponseFactory.Ok(await DatabaseSql.QueryRowsAsync(db,
-    "SELECT CAST(id AS CHAR) id,CAST(vendor_id AS CHAR) vendorId,name,slug,status FROM stalls ORDER BY name")));
+  public async Task<IActionResult> Stalls()
+  {
+    var rows = await DatabaseSql.QueryRowsAsync(db, """
+      SELECT CAST(s.id AS CHAR) id, CAST(s.vendor_id AS CHAR) vendorId, s.name, s.slug, s.status, s.latitude, s.longitude,
+             s.activation_radius AS activationRadius, v.trade_name AS vendorBusinessName
+      FROM stalls s
+      JOIN vendors v ON v.id = s.vendor_id
+      ORDER BY s.name
+      """);
+
+    var result = rows.Select(row => new {
+      id = row["id"],
+      vendorId = row["vendorId"],
+      name = row["name"],
+      slug = row["slug"],
+      status = row["status"],
+      latitude = row["latitude"],
+      longitude = row["longitude"],
+      activationRadius = row["activationRadius"],
+      vendor = new {
+        businessName = row["vendorBusinessName"]
+      }
+    });
+
+    return Ok(ApiResponseFactory.Ok(result));
+  }
 
   [HttpGet("zones")]
   public async Task<IActionResult> Zones() => Ok(ApiResponseFactory.Ok(await DatabaseSql.QueryRowsAsync(db,
@@ -145,9 +169,15 @@ public sealed class AdminPoiController(AppDbContext db, IHttpClientFactory clien
   {
     var connection = await DatabaseSql.OpenConnectionAsync(db);
     var existingRows = await DatabaseSql.QueryRowsAsync(db, 
-      "SELECT lang, approval_status approvalStatus FROM poi_contents WHERE poi_id = @poiId",
+      "SELECT lang, title, tts_script ttsScript FROM poi_contents WHERE poi_id = @poiId",
       new Dictionary<string, object?> { ["@poiId"] = poiId });
-    var existingMap = existingRows.ToDictionary(r => r["lang"]!.ToString()!, r => r["approvalStatus"]!.ToString()!);
+    var existingMap = existingRows.ToDictionary(
+      r => r["lang"]!.ToString()!, 
+      r => new { Title = r["title"]?.ToString() ?? "", Desc = r["ttsScript"]?.ToString() ?? "" }
+    );
+
+    existingMap.TryGetValue("vi", out var oldVi);
+    var viChanged = oldVi == null || oldVi.Title != viName || oldVi.Desc != viDesc;
 
     var langs = new[] { "vi", "en", "ja", "ko", "zh" };
     foreach (var lang in langs)
@@ -162,18 +192,19 @@ public sealed class AdminPoiController(AppDbContext db, IHttpClientFactory clien
         continue;
       }
 
-      var hasExisting = existingMap.TryGetValue(lang, out var existingStatus);
+      existingMap.TryGetValue(lang, out var oldLang);
 
-      if (string.IsNullOrEmpty(subTitle) && string.IsNullOrEmpty(subTts))
+      var shouldTranslate = oldLang == null || 
+                            (string.IsNullOrEmpty(subTitle) && string.IsNullOrEmpty(subTts)) ||
+                            (viChanged && (oldLang.Title == subTitle && oldLang.Desc == subTts));
+
+      if (shouldTranslate)
       {
-        if (!hasExisting)
+        var transTitle = await TranslateTextAsync(viName, lang);
+        var transDesc = await TranslateTextAsync(viDesc, lang);
+        if (!string.IsNullOrWhiteSpace(transTitle) || !string.IsNullOrWhiteSpace(transDesc))
         {
-          var transTitle = await TranslateTextAsync(viName, lang);
-          var transDesc = await TranslateTextAsync(viDesc, lang);
-          if (!string.IsNullOrWhiteSpace(transTitle) || !string.IsNullOrWhiteSpace(transDesc))
-          {
-            await SaveTranslationRowAsync(connection, poiId, lang, transTitle, transDesc, "pending");
-          }
+          await SaveTranslationRowAsync(connection, poiId, lang, transTitle, transDesc, "approved");
         }
       }
       else

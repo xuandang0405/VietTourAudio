@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Compass, Loader2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Circle, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import axios from 'axios';
+import { apiClient } from '../../../services/apiClient';
 import toast from 'react-hot-toast';
 
 const customIcon = new L.Icon({
@@ -53,6 +53,7 @@ interface POIFormProps {
   setFormStatus: (val: string) => void;
   stalls: any[];
   tours: any[];
+  vendors?: any[];
   error?: string;
   translations: { lang: string; title: string; ttsScript: string }[];
   setTranslations: (val: { lang: string; title: string; ttsScript: string }[]) => void;
@@ -79,6 +80,7 @@ export function POIForm({
   setFormStatus,
   stalls,
   tours,
+  vendors = [],
   error,
   translations,
   setTranslations
@@ -87,6 +89,36 @@ export function POIForm({
   const [locating, setLocating] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [activeTab, setActiveTab] = useState('vi');
+  const [selectedVendorId, setSelectedVendorId] = useState('');
+
+  useEffect(() => {
+    if (formStallId && stalls.length > 0) {
+      const activeStall = stalls.find((s) => String(s.id) === String(formStallId));
+      if (activeStall?.vendorId) {
+        setSelectedVendorId(String(activeStall.vendorId));
+      } else {
+        setSelectedVendorId('unassigned');
+      }
+    }
+  }, [formStallId, stalls]);
+
+  // Auto-select single stall if vendor is not Premium
+  useEffect(() => {
+    if (selectedVendorId && selectedVendorId !== 'unassigned' && stalls.length > 0) {
+      const selectedVendor = vendors.find((v) => String(v.id) === selectedVendorId);
+      const isPremium = selectedVendor?.subscription?.plan?.name?.toLowerCase().includes('premium') || String(selectedVendor?.subscription?.plan?.id) === '2';
+      
+      if (!isPremium) {
+        const vendorStalls = stalls.filter((s) => String(s.vendorId) === selectedVendorId);
+        if (vendorStalls.length > 0) {
+          const singleStallId = String(vendorStalls[0].id);
+          if (formStallId !== singleStallId) {
+            setFormStallId(singleStallId);
+          }
+        }
+      }
+    }
+  }, [selectedVendorId, stalls, vendors, formStallId, setFormStallId]);
 
   const languages = [
     { code: 'vi', label: 'Tiếng Việt', flag: '🇻🇳' },
@@ -168,7 +200,7 @@ export function POIForm({
       let updatedTts = currentTranslation.ttsScript;
 
       if (viTrans.title.trim()) {
-        const titleRes = await axios.post('/api/admin/translate', {
+        const titleRes = await apiClient.post('/api/admin/translate', {
           text: viTrans.title,
           targetLangs: [activeTab]
         });
@@ -178,7 +210,7 @@ export function POIForm({
       }
 
       if (viTrans.ttsScript.trim()) {
-        const ttsRes = await axios.post('/api/admin/translate', {
+        const ttsRes = await apiClient.post('/api/admin/translate', {
           text: viTrans.ttsScript,
           targetLangs: [activeTab]
         });
@@ -217,206 +249,261 @@ export function POIForm({
   }), [setFormLatitude, setFormLongitude]);
 
   return (
-    <div className="w-full max-h-[85vh] overflow-y-auto pr-2 space-y-4 scrollbar-thin">
-      {error && <p className="text-xs font-bold text-red-600">{error}</p>}
+    <div className="w-full max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin">
+      {error && <p className="text-xs font-bold text-red-600 mb-3">{error}</p>}
 
-      {/* Multilingual Tabs */}
-      <div className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1">
-        {languages.map((lang) => {
-          const isActive = activeTab === lang.code;
-          return (
-            <button
-              key={lang.code}
-              type="button"
-              onClick={() => setActiveTab(lang.code)}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-black transition-all ${
-                isActive
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:bg-white/50 hover:text-slate-900'
-              }`}
-            >
-              <span>{lang.flag}</span>
-              <span>{lang.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Localized Content fields */}
-      <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/30 p-4">
-        <div>
-          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
-            {t('poi.form_name')} ({languages.find((l) => l.code === activeTab)?.flag} {activeTab.toUpperCase()})
-          </label>
-          <input
-            value={currentTranslation.title}
-            onChange={(e) => handleTitleChange(e.target.value)}
-            placeholder={t('poi.form_name_placeholder')}
-            className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500 transition shadow-inner focus:bg-white"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
-            {t('common.description')} / TTS Script ({languages.find((l) => l.code === activeTab)?.flag} {activeTab.toUpperCase()})
-          </label>
-          <textarea
-            value={currentTranslation.ttsScript}
-            onChange={(e) => handleTtsScriptChange(e.target.value)}
-            placeholder={t('poi.form_desc_placeholder')}
-            className="w-full h-24 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold outline-none focus:border-blue-500 transition shadow-inner focus:bg-white resize-none"
-          />
-        </div>
-
-        {activeTab !== 'vi' && (
-          <div className="flex justify-end pt-1">
-            <button
-              type="button"
-              onClick={handleAutoTranslateThisLang}
-              disabled={translating}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-700 hover:bg-blue-100 transition disabled:opacity-50"
-            >
-              {translating ? <Loader2 size={13} className="animate-spin" /> : '✨'}
-              {t('common.auto_translate', { defaultValue: 'Dịch tự động ngôn ngữ này' })}
-            </button>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column: Localized content, Vendor & Stall, Status & Premium */}
+        <div className="space-y-4">
+          {/* Multilingual Tabs */}
+          <div className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1">
+            {languages.map((lang) => {
+              const isActive = activeTab === lang.code;
+              return (
+                <button
+                  key={lang.code}
+                  type="button"
+                  onClick={() => setActiveTab(lang.code)}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-black transition-all ${
+                    isActive
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:bg-white/50 hover:text-slate-900'
+                  }`}
+                >
+                  <span>{lang.flag}</span>
+                  <span>{lang.label}</span>
+                </button>
+              );
+            })}
           </div>
-        )}
-      </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* Common Stall field */}
-        <div>
-          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">
-            {t('poi.form_stall', { defaultValue: 'Sạp hàng (Stall)' })}
-          </label>
-          <select
-            value={formStallId}
-            onChange={(e) => setFormStallId(e.target.value)}
-            className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
-          >
-            {stalls.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
+          {/* Localized Content fields */}
+          <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/30 p-4">
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                {t('poi.form_name')} ({languages.find((l) => l.code === activeTab)?.flag} {activeTab.toUpperCase()})
+              </label>
+              <input
+                value={currentTranslation.title}
+                onChange={(e) => handleTitleChange(e.target.value)}
+                placeholder={t('poi.form_name_placeholder')}
+                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500 transition shadow-inner focus:bg-white"
+              />
+            </div>
 
-        {/* Common Zone field */}
-        <div>
-          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_zone', { defaultValue: 'Khu vực (Zone)' })}</label>
-          <select
-            value={formTourId}
-            onChange={(e) => setFormTourId(e.target.value)}
-            className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
-          >
-            {tours.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-            {tours.length === 0 && <option value="">{t('poi.no_zone', { defaultValue: 'Không có khu vực nào' })}</option>}
-          </select>
-        </div>
-      </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                {t('common.description')} / TTS Script ({languages.find((l) => l.code === activeTab)?.flag} {activeTab.toUpperCase()})
+              </label>
+              <textarea
+                value={currentTranslation.ttsScript}
+                onChange={(e) => handleTtsScriptChange(e.target.value)}
+                placeholder={t('poi.form_desc_placeholder')}
+                className="w-full h-24 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold outline-none focus:border-blue-500 transition shadow-inner focus:bg-white resize-none"
+              />
+            </div>
 
-      {/* Interactive Leaflet Map */}
-      <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-100">
-        <span className="block p-2 text-xs font-bold text-slate-500 bg-slate-50 border-b border-slate-200">
-          📍 Bản đồ vị trí POI (Nhấp để chọn, hoặc kéo marker để chỉnh sửa tọa độ)
-        </span>
-        <div style={{ height: '220px', width: '100%' }}>
-          <MapContainer center={mapCenter} zoom={17} style={{ height: '100%', width: '100%' }}>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <MapClickHandler onLocationSelected={(lat, lng) => {
-              setFormLatitude(lat.toFixed(7));
-              setFormLongitude(lng.toFixed(7));
-            }} />
-            <ChangeMapCenter center={mapCenter} />
-            <Marker position={mapCenter} icon={customIcon} draggable={true} eventHandlers={markerEvents} />
-            <Circle center={mapCenter} radius={radiusVal} pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.15 }} />
-          </MapContainer>
-        </div>
-      </div>
 
-      {/* Coordinates section */}
-      <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-black uppercase tracking-wider text-slate-500">{t('poi.coordinates_section', { defaultValue: 'Tọa độ GPS' })}</span>
-          <button
-            type="button"
-            onClick={handleGetCurrentLocation}
-            disabled={locating}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-50 px-3 text-xs font-bold text-blue-700 hover:bg-blue-100 transition disabled:opacity-50"
-          >
-            {locating ? <Loader2 size={14} className="animate-spin" /> : <Compass size={14} />}
-            {t('poi.get_current_location', { defaultValue: 'Lấy vị trí hiện tại của tôi' })}
-          </button>
-        </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_latitude')}</label>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* Vendor Selector */}
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-indigo-500 mb-1">
+                {t('poi.form_vendor', { defaultValue: 'Nhà cung cấp (Vendor)' })}
+              </label>
+              <select
+                value={selectedVendorId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedVendorId(val);
+                  if (val === 'unassigned') {
+                    setFormStallId(stalls[0]?.id ?? '1');
+                    setFormStatus('INACTIVE');
+                  } else {
+                    const vendorStalls = stalls.filter((s) => String(s.vendorId) === val);
+                    if (vendorStalls.length > 0) {
+                      setFormStallId(vendorStalls[0].id);
+                    }
+                  }
+                }}
+                className="w-full h-11 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-sm font-bold text-indigo-900 outline-none focus:border-indigo-500 focus:bg-white"
+              >
+                <option value="unassigned">⚠️ {t('poi.unassigned_vendor', { defaultValue: 'Chưa gán nhà cung cấp (Tạm ngưng)' })}</option>
+                {vendors.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    🏢 {v.businessName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Common Stall field */}
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">
+                {t('poi.form_stall', { defaultValue: 'Sạp hàng (Stall)' })}
+              </label>
+              {selectedVendorId === 'unassigned' ? (
+                <div className="w-full h-11 flex items-center px-3.5 bg-slate-100 border border-slate-200 rounded-xl text-sm font-semibold text-slate-400">
+                  {t('poi.no_stall_unassigned', { defaultValue: 'Không có sạp (POI tạm ngưng)' })}
+                </div>
+              ) : (() => {
+                const selectedVendor = vendors.find((v) => String(v.id) === selectedVendorId);
+                const isPremium = selectedVendor?.subscription?.plan?.name?.toLowerCase().includes('premium') || String(selectedVendor?.subscription?.plan?.id) === '2';
+                
+                if (isPremium) {
+                  return (
+                    <select
+                      value={formStallId}
+                      onChange={(e) => setFormStallId(e.target.value)}
+                      className="w-full h-11 rounded-xl border border-indigo-200 bg-indigo-50/20 px-3 text-sm font-semibold text-indigo-950 outline-none focus:border-indigo-500 focus:bg-white"
+                    >
+                      {stalls
+                        .filter((s) => String(s.vendorId) === selectedVendorId)
+                        .map((s) => (
+                          <option key={s.id} value={s.id}>
+                            🏪 {s.name}
+                          </option>
+                        ))}
+                    </select>
+                  );
+                } else {
+                  const vendorStalls = stalls.filter((s) => String(s.vendorId) === selectedVendorId);
+                  const singleStall = vendorStalls[0];
+                  return (
+                    <div className="w-full h-11 flex items-center justify-between px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 shadow-inner">
+                      <span className="truncate">🏪 {singleStall?.name || t('poi.only_stall', { defaultValue: 'Sạp hàng duy nhất' })}</span>
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-slate-200 text-slate-600 tracking-wide flex-shrink-0">
+                        {t('poi.basic_plan', { defaultValue: 'Gói cơ bản' })}
+                      </span>
+                    </div>
+                  );
+                }
+              })()}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* Common Zone field */}
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_zone', { defaultValue: 'Khu vực (Zone)' })}</label>
+              <select
+                value={formTourId}
+                onChange={(e) => setFormTourId(e.target.value)}
+                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
+              >
+                {tours.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+                {tours.length === 0 && <option value="">{t('poi.no_zone', { defaultValue: 'Không có khu vực nào' })}</option>}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('common.status')}</label>
+              <select
+                value={formStatus}
+                onChange={(e) => setFormStatus(e.target.value)}
+                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
+              >
+                <option value="ACTIVE">{t('common.active')}</option>
+                <option value="DRAFT">{t('common.draft')}</option>
+                <option value="INACTIVE">{t('common.inactive')}</option>
+                <option value="ARCHIVED">{t('common.archived')}</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 pt-2">
             <input
-              type="number"
-              step="any"
-              value={formLatitude}
-              onChange={(e) => setFormLatitude(e.target.value)}
-              placeholder="10.77582"
-              className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
+              type="checkbox"
+              id="isPremiumContent"
+              checked={formIsPremium}
+              onChange={(e) => setFormIsPremium(e.target.checked)}
+              className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
             />
-          </div>
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_longitude')}</label>
-            <input
-              type="number"
-              step="any"
-              value={formLongitude}
-              onChange={(e) => setFormLongitude(e.target.value)}
-              placeholder="106.70208"
-              className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_radius_m')}</label>
-            <input
-              type="number"
-              value={formRadius}
-              onChange={(e) => setFormRadius(e.target.value)}
-              placeholder="25"
-              className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
-            />
+            <label htmlFor="isPremiumContent" className="text-sm font-bold text-slate-700">
+              {t('poi.premium_content')}
+            </label>
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('common.status')}</label>
-          <select
-            value={formStatus}
-            onChange={(e) => setFormStatus(e.target.value)}
-            className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
-          >
-            <option value="ACTIVE">{t('common.active')}</option>
-            <option value="DRAFT">{t('common.draft')}</option>
-            <option value="INACTIVE">{t('common.inactive')}</option>
-            <option value="ARCHIVED">{t('common.archived')}</option>
-          </select>
-        </div>
-        <div className="flex items-center gap-2 pt-6">
-          <input
-            type="checkbox"
-            id="isPremiumContent"
-            checked={formIsPremium}
-            onChange={(e) => setFormIsPremium(e.target.checked)}
-            className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-          />
-          <label htmlFor="isPremiumContent" className="text-sm font-bold text-slate-700">
-            {t('poi.premium_content')}
-          </label>
+        {/* Right Column: Interactive Map & Location Settings */}
+        <div className="space-y-4">
+          {/* Interactive Leaflet Map */}
+          <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-100">
+            <span className="block p-2 text-xs font-bold text-slate-500 bg-slate-50 border-b border-slate-200">
+              📍 Bản đồ vị trí POI (Nhấp để chọn, kéo marker)
+            </span>
+            <div style={{ height: '235px', width: '100%' }}>
+              <MapContainer center={mapCenter} zoom={17} style={{ height: '100%', width: '100%' }}>
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <MapClickHandler onLocationSelected={(lat, lng) => {
+                  setFormLatitude(lat.toFixed(7));
+                  setFormLongitude(lng.toFixed(7));
+                }} />
+                <ChangeMapCenter center={mapCenter} />
+                <Marker position={mapCenter} icon={customIcon} draggable={true} eventHandlers={markerEvents} />
+                <Circle center={mapCenter} radius={radiusVal} pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.15 }} />
+              </MapContainer>
+            </div>
+          </div>
+
+          {/* Coordinates & Radius section */}
+          <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-500">{t('poi.coordinates_section', { defaultValue: 'Tọa độ GPS' })}</span>
+              <button
+                type="button"
+                onClick={handleGetCurrentLocation}
+                disabled={locating}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-50 px-3 text-xs font-bold text-blue-700 hover:bg-blue-100 transition disabled:opacity-50"
+              >
+                {locating ? <Loader2 size={14} className="animate-spin" /> : <Compass size={14} />}
+                {t('poi.get_current_location', { defaultValue: 'Lấy vị trí' })}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_latitude')}</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={formLatitude}
+                  onChange={(e) => setFormLatitude(e.target.value)}
+                  placeholder="10.77582"
+                  className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-semibold outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_longitude')}</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={formLongitude}
+                  onChange={(e) => setFormLongitude(e.target.value)}
+                  placeholder="106.70208"
+                  className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-semibold outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_radius_m')}</label>
+                <input
+                  type="number"
+                  value={formRadius}
+                  onChange={(e) => setFormRadius(e.target.value)}
+                  placeholder="25"
+                  className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-semibold outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

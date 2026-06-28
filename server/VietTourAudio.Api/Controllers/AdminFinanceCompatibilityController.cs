@@ -181,6 +181,19 @@ public sealed class AdminWalletCompatibilityController(AppDbContext db, Microsof
 [Authorize(Roles = "SUPER_ADMIN,ADMIN,FINANCE")]
 public sealed class AdminRevenueCompatibilityController(AppDbContext db) : ControllerBase
 {
+  [HttpGet("commissions")]
+  public async Task<IActionResult> Commissions()
+  {
+    var rows = await DatabaseSql.QueryRowsAsync(db, """
+      SELECT CAST(ce.id AS CHAR) id, v.trade_name vendorName, ce.gross_amount baseAmount,
+             ce.rate_percent commissionRate, ce.commission_amount commissionAmount, ce.status
+      FROM commission_earnings ce
+      JOIN vendors v ON v.id = ce.vendor_id
+      ORDER BY ce.created_at DESC
+      """);
+    return Ok(ApiResponseFactory.Ok(rows));
+  }
+
   [HttpGet("overview")]
   public async Task<IActionResult> Overview([FromQuery] string period = "month")
   {
