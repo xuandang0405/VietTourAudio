@@ -24,6 +24,25 @@ import {
   useDeletePoi,
   useVendors
 } from '../../../admin/api/adminQueries';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+
+const customIcon = new L.Icon({
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+function ChangeMapCenter({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center);
+  }, [center, map]);
+  return null;
+}
 
 function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371e3; // meters
@@ -69,6 +88,18 @@ export function ZoneManagement() {
   const [formLongitude, setFormLongitude] = useState('');
   const [formStatus, setFormStatus] = useState('DRAFT');
   const [formIsPremium, setFormIsPremium] = useState(false);
+
+  // Cover Image dual-mode & GPS tracking states
+  const [coverImageMode, setCoverImageMode] = useState<'upload' | 'url'>('upload');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [locatingGps, setLocatingGps] = useState(false);
+
+  // Coordinate aliases to match requirements
+  const centerLatitude = formLatitude;
+  const setCenterLatitude = setFormLatitude;
+  const centerLongitude = formLongitude;
+  const setCenterLongitude = setFormLongitude;
 
   // POI Form State
   const [poiFormName, setPoiFormName] = useState('');
@@ -244,6 +275,69 @@ export function ZoneManagement() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(t('zone.file_too_large', { defaultValue: 'Kích thước tệp vượt quá 5MB!' }));
+        return;
+      }
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const clearSelectedFile = () => {
+    setSelectedFile(null);
+    if (previewUrl) {
+      if (previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      setPreviewUrl('');
+    }
+  };
+
+  const handleGetCurrentGps = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      toast.error(t('zone.gps_unsupported', { defaultValue: "Trình duyệt của bạn không hỗ trợ lấy vị trí GPS." }));
+      return;
+    }
+    setLocatingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setCenterLatitude(latitude.toFixed(6));
+        setCenterLongitude(longitude.toFixed(6));
+        setLocatingGps(false);
+        toast.success(t('zone.gps_success', { defaultValue: "Đã lấy vị trí hiện tại thành công!" }));
+      },
+      (error) => {
+        console.warn("GPS retrieval failed:", error);
+        toast.error(t('zone.gps_failed', { defaultValue: "Không thể lấy vị trí GPS. Vui lòng cấp quyền truy cập." }));
+        setLocatingGps(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
+  const latVal = Number(centerLatitude) || 10.77582;
+  const lngVal = Number(centerLongitude) || 106.70208;
+
+  function MapClickPicker() {
+    useMapEvents({
+      click(e) {
+        const { lat, lng } = e.latlng;
+        setCenterLatitude(lat.toFixed(6));
+        setCenterLongitude(lng.toFixed(6));
+      },
+    });
+    const latNum = Number(centerLatitude);
+    const lngNum = Number(centerLongitude);
+    return (centerLatitude && centerLongitude && !isNaN(latNum) && !isNaN(lngNum)) ? (
+      <Marker position={[latNum, lngNum]} icon={customIcon} />
+    ) : null;
+  }
+
   const nearbyStalls = useMemo(() => {
     if (!stallsModalZone || stallsModalZone.latitude === null || stallsModalZone.longitude === null) return [];
     return stalls
@@ -278,6 +372,9 @@ export function ZoneManagement() {
     setFormLongitude('');
     setFormStatus('DRAFT');
     setFormIsPremium(false);
+    setCoverImageMode('upload');
+    setSelectedFile(null);
+    setPreviewUrl('');
     setModal({ type: 'add' });
   };
 
@@ -291,6 +388,17 @@ export function ZoneManagement() {
     setFormLongitude(zone.longitude !== null ? String(zone.longitude) : '');
     setFormStatus(zone.status ?? 'DRAFT');
     setFormIsPremium(Boolean(zone.isPremium));
+    
+    if (zone.coverImageUrl && !zone.coverImageUrl.startsWith('http') && zone.coverImageUrl.includes('/uploads/')) {
+      setCoverImageMode('upload');
+      setSelectedFile(null);
+      setPreviewUrl(zone.coverImageUrl);
+    } else {
+      setCoverImageMode(zone.coverImageUrl ? 'url' : 'upload');
+      setSelectedFile(null);
+      setPreviewUrl('');
+    }
+    
     setModal({ type: 'edit', zone });
   };
 
@@ -381,21 +489,32 @@ export function ZoneManagement() {
           setError(t('zone.error_lng_invalid', { defaultValue: 'Kinh độ không hợp lệ (-180 đến 180)' }));
           return;
         }
-        const payload = {
-          vendorId: 1,
-          name: formName.trim(),
-          slug: formZoneCode.trim() || undefined,
-          description: formDescription.trim() || null,
-          coverImageUrl: formCoverImageUrl.trim() || null,
-          latitude: lat,
-          longitude: lng,
-          status: formStatus,
-          isPremium: formIsPremium
-        };
-        if (modal.type === 'add') {
-          await createMutation.mutateAsync(payload);
+        const formData = new FormData();
+        formData.append("vendorId", "1");
+        formData.append("name", formName.trim());
+        if (formZoneCode.trim()) formData.append("slug", formZoneCode.trim());
+        if (formDescription.trim()) formData.append("description", formDescription.trim());
+        formData.append("status", formStatus);
+        formData.append("isPremium", String(formIsPremium));
+        if (lat !== null) formData.append("latitude", String(lat));
+        if (lng !== null) formData.append("longitude", String(lng));
+
+        if (coverImageMode === 'upload') {
+          if (selectedFile) {
+            formData.append("coverFile", selectedFile);
+          } else if (previewUrl && !previewUrl.startsWith('blob:')) {
+            formData.append("coverImageUrl", previewUrl);
+          }
         } else {
-          await updateMutation.mutateAsync({ id: modal.zone.id, data: payload });
+          if (formCoverImageUrl.trim()) {
+            formData.append("coverImageUrl", formCoverImageUrl.trim());
+          }
+        }
+
+        if (modal.type === 'add') {
+          await createMutation.mutateAsync(formData);
+        } else {
+          await updateMutation.mutateAsync({ id: modal.zone.id, data: formData });
         }
         setModal(null);
         refreshData();
@@ -747,19 +866,125 @@ export function ZoneManagement() {
               className="w-full h-20 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold outline-none focus:border-blue-500 resize-none"
             />
           </div>
+          {/* Dual-Mode Cover Image Switcher */}
           <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('zone.form_cover_url', { defaultValue: 'Ảnh bìa (URL)' })}</label>
-            <input
-              value={formCoverImageUrl}
-              onChange={(e) => setFormCoverImageUrl(e.target.value)}
-              placeholder="https://example.com/image.jpg"
-              className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
-            />
+            <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
+              {t('zone.form_cover_image', { defaultValue: 'Ảnh bìa khu vực' })}
+            </label>
+            
+            <div className="flex gap-2 p-1 bg-slate-100 rounded-xl mb-3">
+              <button
+                type="button"
+                onClick={() => setCoverImageMode('upload')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  coverImageMode === 'upload'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-800'
+                }`}
+              >
+                [Tải tệp lên]
+              </button>
+              <button
+                type="button"
+                onClick={() => setCoverImageMode('url')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  coverImageMode === 'url'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-800'
+                }`}
+              >
+                [Nhập liên kết ảnh URL]
+              </button>
+            </div>
+
+            {coverImageMode === 'upload' ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full aspect-video border-2 border-dashed border-slate-300 rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Plus className="w-8 h-8 text-slate-400 mb-1" />
+                      <p className="text-xs font-bold text-slate-500">
+                        {selectedFile ? selectedFile.name : t('zone.upload_prompt', { defaultValue: 'Chọn ảnh từ thiết bị' })}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1">PNG, JPG, JPEG, WEBP (Max 5MB)</p>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                  </label>
+                </div>
+                {previewUrl && (
+                  <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-slate-200">
+                    <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={clearSelectedFile}
+                      className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <input
+                  value={formCoverImageUrl}
+                  onChange={(e) => {
+                    setFormCoverImageUrl(e.target.value);
+                  }}
+                  placeholder="https://example.com/image.jpg"
+                  className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500 focus:bg-white"
+                />
+                {formCoverImageUrl && (
+                  <div className="w-full aspect-video rounded-lg overflow-hidden border border-slate-200">
+                    <img
+                      src={formCoverImageUrl}
+                      alt="Preview URL"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://placehold.co/600x400?text=Invalid+Image+URL';
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
-            <span className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-3">{t('zone.coordinates_section', { defaultValue: 'Tọa độ trung tâm' })}</span>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="block text-xs font-black uppercase tracking-wider text-slate-500">{t('zone.coordinates_section', { defaultValue: 'Tọa độ trung tâm' })}</span>
+              <button
+                type="button"
+                onClick={handleGetCurrentGps}
+                disabled={locatingGps}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 transition disabled:opacity-50"
+              >
+                {t('zone.get_current_gps', { defaultValue: 'Lấy vị trí hiện tại' })}
+              </button>
+            </div>
+
+            {/* Visual Map Widget */}
+            <div className="w-full aspect-video rounded-xl overflow-hidden border border-slate-200 shadow-inner my-2">
+              <MapContainer 
+                center={[latVal, lngVal]} 
+                zoom={15} 
+                style={{ height: '100%', width: '100%' }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <MapClickPicker />
+                <ChangeMapCenter center={[latVal, lngVal]} />
+              </MapContainer>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 mt-2">
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_latitude')}</label>
                 <input
@@ -768,7 +993,7 @@ export function ZoneManagement() {
                   value={formLatitude}
                   onChange={(e) => setFormLatitude(e.target.value)}
                   placeholder="10.77582"
-                  className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
+                  className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500 focus:bg-white"
                 />
               </div>
               <div>
@@ -779,7 +1004,7 @@ export function ZoneManagement() {
                   value={formLongitude}
                   onChange={(e) => setFormLongitude(e.target.value)}
                   placeholder="106.70208"
-                  className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
+                  className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500 focus:bg-white"
                 />
               </div>
             </div>

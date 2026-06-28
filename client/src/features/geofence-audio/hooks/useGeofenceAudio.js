@@ -494,7 +494,7 @@ export function useGeofenceAudio({ onToast }) {
 
     try {
       setRoutingInfo({ status: 'calculating' });
-      const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+      const apiBase = import.meta.env.VITE_API_BASE_URL;
       const response = await fetch(
         `${apiBase}/guest/routing?startLng=${position.lng}&startLat=${position.lat}&endLng=${targetPoi.longitude}&endLat=${targetPoi.latitude}`
       );
@@ -526,7 +526,7 @@ export function useGeofenceAudio({ onToast }) {
   async function recalculateRoute(targetPoi, currentPosition) {
     if (!currentPosition || !targetPoi) return;
     try {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+      const apiBase = import.meta.env.VITE_API_BASE_URL;
       const response = await fetch(
         `${apiBase}/guest/routing?startLng=${currentPosition.lng}&startLat=${currentPosition.lat}&endLng=${targetPoi.longitude}&endLat=${targetPoi.latitude}`
       );

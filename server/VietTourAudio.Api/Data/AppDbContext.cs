@@ -118,6 +118,8 @@ public class AppDbContext : DbContext
       entity.Property(x => x.BalanceBefore).HasColumnName("balance_before").HasPrecision(14, 2);
       entity.Property(x => x.BalanceAfter).HasColumnName("balance_after").HasPrecision(14, 2);
       entity.Property(x => x.Description).HasColumnName("description");
+      entity.Property(x => x.CreatedByUserId).HasColumnName("created_by_user_id");
+      entity.Property(x => x.Metadata).HasColumnName("metadata");
       entity.Property(x => x.CreatedAt).HasColumnName("created_at");
       entity.HasOne(x => x.Wallet).WithMany(x => x.Transactions).HasForeignKey(x => x.WalletId).OnDelete(DeleteBehavior.Cascade);
       entity.HasIndex(x => new { x.VendorId, x.CreatedAt });

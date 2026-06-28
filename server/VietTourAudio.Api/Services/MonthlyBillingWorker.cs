@@ -20,11 +20,24 @@ public sealed class MonthlyBillingWorker(
           await ProcessDueSubscriptionsInternal(context, stoppingToken);
         }
       }
+      catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+      {
+        // Graceful shutdown — exit the loop cleanly without logging as an error
+        break;
+      }
       catch (Exception exception)
       {
         logger.LogError(exception, "Monthly vendor billing pass failed");
       }
-      await Task.Delay(TimeSpan.FromDays(1), stoppingToken);
+      try
+      {
+        await Task.Delay(TimeSpan.FromDays(1), stoppingToken);
+      }
+      catch (OperationCanceledException)
+      {
+        // Host is stopping — exit cleanly
+        break;
+      }
     }
   }
 

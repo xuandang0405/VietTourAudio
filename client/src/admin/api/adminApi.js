@@ -299,11 +299,33 @@ export async function fetchTourById(id) {
 }
 
 export async function createTour(tourData) {
-  return unwrap(await adminApiClient.post('/admin/zones', tourData));
+  let body = tourData;
+  let headers = undefined;
+  if (!(tourData instanceof FormData)) {
+    body = new FormData();
+    for (const key in tourData) {
+      if (tourData[key] !== undefined && tourData[key] !== null) {
+        body.append(key, String(tourData[key]));
+      }
+    }
+  }
+  headers = { 'Content-Type': 'multipart/form-data' };
+  return unwrap(await adminApiClient.post('/admin/zones', body, { headers }));
 }
 
 export async function updateTour(id, tourData) {
-  return unwrap(await adminApiClient.put(`/admin/zones/${id}`, tourData));
+  let body = tourData;
+  let headers = undefined;
+  if (!(tourData instanceof FormData)) {
+    body = new FormData();
+    for (const key in tourData) {
+      if (tourData[key] !== undefined && tourData[key] !== null) {
+        body.append(key, String(tourData[key]));
+      }
+    }
+  }
+  headers = { 'Content-Type': 'multipart/form-data' };
+  return unwrap(await adminApiClient.put(`/admin/zones/${id}`, body, { headers }));
 }
 
 export async function deleteTour(arg) {
@@ -348,4 +370,4 @@ export async function fetchCommissions() {
   return unwrap(await adminApiClient.get('/admin/revenue/commissions'));
 }
 
-// Force Vite HMR reload to pick up the new port 5002 configuration from appConfig.js
+// Force Vite HMR reload to pick up the port 45200 configuration from appConfig.js

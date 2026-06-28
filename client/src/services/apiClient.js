@@ -106,4 +106,4 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Force Vite HMR reload to pick up the new port 5002 configuration from appConfig.js
+// Force Vite HMR reload to pick up the port 45200 configuration from appConfig.js

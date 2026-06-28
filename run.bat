@@ -4,11 +4,8 @@ setlocal
 
 set "ROOT=%~dp0"
 set "CLIENT_PORT=5173"
-set "API_PORT=5000"
+set "API_PORT=45200"
 set "API_BASE_URL=http://localhost:%API_PORT%/api"
-set "ADMIN_API_BASE_URL=http://localhost:%API_PORT%/api"
-set "VENDOR_API_BASE_URL=http://localhost:%API_PORT%/api/vendor"
-set "VENDOR_AUTH_API_BASE_URL=http://localhost:%API_PORT%/api/vendor/auth"
 set "DOTNET_CONNECTION=server=localhost;port=3306;database=viettuoraudio;user=root;password=;SslMode=None;AllowPublicKeyRetrieval=True;"
 
 echo.
@@ -64,7 +61,7 @@ if not exist "%ROOT%client\node_modules" (
   cd /d "%ROOT%client"
   call npm install
 )
-start "VietTourAudio - Frontend" cmd /k "pushd "%ROOT%client" && set "VITE_DEV_PORT=%CLIENT_PORT%" && set "VITE_API_BASE_URL=%API_BASE_URL%" && set "VITE_ADMIN_API_BASE_URL=%ADMIN_API_BASE_URL%" && set "VITE_VENDOR_API_BASE_URL=%VENDOR_API_BASE_URL%" && set "VITE_VENDOR_AUTH_API_BASE_URL=%VENDOR_AUTH_API_BASE_URL%" && npm run dev"
+start "VietTourAudio - Frontend" cmd /k "pushd "%ROOT%client" && set "VITE_DEV_PORT=%CLIENT_PORT%" && set "VITE_API_BASE_URL=%API_BASE_URL%" && npm run dev"
 echo   [OK]  Frontend    : http://localhost:%CLIENT_PORT%
 
 echo.

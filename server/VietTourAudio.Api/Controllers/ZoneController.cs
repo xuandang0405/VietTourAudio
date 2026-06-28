@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VietTourAudio.Api.Data;
@@ -10,7 +12,7 @@ namespace VietTourAudio.Api.Controllers;
 [ApiController]
 [Route("api/admin/zones")]
 [Authorize(Roles = "SUPER_ADMIN,ADMIN,ZONE_ADMIN")]
-public sealed class ZoneController(AppDbContext db) : ControllerBase
+public sealed class ZoneController(AppDbContext db, IWebHostEnvironment env) : ControllerBase
 {
   [HttpGet]
   public async Task<IActionResult> List()
@@ -46,9 +48,42 @@ public sealed class ZoneController(AppDbContext db) : ControllerBase
   {
     var z = await db.FestivalZones.Include(z => z.Pois).ThenInclude(p => p.Products).AsNoTracking().SingleOrDefaultAsync(x => x.Id == id);
     if (z is null) return NotFound(ApiResponseFactory.Fail("zone.not_found"));
-    
-    var pois = z.Pois.Where(p => p.Status != "ARCHIVED")
-      .OrderBy(p => p.Id).Select(p => new { id = p.Id.ToString(), p.Name, p.Status }).ToList();
+
+    // Load full POI data directly from zones table (includes is_premium_content)
+    var poiRows = await DatabaseSql.QueryRowsAsync(db,
+      "SELECT CAST(id AS CHAR) id, CAST(stall_id AS CHAR) stallId, CAST(tour_id AS CHAR) tourId, name, slug, description, latitude, longitude, activation_radius activationRadius, is_premium_content isPremiumContent, status, approval_status approvalStatus FROM zones WHERE tour_id = @tourId AND status != 'ARCHIVED' ORDER BY id",
+      new Dictionary<string, object?> { ["@tourId"] = id });
+
+    var poiIds = poiRows.Select(r => r["id"]!.ToString()!).ToList();
+    var transMap = new Dictionary<string, List<object>>();
+    if (poiIds.Count > 0)
+    {
+      var idList = string.Join(',', poiIds);
+      var transRows = await DatabaseSql.QueryRowsAsync(db,
+        $"SELECT CAST(poi_id AS CHAR) poiId, lang, title, tts_script ttsScript, approval_status approvalStatus FROM poi_contents WHERE poi_id IN ({idList})");
+      foreach (var row in transRows)
+      {
+        var pid = row["poiId"]!.ToString()!;
+        if (!transMap.ContainsKey(pid)) transMap[pid] = new List<object>();
+        transMap[pid].Add(new { lang = row["lang"]?.ToString(), title = row["title"]?.ToString() ?? "", ttsScript = row["ttsScript"]?.ToString() ?? "", approvalStatus = row["approvalStatus"]?.ToString() ?? "pending" });
+      }
+    }
+
+    var pois = poiRows.Select(p => new {
+      id = p["id"]?.ToString(),
+      stallId = p["stallId"]?.ToString(),
+      tourId = p["tourId"]?.ToString(),
+      name = p["name"]?.ToString(),
+      slug = p["slug"]?.ToString(),
+      description = p["description"]?.ToString(),
+      latitude = p["latitude"],
+      longitude = p["longitude"],
+      activationRadius = p["activationRadius"],
+      isPremiumContent = Convert.ToBoolean(p["isPremiumContent"]),
+      status = p["status"]?.ToString(),
+      approvalStatus = p["approvalStatus"]?.ToString(),
+      translations = transMap.TryGetValue(p["id"]!.ToString()!, out var trs) ? trs : new List<object>()
+    }).ToList();
       
     var qrRow = (await DatabaseSql.QueryRowsAsync(db, 
       "SELECT code FROM qr_codes WHERE tour_id=@id AND qr_type='TOUR' AND is_active=1 LIMIT 1",
@@ -73,24 +108,66 @@ public sealed class ZoneController(AppDbContext db) : ControllerBase
   }
 
   [HttpPost]
-  public async Task<IActionResult> Create([FromBody] ZoneRequest request)
+  public async Task<IActionResult> Create([FromForm] ZoneRequest request)
   {
+    string? imageUrl = request.CoverImageUrl;
+    if (request.CoverFile != null)
+    {
+      imageUrl = await SaveUploadedFileAsync(request.CoverFile);
+      if (imageUrl == null)
+      {
+        return BadRequest(ApiResponseFactory.Fail("invalid_image_file"));
+      }
+    }
+
     var slug = string.IsNullOrWhiteSpace(request.Slug) ? Slugify(request.Name) : request.Slug;
-    var entity = new FestivalZone { VendorId = request.VendorId, Name = request.Name.Trim(), Slug = slug.Trim(),
-      Description = request.Description, CoverImageUrl = request.CoverImageUrl, Latitude = request.Latitude,
-      Longitude = request.Longitude, Status = request.Status, SortOrder = request.SortOrder };
-    db.FestivalZones.Add(entity); await db.SaveChangesAsync();
+    var entity = new FestivalZone { 
+      VendorId = request.VendorId, 
+      Name = request.Name.Trim(), 
+      Slug = slug.Trim(),
+      Description = request.Description, 
+      CoverImageUrl = imageUrl, 
+      Latitude = (decimal?)request.Latitude,
+      Longitude = (decimal?)request.Longitude, 
+      Status = request.Status, 
+      SortOrder = request.SortOrder 
+    };
+    db.FestivalZones.Add(entity); 
+    await db.SaveChangesAsync();
     return Ok(ApiResponseFactory.Ok(new { id = entity.Id.ToString(), entity.Name, entity.Slug }));
   }
 
   [HttpPut("{id:long}")]
-  public async Task<IActionResult> Update(ulong id, [FromBody] ZoneRequest request)
+  public async Task<IActionResult> Update(ulong id, [FromForm] ZoneRequest request)
   {
     var entity = await db.FestivalZones.SingleAsync(x => x.Id == id);
+    
+    string? imageUrl = request.CoverImageUrl;
+    if (request.CoverFile != null)
+    {
+      imageUrl = await SaveUploadedFileAsync(request.CoverFile);
+      if (imageUrl == null)
+      {
+        return BadRequest(ApiResponseFactory.Fail("invalid_image_file"));
+      }
+    }
+
     var slug = string.IsNullOrWhiteSpace(request.Slug) ? Slugify(request.Name) : request.Slug;
-    entity.Name = request.Name.Trim(); entity.Slug = slug.Trim(); entity.Description = request.Description;
-    entity.CoverImageUrl = request.CoverImageUrl; entity.Latitude = request.Latitude; entity.Longitude = request.Longitude;
-    entity.Status = request.Status; entity.SortOrder = request.SortOrder; await db.SaveChangesAsync();
+    entity.Name = request.Name.Trim(); 
+    entity.Slug = slug.Trim(); 
+    entity.Description = request.Description;
+    
+    // Update imageUrl if a file was uploaded, or if coverImageUrl was supplied, or if explicitly cleared
+    if (request.CoverFile != null || request.CoverImageUrl != null || string.IsNullOrEmpty(imageUrl))
+    {
+      entity.CoverImageUrl = imageUrl;
+    }
+    
+    entity.Latitude = (decimal?)request.Latitude; 
+    entity.Longitude = (decimal?)request.Longitude;
+    entity.Status = request.Status; 
+    entity.SortOrder = request.SortOrder; 
+    await db.SaveChangesAsync();
     return Ok(ApiResponseFactory.Ok(new { id = entity.Id.ToString(), entity.Name, entity.Slug }));
   }
 
@@ -151,9 +228,49 @@ public sealed class ZoneController(AppDbContext db) : ControllerBase
     return Ok(ApiResponseFactory.Ok(new { success = true, id = id.ToString(), slug = slugCode, qrCode = qrCodeStr }));
   }
 
+  private async Task<string?> SaveUploadedFileAsync(IFormFile coverFile)
+  {
+    if (coverFile == null || coverFile.Length == 0) return null;
+
+    // Validate size (verify size bounds under 5MB)
+    if (coverFile.Length > 5 * 1024 * 1024) return null;
+
+    // Validate extension compliance: .png, .jpg, .jpeg, .webp
+    var allowedExtensions = new[] { ".png", ".jpg", ".jpeg", ".webp" };
+    var extension = Path.GetExtension(coverFile.FileName).ToLowerInvariant();
+    if (!allowedExtensions.Contains(extension)) return null;
+
+    // Generate a secure, randomized unique filename tracking schema string
+    var uniqueFileName = $"zone_{Guid.NewGuid():N}{extension}";
+    
+    var uploadsFolder = Path.Combine(env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot"), "uploads", "zones");
+    if (!Directory.Exists(uploadsFolder))
+    {
+      Directory.CreateDirectory(uploadsFolder);
+    }
+    
+    var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+    using (var stream = new FileStream(filePath, FileMode.Create))
+    {
+      await coverFile.CopyToAsync(stream);
+    }
+
+    return $"/uploads/zones/{uniqueFileName}";
+  }
+
   private static string Slugify(string value) => string.Join('-', value.Trim().ToLowerInvariant()
     .Split(' ', StringSplitOptions.RemoveEmptyEntries)).Replace("đ", "d");
 }
 
-public sealed record ZoneRequest(ulong VendorId, string Name, string? Slug = null, string? Description = null, string? CoverImageUrl = null,
-  decimal? Latitude = null, decimal? Longitude = null, string Status = "DRAFT", int SortOrder = 0);
+public sealed record ZoneRequest(
+  ulong VendorId,
+  string Name,
+  string? Slug = null,
+  string? Description = null,
+  string? CoverImageUrl = null,
+  double? Latitude = null,
+  double? Longitude = null,
+  string Status = "DRAFT",
+  int SortOrder = 0,
+  IFormFile? CoverFile = null
+);

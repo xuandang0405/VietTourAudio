@@ -1,4 +1,4 @@
-const rawApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api').trim();
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL.trim();
 const hasCustomPort = rawApiBaseUrl.includes(':', 8);
 
 let isProdSsl = false;
@@ -11,11 +11,11 @@ if (rawApiBaseUrl.startsWith('https://') && !hasCustomPort) {
 
 export const appConfig = {
   apiBaseUrl: isProdSsl ? `${baseDomain}/api` : rawApiBaseUrl,
-  adminApiBaseUrl: isProdSsl ? `${baseDomain}/api` : (import.meta.env.VITE_ADMIN_API_BASE_URL ?? 'http://localhost:5000/api').trim(),
-  vendorApiBaseUrl: isProdSsl ? `${baseDomain}/api/vendor` : (import.meta.env.VITE_VENDOR_API_BASE_URL ?? 'http://localhost:5000/api/vendor').trim(),
-  vendorAuthApiBaseUrl: isProdSsl ? `${baseDomain}/api/vendor/auth` : (import.meta.env.VITE_VENDOR_AUTH_API_BASE_URL ?? 'http://localhost:5000/api/vendor/auth').trim(),
-  guestApiBaseUrl: isProdSsl ? `${baseDomain}/api/guest` : (import.meta.env.VITE_GUEST_API_BASE_URL ?? 'http://localhost:5000/api/guest').trim(),
-  paymentApiBaseUrl: isProdSsl ? `${baseDomain}/api/payment` : (import.meta.env.VITE_PAYMENT_API_BASE_URL ?? 'http://localhost:5000/api/payment').trim(),
+  adminApiBaseUrl: isProdSsl ? `${baseDomain}/api` : rawApiBaseUrl,
+  vendorApiBaseUrl: isProdSsl ? `${baseDomain}/api/vendor` : `${rawApiBaseUrl}/vendor`,
+  vendorAuthApiBaseUrl: isProdSsl ? `${baseDomain}/api/vendor/auth` : `${rawApiBaseUrl}/vendor/auth`,
+  guestApiBaseUrl: isProdSsl ? `${baseDomain}/api/guest` : `${rawApiBaseUrl}/guest`,
+  paymentApiBaseUrl: isProdSsl ? `${baseDomain}/api/payment` : `${rawApiBaseUrl}/payment`,
   publicAppUrl: (import.meta.env.VITE_PUBLIC_APP_URL ?? window.location.origin).trim(),
   mapProvider: import.meta.env.VITE_MAP_PROVIDER ?? 'leaflet',
   mapboxToken: import.meta.env.VITE_MAPBOX_TOKEN ?? '',
