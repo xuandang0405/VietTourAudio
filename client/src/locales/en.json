@@ -73,9 +73,16 @@
     "vendor": "Vendor",
     "stall": "Stall",
     "actions": "Actions",
-    "load_error": "Unable to load data."
+    "load_error": "Unable to load data.",
+    "reject": "Reject account",
+    "reset_qr": "Reset QR",
+    "gps_coordinates": "GPS Coordinates",
+    "deposit_to_wallet": "Deposit to wallet",
+    "lock_account": "Lock account",
+    "webapp_rent_fee": "Monthly WebApp rent fee"
   },
   "poi": {
+    "get_current_location": "Get my current location",
     "management_subtitle": "POI MANAGEMENT",
     "management_description": "Manage points of interest (POI), GPS coordinates, activation radius, and premium statuses for the automatic audio system.",
     "poi_code": "POI Code",
@@ -116,7 +123,7 @@
     "form_name_placeholder": "E.g., Nguyen Hue Welcome Gate",
     "form_desc_placeholder": "Brief introduction or historical story of the POI...",
     "no_stall": "No stalls available",
-    "premium_content": "Premium Content (Paid content)",
+    "premium_content": "Premium content",
     "vendor_title": "POI & Audio Management",
     "vendor_desc": "List of active points of interest in the vendor portal.",
     "vendor_add_disabled": "POI creation coming soon",
@@ -143,7 +150,6 @@
     "product_delete_confirm": "Are you sure you want to delete this product?",
     "product_delete_error": "Unable to delete product.",
     "poi_id": "POI ID",
-    "premium_content": "Premium content",
     "free_content": "Free content",
     "no_poi_title": "POI not found",
     "no_poi_assigned": "No narration point is assigned to this account.",
@@ -174,7 +180,10 @@
     "new_product_name": "Product name",
     "new_product_price": "Price (VND)",
     "product_name": "Product name",
-    "product_price": "Selling price"
+    "product_price": "Selling price",
+    "pending_approvals_tab": "Pending Approvals",
+    "pending_approvals_count": "{{count}} request",
+    "pending_approvals_count_other": "{{count}} requests"
   },
   "users": {
     "create_zone_admin": "Create Zone Admin",
@@ -289,7 +298,9 @@
     "pending": "Pending",
     "approved": "Approved",
     "rejected": "Rejected",
-    "suspended": "Suspended"
+    "suspended": "Suspended",
+    "locked": "Locked",
+    "hidden": "Hidden"
   },
   "dashboard": {
     "title": "Operational Dashboard",
@@ -355,7 +366,8 @@
       "reason_required": "Reason is required for this action.",
       "reason_placeholder": "Enter reason..."
     },
-    "management_subtitle": "Approve profiles, check subscriptions, wallet balances, and vendor operations."
+    "management_subtitle": "Approve profiles, check subscriptions, wallet balances, and vendor operations.",
+    "confirm_reject": "Are you sure you want to reject this account?"
   },
   "content": {
     "title": "Media Moderation",
@@ -689,7 +701,10 @@
       "coordinates": "Center Coordinates",
       "pois": "POI count"
     },
-    "waiting_payment": "Waiting for payment..."
+    "waiting_payment": "Waiting for payment...",
+    "stalls_modal_title": "List of Stalls in This Zone",
+    "no_nearby_stalls": "There are no stalls in this zone.",
+    "stalls_list": "List of stalls"
   },
   "admin_topup": {
     "management_subtitle": "Top-Up Management",
@@ -719,7 +734,13 @@
     "modal_title": "Reject Top-Up Request",
     "modal_desc": "Please enter a reason for rejecting this request. The vendor will see this reason.",
     "modal_btn_reject": "Reject Top-Up",
-    "placeholder_reason": "Enter rejection reason..."
+    "placeholder_reason": "Enter rejection reason...",
+    "loading": "Loading top-up data...",
+    "approve": "Approve top-up",
+    "reject": "Reject top-up",
+    "modal_reject_title": "Reject Top-up Request",
+    "modal_reject_desc": "Please enter a specific reason to send feedback to the vendor:",
+    "reason_placeholder": "Enter rejection reason (e.g., Invalid transfer description, Funds not received...)"
   },
   "vendor_wallet": {
     "management_subtitle": "Vendor Accounts",
@@ -760,7 +781,8 @@
     "label_reason": "Audit Reason",
     "placeholder_reason": "Enter reason for wallet adjustment...",
     "health_no_sub": "No subscription",
-    "health_safe": "Safe"
+    "health_safe": "Safe",
+    "no_plan": "No plan registered"
   },
   "admin_users": {
     "settings": "Settings",
@@ -800,7 +822,10 @@
     "placeholder_admin_name": "e.g., Nguyen Hue Zone Admin",
     "placeholder_admin_email": "admin.zone@example.com",
     "success_create_zone_admin": "Successfully created Zone Admin {{name}}!",
-    "error_create_zone_admin": "Could not create Zone Admin account."
+    "error_create_zone_admin": "Could not create Zone Admin account.",
+    "error_admin_name": "Admin name is required.",
+    "error_admin_email": "Admin email is required.",
+    "error_zone_required": "Please select assigned zone."
   },
   "tour": {
     "no_pois_assigned": "No POIs assigned to this tour."
@@ -818,6 +843,9 @@
     "clear_directions": "Cancel directions"
   },
   "admin": {
+    "common": {
+      "delete_reason_placeholder": "Enter delete reason (Optional)..."
+    },
     "notifications": {
       "title": "Notifications",
       "empty": "No new notifications"
@@ -826,7 +854,8 @@
       "confirm_resolve": "Mark this request as processed?",
       "status": {
         "PENDING": "Pending",
-        "PROCESSED": "Processed"
+        "PROCESSED": "Processed",
+        "IN_PROGRESS": "In progress"
       },
       "table": {
         "date": "Date",
@@ -918,5 +947,9 @@
     "official_contact": "Official contact email: support@viettouraudio.com",
     "sending": "Sending...",
     "send_button": "Send Message"
+  },
+  "notifications": {
+    "reset_qr_success": "QR Code reset successfully!",
+    "reset_qr_error": "Failed to reset QR Code. Please try again."
   }
 }

@@ -25,7 +25,9 @@
     "vendor_email": "商家邮箱",
     "vendor_email_short": "邮箱",
     "vendor_login_button": "登录商家门户",
-    "demo_account_hint": "本地演示账号:"
+    "demo_account_hint": "本地演示账号:",
+    "vendor_code": "商家代码",
+    "vendor_code_short": "代码"
   },
   "common": {
     "save": "保存修改",
@@ -71,9 +73,16 @@
     "vendor": "商家",
     "stall": "摊位",
     "actions": "操作",
-    "load_error": "无法加载数据。"
+    "load_error": "无法加载数据。",
+    "reject": "拒绝账户",
+    "reset_qr": "重置二维码",
+    "gps_coordinates": "GPS坐标",
+    "deposit_to_wallet": "充值到钱包",
+    "lock_account": "锁定账户",
+    "webapp_rent_fee": "月度WebApp租用费"
   },
   "poi": {
+    "get_current_location": "获取我的当前位置",
     "management_subtitle": "POI MANAGEMENT",
     "management_description": "管理自动语音播报系统的景点位置(POI)、GPS坐标、触发半径及高级版播放状态。",
     "poi_code": "POI 编号",
@@ -114,7 +123,7 @@
     "form_name_placeholder": "例如：阮惠步行街迎宾拱门",
     "form_desc_placeholder": "景点的简短介绍或历史故事...",
     "no_stall": "暂无商铺",
-    "premium_content": "高级内容 (付费内容)",
+    "premium_content": "Premium 内容",
     "vendor_title": "POI 与音频管理",
     "vendor_desc": "商户端中活跃的景点位置列表。",
     "vendor_add_disabled": "即将开放创建景点",
@@ -141,7 +150,6 @@
     "product_delete_confirm": "确定要删除此商品吗？",
     "product_delete_error": "无法删除商品。",
     "poi_id": "POI 编号",
-    "premium_content": "Premium 内容",
     "free_content": "免费内容",
     "no_poi_title": "未找到 POI",
     "no_poi_assigned": "此账号尚未分配讲解点。",
@@ -172,7 +180,10 @@
     "new_product_name": "商品名称",
     "new_product_price": "价格 (VND)",
     "product_name": "商品名称",
-    "product_price": "售价"
+    "product_price": "售价",
+    "pending_approvals_tab": "待审批",
+    "pending_approvals_count": "{{count}} 个请求",
+    "pending_approvals_count_other": "{{count}} 个请求"
   },
   "users": {
     "create_zone_admin": "创建区域管理员",
@@ -311,7 +322,9 @@
     "pending": "待审核",
     "approved": "已批准",
     "rejected": "已拒绝",
-    "suspended": "已挂起"
+    "suspended": "已挂起",
+    "locked": "已锁定",
+    "hidden": "已隐藏"
   },
   "dashboard": {
     "title": "运营仪表板",
@@ -377,7 +390,8 @@
       "reason_required": "Reason is required for this action.",
       "reason_placeholder": "Enter reason..."
     },
-    "management_subtitle": "批准个人资料，检查订阅，钱包余额和供应商操作。"
+    "management_subtitle": "批准个人资料，检查订阅，钱包余额和供应商操作。",
+    "confirm_reject": "您确定要拒绝此账户吗？"
   },
   "content": {
     "title": "Media Moderation",
@@ -561,7 +575,25 @@
     "demoMoved": "模拟位置已更新",
     "favorites": "收藏",
     "no_favorites": "暂无收藏店铺",
-    "resume": "继续"
+    "resume": "继续",
+    "gps_granted": "已授权",
+    "gps_requesting": "正在请求...",
+    "gps_denied": "演示模式",
+    "gps_unavailable": "不可用",
+    "gps_idle": "闲置",
+    "close_nav": "关闭导航",
+    "account_status": "账户状态",
+    "audio_language": "语音语言",
+    "gps_location": "GPS定位",
+    "demo_mode_active": "演示模式已启用",
+    "near_you": "在你附近",
+    "view_all": "查看全部",
+    "no_poi_nearby": "附近没有景点。",
+    "auto_play_started": "📍 已进入 {{name}}。自动播放语音",
+    "camera_lock_on": "锁定相机",
+    "camera_lock_off": "取消相机锁定",
+    "camera_lock_enable": "启用相机锁定",
+    "camera_lock_disable": "禁用相机锁定"
   },
   "map": {
     "no_gps": "没有GPS"
@@ -627,7 +659,10 @@
       "coordinates": "中心坐标",
       "pois": "POI 数量"
     },
-    "waiting_payment": "等待支付..."
+    "waiting_payment": "等待支付...",
+    "stalls_modal_title": "该区域的摊位列表",
+    "no_nearby_stalls": "该区域内没有摊位。",
+    "stalls_list": "摊位列表"
   },
   "admin_topup": {
     "management_subtitle": "充值管理",
@@ -657,7 +692,13 @@
     "modal_title": "拒绝充值请求",
     "modal_desc": "请输入拒绝该请求的原因。商家将看到该原因。",
     "modal_btn_reject": "拒绝充值",
-    "placeholder_reason": "输入拒绝原因..."
+    "placeholder_reason": "输入拒绝原因...",
+    "loading": "正在加载充值数据...",
+    "approve": "批准充值",
+    "reject": "拒绝充值",
+    "modal_reject_title": "拒绝充值请求",
+    "modal_reject_desc": "请输入具体原因以发送反馈给商家:",
+    "reason_placeholder": "输入拒绝原因（例如：转账备注错误、未收到实际款项...）"
   },
   "vendor_wallet": {
     "management_subtitle": "供应商帐户",
@@ -698,7 +739,8 @@
     "label_reason": "审计原因",
     "placeholder_reason": "输入钱包调整原因...",
     "health_no_sub": "没有订阅",
-    "health_safe": "安全"
+    "health_safe": "安全",
+    "no_plan": "尚未注册套餐"
   },
   "admin_users": {
     "settings": "设置",
@@ -801,6 +843,9 @@
     "clear_directions": "取消路线指引"
   },
   "admin": {
+    "common": {
+      "delete_reason_placeholder": "请输入删除原因（选填）..."
+    },
     "notifications": {
       "title": "通知",
       "empty": "没有新通知"
@@ -809,7 +854,8 @@
       "confirm_resolve": "将此请求标记为已处理？",
       "status": {
         "PENDING": "待处理",
-        "PROCESSED": "已处理"
+        "PROCESSED": "已处理",
+        "IN_PROGRESS": "处理中"
       },
       "table": {
         "date": "日期",
@@ -901,5 +947,9 @@
     "official_contact": "官方联系电子邮箱：support@viettouraudio.com",
     "sending": "发送中...",
     "send_button": "发送消息"
+  },
+  "notifications": {
+    "reset_qr_success": "二维码重置成功！",
+    "reset_qr_error": "重置二维码失败。请重试。"
   }
 }

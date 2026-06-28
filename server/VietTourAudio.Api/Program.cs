@@ -9,6 +9,111 @@ using VietTourAudio.Api.Data;
 using VietTourAudio.Api.Interfaces;
 using VietTourAudio.Api.Middlewares;
 using VietTourAudio.Api.Services;
+using VietTourAudio.Api.Infrastructure;
+using System.Globalization;
+using System.Text.Json;
+
+if (args.Contains("--validate-langs"))
+{
+  Console.WriteLine("=== STARTING TRANSLATION LANGUAGES VALIDATION ===");
+  var localesPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "client", "src", "locales"));
+  if (!Directory.Exists(localesPath))
+  {
+    localesPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "client", "src", "locales"));
+  }
+  if (!Directory.Exists(localesPath))
+  {
+    localesPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "client", "src", "locales"));
+  }
+
+  if (!Directory.Exists(localesPath))
+  {
+    Console.Error.WriteLine($"Error: Locales directory not found: {localesPath}");
+    Environment.Exit(1);
+  }
+
+  var files = Directory.GetFiles(localesPath, "*.json");
+  var allKeys = new Dictionary<string, HashSet<string>>();
+  var success = true;
+
+  foreach (var file in files)
+  {
+    var fileName = Path.GetFileName(file);
+    try
+    {
+      var content = File.ReadAllText(file);
+      using var doc = JsonDocument.Parse(content);
+      var keys = new HashSet<string>();
+      GetKeysRecursive(doc.RootElement, "", keys);
+      allKeys[fileName] = keys;
+      Console.WriteLine($"Parsed {fileName}: {keys.Count} keys found.");
+    }
+    catch (Exception ex)
+    {
+      Console.Error.WriteLine($"Error parsing {fileName}: {ex.Message}");
+      success = false;
+    }
+  }
+
+  if (success && allKeys.Count > 1)
+  {
+    var allFiles = allKeys.Keys.ToList();
+    for (int i = 0; i < allFiles.Count; i++)
+    {
+      for (int j = i + 1; j < allFiles.Count; j++)
+      {
+        var fileA = allFiles[i];
+        var fileB = allFiles[j];
+        var keysA = allKeys[fileA];
+        var keysB = allKeys[fileB];
+
+        var onlyInA = keysA.Except(keysB).ToList();
+        var onlyInB = keysB.Except(keysA).ToList();
+
+        if (onlyInA.Any())
+        {
+          Console.Error.WriteLine($"Keys present in {fileA} but missing in {fileB}:");
+          foreach (var key in onlyInA) Console.Error.WriteLine($"  - {key}");
+          success = false;
+        }
+
+        if (onlyInB.Any())
+        {
+          Console.Error.WriteLine($"Keys present in {fileB} but missing in {fileA}:");
+          foreach (var key in onlyInB) Console.Error.WriteLine($"  - {key}");
+          success = false;
+        }
+      }
+    }
+  }
+
+  if (success)
+  {
+    Console.WriteLine("SUCCESS: All translation keys are fully aligned and consistent across all language files!");
+    Environment.Exit(0);
+  }
+  else
+  {
+    Console.Error.WriteLine("FAILED: Translation files have missing or inconsistent keys.");
+    Environment.Exit(1);
+  }
+}
+
+static void GetKeysRecursive(JsonElement element, string prefix, HashSet<string> keys)
+{
+  if (element.ValueKind == JsonValueKind.Object)
+  {
+    foreach (var prop in element.EnumerateObject())
+    {
+      var newPrefix = string.IsNullOrEmpty(prefix) ? prop.Name : $"{prefix}.{prop.Name}";
+      GetKeysRecursive(prop.Value, newPrefix, keys);
+    }
+  }
+  else
+  {
+    keys.Add(prefix);
+  }
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,13 +134,19 @@ var allowedOrigins = builder.Configuration
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
   ?? "server=localhost;port=3306;database=viettuoraudio;user=root;password=;SslMode=None;AllowPublicKeyRetrieval=True;";
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-{
-  options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36)));
-});
+builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient(string.Empty)
+  .ConfigurePrimaryHttpMessageHandler(() => new System.Net.Http.HttpClientHandler
+  {
+    ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+  });
+builder.Services.AddHostedService<MonthlyBillingWorker>();
+builder.Services.AddScoped<IAuthService, DatabaseIdentityService>();
+builder.Services.AddScoped<IUserService, DatabaseUserService>();
+builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IStallService, DatabaseStallService>();
 builder.Services.AddScoped<IPoiService, DatabasePoiService>();
 builder.Services.AddScoped<IPoiContentService, DatabasePoiContentService>();
@@ -49,7 +160,13 @@ builder.Services.AddScoped<IAdminLogService, AdminLogService>();
 builder.Services.AddScoped<IGeofenceService, GeofenceService>();
 builder.Services.AddSingleton<PrototypeAnalyticsState>();
 
-builder.Services.AddControllers();
+builder.Services.AddSignalR();
+
+builder.Services.AddControllers()
+  .AddJsonOptions(options => {
+    options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+  });
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -93,7 +210,8 @@ builder.Services.AddCors(options =>
     policy
       .WithOrigins(allowedOrigins)
       .AllowAnyHeader()
-      .AllowAnyMethod();
+      .AllowAnyMethod()
+      .AllowCredentials();
   });
 });
 
@@ -119,14 +237,23 @@ builder.Services
   });
 
 var app = builder.Build();
+var supportedCultures = new[] { "vi", "en", "ja", "ko", "zh" }.Select(x => new CultureInfo(x)).ToArray();
 
 var uploadsPath = Path.GetFullPath(Path.Combine(
   app.Environment.ContentRootPath,
   app.Configuration["Storage:BasePath"] ?? "../uploads"
 ));
 Directory.CreateDirectory(uploadsPath);
+Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "uploads"));
 
+app.UseRequestLocalization(new RequestLocalizationOptions
+{
+  DefaultRequestCulture = new Microsoft.AspNetCore.Localization.RequestCulture("vi"),
+  SupportedCultures = supportedCultures,
+  SupportedUICultures = supportedCultures
+});
 app.UseMiddleware<ErrorHandlingMiddleware>();
+app.UseMiddleware<RequestLoggingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -143,9 +270,11 @@ app.UseStaticFiles(new StaticFileOptions
   FileProvider = new PhysicalFileProvider(uploadsPath),
   RequestPath = "/uploads"
 });
+app.UseStaticFiles();
 app.UseCors("ClientApp");
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapHub<VietTourAudio.Api.Hubs.NotificationHub>("/hub/notifications");
 app.MapControllers();
 app.MapGet("/health", async (AppDbContext db) =>
 {

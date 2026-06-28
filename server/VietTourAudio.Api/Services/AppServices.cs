@@ -60,7 +60,13 @@ public class AuthService : IAuthService
       signingCredentials: credentials
     );
 
-    return new AuthResponseDto(new JwtSecurityTokenHandler().WriteToken(token), expiresAt, user);
+    var value = new JwtSecurityTokenHandler().WriteToken(token);
+    return new AuthResponseDto(value, value, expiresAt, user);
+  }
+
+  public Task<AuthResponseDto> RefreshAsync(string refreshToken)
+  {
+    throw new NotSupportedException();
   }
 }
 

@@ -93,8 +93,8 @@ export function AdminRevenue() {
             <h2 className="text-base font-black text-slate-950">Timeline doanh thu</h2>
             <p className="text-sm font-semibold text-slate-500">Dữ liệu từ RevenueDaily</p>
           </div>
-          <div className="h-[360px] min-w-0">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="w-full h-[360px] min-w-0 min-h-[300px] relative">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={50}>
               <LineChart data={chartRows} margin={{ left: -10, right: 10, top: 8, bottom: 0 }}>
                 <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="dateLabel" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12, fontWeight: 700 }} />
@@ -110,9 +110,9 @@ export function AdminRevenue() {
         <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-base font-black text-slate-950">Provider mix</h2>
           <p className="mt-1 text-sm font-semibold text-slate-500">Payment provider theo kỳ</p>
-          <div className="mt-4 h-[260px]">
+          <div className="w-full h-[260px] min-w-0 min-h-[220px] relative">
             {providerRows.length ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={50}>
                 <PieChart>
                   <Pie data={providerRows} dataKey="value" nameKey="name" innerRadius={62} outerRadius={96} paddingAngle={3}>
                     {providerRows.map((entry, index) => (

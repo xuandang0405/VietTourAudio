@@ -312,6 +312,10 @@ export async function deleteTour(arg) {
   return unwrap(await adminApiClient.delete(`/admin/zones/${id}`, { params: reason ? { reason } : undefined }));
 }
 
+export async function archiveTour(id) {
+  return unwrap(await adminApiClient.patch(`/admin/zones/${id}/archive`));
+}
+
 export async function resetTourQr(id) {
   return unwrap(await adminApiClient.post(`/admin/pois/tours/${id}/qr/reset`));
 }
@@ -335,3 +339,5 @@ export async function resolveTicket(id) {
 export async function toggleStallPremium(stallId, isPremium) {
   return unwrap(await adminApiClient.put(`/admin/stalls/${stallId}/premium`, { isPremium }));
 }
+
+// Force Vite HMR reload to pick up the new port 5002 configuration from appConfig.js

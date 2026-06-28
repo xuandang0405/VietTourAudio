@@ -1,39 +1,30 @@
-using System.Net;
 using System.Text.Json;
-using VietTourAudio.Api.Helpers;
 
 namespace VietTourAudio.Api.Middlewares;
 
-public class ErrorHandlingMiddleware
+public sealed class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandlingMiddleware> logger)
 {
-  private readonly RequestDelegate _next;
-  private readonly ILogger<ErrorHandlingMiddleware> _logger;
-
-  public ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandlingMiddleware> logger)
-  {
-    _next = next;
-    _logger = logger;
-  }
-
   public async Task InvokeAsync(HttpContext context)
   {
     try
     {
-      await _next(context);
+      await next(context);
     }
-    catch (Exception ex)
+    catch (Exception exception)
     {
-      _logger.LogError(ex, "Unhandled API error");
-
-      context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+      logger.LogError(exception, "Unhandled API error");
+      context.Response.StatusCode = exception switch
+      {
+        UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
+        KeyNotFoundException => StatusCodes.Status404NotFound,
+        ArgumentException => StatusCodes.Status400BadRequest,
+        InvalidOperationException when exception.Message.Contains("insufficient") => StatusCodes.Status409Conflict,
+        InvalidOperationException => StatusCodes.Status400BadRequest,
+        _ => StatusCodes.Status500InternalServerError
+      };
       context.Response.ContentType = "application/json";
-
-      var payload = ApiResponseFactory.Fail(
-        "Server error",
-        new { detail = "Lỗi hệ thống. Vui lòng kiểm tra log server." }
-      );
-
-      await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+      var message = context.Response.StatusCode == 500 ? "error.internal_server" : exception.Message;
+      await context.Response.WriteAsync(JsonSerializer.Serialize(new { success = false, error = message }));
     }
   }
 }

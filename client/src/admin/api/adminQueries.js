@@ -46,6 +46,7 @@ import {
   createTour,
   updateTour,
   deleteTour,
+  archiveTour,
   resetTourQr,
   updateVendorStatus,
   unsuspendVendor,
@@ -440,6 +441,17 @@ export function useDeleteTour() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteTour,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.tours });
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.dashboardAnalytics });
+    }
+  });
+}
+
+export function useArchiveTour() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: archiveTour,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminQueryKeys.tours });
       queryClient.invalidateQueries({ queryKey: adminQueryKeys.dashboardAnalytics });

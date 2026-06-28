@@ -241,7 +241,7 @@ public sealed class DatabasePoiContentService : IPoiContentService
   {
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
     await using var command = connection.CreateCommand();
-    command.CommandText = "SELECT * FROM poi_contents WHERE poi_id = @poiId ORDER BY lang";
+    command.CommandText = "SELECT * FROM poi_contents WHERE poi_id = @poiId AND approval_status = 'approved' ORDER BY lang";
     command.AddParameter("@poiId", poiId);
     await using var reader = await command.ExecuteReaderAsync();
     var results = new List<PoiContentResponseDto>();
@@ -677,7 +677,7 @@ public sealed class DatabasePaymentService : IPaymentService
   {
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
     await using var command = connection.CreateCommand();
-    command.CommandText = "SELECT value FROM AppSettings WHERE `key` = 'PREMIUM_PAYMENT_QR' LIMIT 1";
+    command.CommandText = "SELECT value FROM app_settings WHERE `key` = 'PREMIUM_PAYMENT_QR' LIMIT 1";
     var result = await command.ExecuteScalarAsync();
     return result?.ToString();
   }

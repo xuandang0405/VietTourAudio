@@ -20,7 +20,7 @@ import {
   X,
   Mail
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import logo from '../../assets/logo/logo.png';
@@ -30,6 +30,9 @@ import { useAdminAuthStore } from '../store/adminAuthStore';
 import { LanguageSwitcher } from '../../components/LanguageSwitcher';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchAdminNotifications, markAdminNotificationRead } from '../api/adminApi';
+import { HubConnectionBuilder } from '@microsoft/signalr';
+import { appConfig } from '../../config/appConfig';
+import toast from 'react-hot-toast';
 
 const roles = {
   vendor: ['SUPER_ADMIN', 'ADMIN'],
@@ -46,15 +49,13 @@ const navGroups = [
       { labelKey: 'sidebar.dashboard', to: '/admin', icon: LayoutDashboard },
       { labelKey: 'sidebar.vendors', to: '/admin/vendors', icon: Store, roles: roles.vendor },
       { labelKey: 'sidebar.zones', to: '/admin/zones', icon: Map, roles: roles.vendor },
-      { labelKey: 'sidebar.moderation', to: '/admin/content', icon: FileVideo, roles: roles.moderate },
-      { labelKey: 'sidebar.poi_management', to: '/admin/pois', icon: MapPinned, roles: roles.vendor }
+      { labelKey: 'sidebar.moderation', to: '/admin/content', icon: FileVideo, roles: roles.moderate }
     ]
   },
   {
     labelKey: 'sidebar.group_finance',
     items: [
       { labelKey: 'sidebar.vendor_wallet', to: '/admin/vendor-accounts', icon: WalletCards, roles: roles.finance },
-      { labelKey: 'sidebar.topups', to: '/admin/topup', icon: UploadCloud, roles: roles.finance },
       { labelKey: 'sidebar.revenue', to: '/admin/revenue/dashboard', icon: ChartNoAxesCombined, roles: roles.finance }
     ]
   },
@@ -146,6 +147,41 @@ export function AdminLayout() {
   const user = useAdminAuthStore((state) => state.user);
   const clearSession = useAdminAuthStore((state) => state.clearSession);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const backendUrl = appConfig.apiBaseUrl.replace(/\/api\/?$/, '');
+    const hubUrl = `${backendUrl}/hub/notifications`;
+
+    const connection = new HubConnectionBuilder()
+      .withUrl(hubUrl)
+      .withAutomaticReconnect()
+      .build();
+
+    connection.on('ReceiveNotification', (notification) => {
+      console.log('Real-time notification received via SignalR:', notification);
+
+      toast.success(
+        <div className="flex flex-col gap-1 text-left">
+          <span className="font-bold text-sm text-slate-900">{notification.title}</span>
+          <span className="text-xs text-slate-600 leading-relaxed">{notification.message}</span>
+        </div>,
+        { duration: 6000 }
+      );
+
+      // Refresh react-query caches
+      queryClient.invalidateQueries();
+    });
+
+    connection.start()
+      .then(() => console.log('Successfully connected to real-time SignalR Hub.'))
+      .catch((err) => console.error('Error connecting to SignalR Hub:', err));
+
+    return () => {
+      connection.stop()
+        .then(() => console.log('Successfully stopped SignalR Hub connection.'))
+        .catch((err) => console.error('Error stopping SignalR Hub connection:', err));
+    };
+  }, [queryClient]);
   const { data: notifications = [] } = useQuery({
     queryKey: ['admin', 'notifications'],
     queryFn: fetchAdminNotifications,

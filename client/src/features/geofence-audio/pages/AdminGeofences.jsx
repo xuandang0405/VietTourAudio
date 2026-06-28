@@ -1,6 +1,6 @@
-import { Circle, CircleMarker, MapContainer, TileLayer, Tooltip, useMapEvents } from 'react-leaflet';
+import { Circle, CircleMarker, MapContainer, TileLayer, Tooltip, useMapEvents, useMap } from 'react-leaflet';
 import { AlertTriangle, Crosshair, RefreshCcw, ShieldCheck } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AdminBadge } from '../../../admin/components/AdminBadge';
 import { AdminPageHeader } from '../../../admin/components/AdminPageHeader';
@@ -17,9 +17,21 @@ function MapZoomTracker({ onZoomChange }) {
   return null;
 }
 
+function FlyToLocation({ center, zoom }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.flyTo(center, zoom, { duration: 1.5 });
+    }
+  }, [center, zoom, map]);
+  return null;
+}
+
 export function AdminGeofences() {
   const { t } = useTranslation();
   const [zoom, setZoom] = useState(16);
+  const [mapFocus, setMapFocus] = useState(null);
+  const [mapFocusZoom, setMapFocusZoom] = useState(17);
   const { data = {}, isLoading, error, refetch } = useGeofenceAllData();
 
   const stalls = data.stalls ?? [];
@@ -71,7 +83,19 @@ export function AdminGeofences() {
               const hasOverlap = (stall.overlaps ?? []).length > 0;
 
               return (
-                <article key={stall.id} className={hasOverlap ? 'rounded-xl border border-red-200 bg-red-50 p-3' : 'rounded-xl border border-slate-100 bg-slate-50 p-3'}>
+                <article
+                  key={stall.id}
+                  onClick={() => {
+                    const lat = Number(stall.latitude);
+                    const lng = Number(stall.longitude);
+                    setMapFocus([lat, lng]);
+                    setMapFocusZoom(17);
+                    setZoom(17);
+                  }}
+                  className={`cursor-pointer transition hover:border-blue-300 hover:shadow-sm ${
+                    hasOverlap ? 'rounded-xl border border-red-200 bg-red-50 p-3' : 'rounded-xl border border-slate-100 bg-slate-50 p-3'
+                  }`}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black text-slate-950">{stall.name}</p>
@@ -103,6 +127,7 @@ export function AdminGeofences() {
             <MapContainer center={center} zoom={zoom} minZoom={3} maxZoom={20} className="h-full w-full" zoomControl={true}>
               <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={20} maxNativeZoom={19} />
               <MapZoomTracker onZoomChange={setZoom} />
+              <FlyToLocation center={mapFocus} zoom={mapFocusZoom} />
 
               {/* Zoom Level Xa: Draw Tours */}
               {zoom < 15 &&

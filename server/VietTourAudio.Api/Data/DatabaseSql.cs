@@ -1,5 +1,6 @@
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace VietTourAudio.Api.Data;
 
@@ -40,5 +41,41 @@ public static class DatabaseSql
     await using var command = connection.CreateCommand();
     command.CommandText = "SELECT LAST_INSERT_ID()";
     return Convert.ToUInt64(await command.ExecuteScalarAsync());
+  }
+
+  public static async Task<List<Dictionary<string, object?>>> QueryRowsAsync(
+    AppDbContext db, string sql, IReadOnlyDictionary<string, object?>? parameters = null)
+  {
+    var connection = await OpenConnectionAsync(db);
+    await using var command = connection.CreateCommand();
+    if (db.Database.CurrentTransaction is { } transaction) command.Transaction = transaction.GetDbTransaction();
+    command.CommandText = sql;
+    if (parameters is not null)
+      foreach (var item in parameters) command.AddParameter(item.Key, item.Value);
+    var rows = new List<Dictionary<string, object?>>();
+    await using var reader = await command.ExecuteReaderAsync();
+    while (await reader.ReadAsync())
+    {
+      var row = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+      for (var index = 0; index < reader.FieldCount; index++)
+      {
+        var value = reader.IsDBNull(index) ? null : reader.GetValue(index);
+        row[reader.GetName(index)] = value is ulong or long ? value.ToString() : value;
+      }
+      rows.Add(row);
+    }
+    return rows;
+  }
+
+  public static async Task<int> ExecuteAsync(
+    AppDbContext db, string sql, IReadOnlyDictionary<string, object?>? parameters = null)
+  {
+    var connection = await OpenConnectionAsync(db);
+    await using var command = connection.CreateCommand();
+    if (db.Database.CurrentTransaction is { } transaction) command.Transaction = transaction.GetDbTransaction();
+    command.CommandText = sql;
+    if (parameters is not null)
+      foreach (var item in parameters) command.AddParameter(item.Key, item.Value);
+    return await command.ExecuteNonQueryAsync();
   }
 }

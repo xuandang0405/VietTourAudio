@@ -47,21 +47,40 @@ export const useLocationStore = create((set, get) => ({
     set({ permissionStatus: 'requesting', lastError: '' });
 
     return new Promise((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        (currentPosition) => {
-          set({
-            permissionStatus: 'granted',
-            isFakeMode: false,
-            position: {
-              lat: currentPosition.coords.latitude,
-              lng: currentPosition.coords.longitude,
-              accuracy: currentPosition.coords.accuracy
-            }
-          });
-          get().startWatching();
-          resolve(true);
-        },
-        (error) => {
+      const successCallback = (currentPosition) => {
+        set({
+          permissionStatus: 'granted',
+          isFakeMode: false,
+          position: {
+            lat: currentPosition.coords.latitude,
+            lng: currentPosition.coords.longitude,
+            accuracy: currentPosition.coords.accuracy
+          }
+        });
+        get().startWatching();
+        resolve(true);
+      };
+
+      const fallbackCallback = (fallbackError) => {
+        console.warn('GPS fallback warning:', fallbackError);
+        set({
+          permissionStatus: 'granted',
+          isFakeMode: true,
+          lastError: 'Thời gian chờ GPS hết hạn. Đã kích hoạt vị trí mô phỏng khu vực.',
+          position: { lat: mapCenter.lat, lng: mapCenter.lng, accuracy: 8 }
+        });
+        resolve(true);
+      };
+
+      const errorCallback = (error) => {
+        if (error.code === 3) {
+          // GeolocationPositionError: Timeout expired. Retry with enableHighAccuracy: false
+          navigator.geolocation.getCurrentPosition(
+            successCallback,
+            fallbackCallback,
+            { enableHighAccuracy: false, timeout: 15000, maximumAge: 15000 }
+          );
+        } else {
           set({
             permissionStatus: 'denied',
             lastError:
@@ -72,8 +91,13 @@ export const useLocationStore = create((set, get) => ({
                   : 'Quá thời gian lấy vị trí. Vui lòng thử lại ở nơi thoáng hơn.'
           });
           resolve(false);
-        },
-        { enableHighAccuracy: true, timeout: 30000, maximumAge: 15000 }
+        }
+      };
+
+      navigator.geolocation.getCurrentPosition(
+        successCallback,
+        errorCallback,
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 15000 }
       );
     });
   },
@@ -94,41 +118,62 @@ export const useLocationStore = create((set, get) => ({
       return R * c;
     };
 
-    const id = navigator.geolocation.watchPosition(
-      (pos) => {
-        const currentPos = get().position;
-        const newLat = pos.coords.latitude;
-        const newLng = pos.coords.longitude;
+    const handleSuccess = (pos) => {
+      const currentPos = get().position;
+      const newLat = pos.coords.latitude;
+      const newLng = pos.coords.longitude;
 
-        let shouldUpdate = false;
-        if (!currentPos) {
+      let shouldUpdate = false;
+      if (!currentPos) {
+        shouldUpdate = true;
+      } else {
+        const distance = getHaversineDistance(
+          currentPos.lat,
+          currentPos.lng,
+          newLat,
+          newLng
+        );
+        if (distance > 2) {
           shouldUpdate = true;
-        } else {
-          const distance = getHaversineDistance(
-            currentPos.lat,
-            currentPos.lng,
-            newLat,
-            newLng
-          );
-          if (distance > 2) {
-            shouldUpdate = true;
-          }
         }
+      }
 
-        if (shouldUpdate) {
-          set({
-            position: {
-              lat: newLat,
-              lng: newLng,
-              accuracy: pos.coords.accuracy
+      if (shouldUpdate) {
+        set({
+          position: {
+            lat: newLat,
+            lng: newLng,
+            accuracy: pos.coords.accuracy
+          }
+        });
+      }
+    };
+
+    const handleError = (err) => {
+      console.warn('GPS watch error:', err);
+      if (err.code === 3) {
+        // Fallback to enableHighAccuracy: false if timeout
+        get().stopWatching();
+        const fallbackId = navigator.geolocation.watchPosition(
+          handleSuccess,
+          (fallbackErr) => {
+            console.warn('GPS watch fallback error:', fallbackErr);
+            if (!get().position) {
+              set({
+                position: { lat: mapCenter.lat, lng: mapCenter.lng, accuracy: 8 }
+              });
             }
-          });
-        }
-      },
-      (err) => {
-        console.warn('GPS watch error:', err);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+          },
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 }
+        );
+        set({ watchId: fallbackId });
+      }
+    };
+
+    const id = navigator.geolocation.watchPosition(
+      handleSuccess,
+      handleError,
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
 
     set({ watchId: id });

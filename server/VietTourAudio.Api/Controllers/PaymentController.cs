@@ -45,6 +45,6 @@ public class PaymentController : ControllerBase
     {
       return NotFound(ApiResponseFactory.Fail("Chưa cấu hình QR thanh toán Premium."));
     }
-    return Ok(ApiResponseFactory.Ok(code, "Lấy QR thanh toán Premium thành công."));
+    return Ok(ApiResponseFactory.Ok(new { qrValue = code }));
   }
 }

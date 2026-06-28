@@ -12,6 +12,7 @@ public sealed record RegisterRequestDto(
 
 public sealed record AuthResponseDto(
   string AccessToken,
+  string RefreshToken,
   DateTime ExpiresAt,
   UserResponseDto User
 );

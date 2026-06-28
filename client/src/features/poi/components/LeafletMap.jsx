@@ -12,6 +12,7 @@ function MapCamera({ selectedPoi, position, isProgrammaticMoveRef }) {
 
   // One-shot camera alignment on selectedPoi changes
   useEffect(() => {
+    if (!map || !map.getPane) return;
     if (!selectedPoi) {
       lastSelectedPoiId.current = null;
       return;
@@ -32,6 +33,7 @@ function MapCamera({ selectedPoi, position, isProgrammaticMoveRef }) {
 
   // Continuous lock pan bám theo vị trí GPS của khách khi di chuyển
   useEffect(() => {
+    if (!map || !map.getPane) return;
     if (isCameraLocked && position) {
       if (isProgrammaticMoveRef) isProgrammaticMoveRef.current = true;
       map.panTo([position.lat, position.lng], { animate: true, duration: 0.8 });
@@ -74,10 +76,9 @@ function MapResizeHandler() {
   const isPoiSheetOpen = useLocationStore((state) => state.isPoiSheetOpen);
 
   useEffect(() => {
+    if (!map || !map.getPane) return;
     const timer = setTimeout(() => {
-      if (map) {
-        map.invalidateSize({ animate: true });
-      }
+      map.invalidateSize({ animate: true });
     }, 350);
 
     return () => clearTimeout(timer);
@@ -91,6 +92,7 @@ function MapRouteHandler({ routingCoordinates }) {
   const lastCoordsJson = useRef('');
 
   useEffect(() => {
+    if (!map || !map.getPane) return;
     if (!routingCoordinates || routingCoordinates.length === 0) return;
 
     const coordsJson = JSON.stringify(routingCoordinates);
@@ -121,7 +123,7 @@ function MapZoneCenterHandler({ pois, zoneCenter }) {
   }, [zoneCenter]);
 
   useEffect(() => {
-    if (!map || !pois || pois.length === 0 || hasCenteredZone.current) return;
+    if (!map || !map.getPane || !pois || pois.length === 0 || hasCenteredZone.current) return;
 
     const activePois = pois.filter((p) => p.latitude && p.longitude);
     if (activePois.length > 0) {
@@ -317,7 +319,7 @@ function MapRegister() {
   const map = useMap();
   const setMapInstance = useLocationStore((state) => state.setMapInstance);
   useEffect(() => {
-    if (map) {
+    if (map && map.getPane) {
       setMapInstance(map);
     }
     return () => {

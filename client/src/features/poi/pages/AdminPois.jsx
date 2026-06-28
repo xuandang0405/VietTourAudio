@@ -41,6 +41,7 @@ export function AdminPois() {
   // POI form
   const [formName, setFormName] = useState('');
   const [formStallId, setFormStallId] = useState('');
+  const [formTourId, setFormTourId] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formLatitude, setFormLatitude] = useState('');
   const [formLongitude, setFormLongitude] = useState('');
@@ -124,7 +125,8 @@ export function AdminPois() {
   function openAddPoiModal() {
     setError('');
     setFormName('');
-    setFormStallId(stalls[0]?.id ?? '');
+    setFormStallId(stalls[0]?.id ?? '1');
+    setFormTourId(selectedTourId && selectedTourId !== 'approvals' ? String(selectedTourId) : (tours[0]?.id ?? ''));
     setFormDescription('');
     setFormLatitude('10.77582');
     setFormLongitude('106.70208');
@@ -144,7 +146,8 @@ export function AdminPois() {
   function openEditPoiModal(poi) {
     setError('');
     setFormName(poi.name ?? '');
-    setFormStallId(poi.stallId ?? '');
+    setFormStallId(poi.stallId ?? (stalls[0]?.id ?? '1'));
+    setFormTourId(poi.tourId ? String(poi.tourId) : (selectedTourId && selectedTourId !== 'approvals' ? String(selectedTourId) : (tours[0]?.id ?? '')));
     setFormDescription(poi.description ?? '');
     setFormLatitude(String(poi.latitude ?? ''));
     setFormLongitude(String(poi.longitude ?? ''));
@@ -212,6 +215,7 @@ export function AdminPois() {
       } else {
         // POI add/edit
         if (!formName.trim()) { setError(t('poi.error_name_empty')); return; }
+        if (!formTourId) { setError('Vui lòng chọn Khu vực'); return; }
         if (!formStallId) { setError(t('poi.error_stall_empty')); return; }
         const lat = Number(formLatitude);
         const lng = Number(formLongitude);
@@ -220,8 +224,8 @@ export function AdminPois() {
         if (!Number.isFinite(lng) || lng < -180 || lng > 180) { setError(t('poi.error_lng_invalid')); return; }
         if (!Number.isFinite(rad) || rad <= 0) { setError(t('poi.error_radius_invalid')); return; }
         const payload = {
-          tourId: selectedTourId ? Number(selectedTourId) : null,
-          stallId: formStallId,
+          tourId: Number(formTourId),
+          stallId: Number(formStallId),
           name: formName.trim(),
           description: formDescription.trim(),
           latitude: lat,
@@ -604,30 +608,6 @@ export function AdminPois() {
                 </div>
               </section>
 
-              {/* Distance tool */}
-              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
-                  <div>
-                    <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.distance_tool')}</label>
-                    <select value={distancePoiA} onChange={(e) => setDistancePoiA(e.target.value)} className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500">
-                      <option value="">{t('poi.select_poi_a')}</option>
-                      {poiOptions.map((poi) => (<option key={poi.value} value={poi.value}>{poi.label}</option>))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.select_poi_b')}</label>
-                    <select value={distancePoiB} onChange={(e) => setDistancePoiB(e.target.value)} className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500">
-                      <option value="">{t('poi.select_poi_b')}</option>
-                      {poiOptions.map((poi) => (<option key={poi.value} value={poi.value}>{poi.label}</option>))}
-                    </select>
-                  </div>
-                  <div className="min-h-11 rounded-xl bg-blue-50 px-4 py-3 text-sm font-black text-blue-700">
-                    {distancePoiA && distancePoiB && distancePoiA === distancePoiB
-                      ? t('poi.distance_same_poi')
-                      : distanceQuery.isFetching ? t('poi.distance_loading') : distanceLabel == null ? t('poi.distance_empty') : t('poi.distance_result', { distance: distanceLabel })}
-                  </div>
-                </div>
-              </section>
 
               {/* POI table */}
               {tourDetailLoading && !tourDetail ? (
@@ -758,6 +738,8 @@ export function AdminPois() {
           setFormName={setFormName}
           formStallId={formStallId}
           setFormStallId={setFormStallId}
+          formTourId={formTourId}
+          setFormTourId={setFormTourId}
           formDescription={formDescription}
           setFormDescription={setFormDescription}
           formLatitude={formLatitude}
@@ -771,6 +753,7 @@ export function AdminPois() {
           formStatus={formStatus}
           setFormStatus={setFormStatus}
           stalls={stalls}
+          tours={tours}
           error={error}
           translations={formTranslations}
           setTranslations={setFormTranslations}

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Crown, Download, Loader2, QrCode, Upload, WalletCards } from 'lucide-react';
+import axios from 'axios';
 import { downloadBlob, formatCurrency, formatDateTime } from '../../../admin/utils/formatters';
 import { useVendorRevenue } from '../../../vendor/api/vendorQueries';
 import { mockPaySubscription, requestPremiumUpgrade, submitWalletTopUp } from '../../../vendor/api/vendorApi';
@@ -16,6 +17,17 @@ export function VendorRevenue() {
   const [proof, setProof] = useState(null);
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [bankQrUrl, setBankQrUrl] = useState('/qr_fallback.svg');
+
+  useEffect(() => {
+    axios.get('/api/admin/wallets/bank-qr')
+      .then(res => {
+        if (res.data?.data?.url) {
+          setBankQrUrl(res.data.data.url);
+        }
+      })
+      .catch(err => console.error("Error fetching bank QR:", err));
+  }, []);
 
   function exportLedger() {
     const rows = [
@@ -128,7 +140,7 @@ export function VendorRevenue() {
           <form onSubmit={submitTopUp} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-2"><QrCode className="text-teal-600" /><h3 className="font-black text-slate-900">{t('wallet.topup_title')}</h3></div>
             <p className="text-xs leading-5 text-slate-500">{t('wallet.topup_instructions')}</p>
-            <div className="flex justify-center rounded-xl bg-slate-50 p-3"><img src="/qr_fallback.svg" alt={t('wallet.payment_qr_alt')} className="h-36 w-36" /></div>
+            <div className="flex justify-center rounded-xl bg-slate-50 p-3"><img src={bankQrUrl} alt={t('wallet.payment_qr_alt')} className="h-36 w-36" /></div>
             <label className="block text-xs font-bold text-slate-600">{t('wallet.transfer_amount')}
               <input type="number" min="1" required value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} className="mt-1 h-10 w-full rounded-xl border bg-slate-50 px-3 text-sm" />
             </label>

@@ -14,7 +14,6 @@ const NAV_ITEMS = [
       { label: 'Dashboard', icon: LayoutDashboard, path: '/admin', roles: ['SUPER_ADMIN','ADMIN','MODERATOR','FINANCE'] },
       { label: 'Nhà cung cấp', icon: Store, path: '/admin/vendors', roles: ['SUPER_ADMIN','ADMIN'], badge: 'pendingVendors' },
       { label: 'Kiểm duyệt', icon: ShieldCheck, path: '/admin/content', roles: ['SUPER_ADMIN','ADMIN','MODERATOR'], badge: 'pendingMedia' },
-      { label: 'Điểm tham quan', icon: MapPin, path: '/admin/pois', roles: ['SUPER_ADMIN','ADMIN','MODERATOR'] },
     ]
   },
   {

@@ -1,12 +1,44 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Compass, Loader2 } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Circle, useMapEvents, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+
+const customIcon = new L.Icon({
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+function MapClickHandler({ onLocationSelected }: { onLocationSelected: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onLocationSelected(e.latlng.lat, e.latlng.lng);
+    }
+  });
+  return null;
+}
+
+function ChangeMapCenter({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center);
+  }, [center, map]);
+  return null;
+}
 
 interface POIFormProps {
   formName: string;
   setFormName: (val: string) => void;
   formStallId: string;
   setFormStallId: (val: string) => void;
+  formTourId: string;
+  setFormTourId: (val: string) => void;
   formDescription: string;
   setFormDescription: (val: string) => void;
   formLatitude: string;
@@ -20,6 +52,7 @@ interface POIFormProps {
   formStatus: string;
   setFormStatus: (val: string) => void;
   stalls: any[];
+  tours: any[];
   error?: string;
   translations: { lang: string; title: string; ttsScript: string }[];
   setTranslations: (val: { lang: string; title: string; ttsScript: string }[]) => void;
@@ -30,6 +63,8 @@ export function POIForm({
   setFormName,
   formStallId,
   setFormStallId,
+  formTourId,
+  setFormTourId,
   formDescription,
   setFormDescription,
   formLatitude,
@@ -43,12 +78,14 @@ export function POIForm({
   formStatus,
   setFormStatus,
   stalls,
+  tours,
   error,
   translations,
   setTranslations
 }: POIFormProps) {
   const { t } = useTranslation();
   const [locating, setLocating] = useState(false);
+  const [translating, setTranslating] = useState(false);
   const [activeTab, setActiveTab] = useState('vi');
 
   const languages = [
@@ -105,19 +142,9 @@ export function POIForm({
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        // Safely update form data via state setters or React Hook Form setValue
-        // Ensure proper fallback checking if state primitives are nested
         const { latitude, longitude } = position.coords;
-        const targetVal = typeof (window as any).setValue === 'function' ? (window as any).setValue : null;
-        if (targetVal) {
-          targetVal('latitude', latitude);
-          targetVal('longitude', longitude);
-        } else if (typeof (window as any).setFormData === 'function') {
-          (window as any).setFormData((prev: any) => ({ ...prev, latitude, longitude }));
-        } else {
-          setFormLatitude(latitude.toFixed(7));
-          setFormLongitude(longitude.toFixed(7));
-        }
+        setFormLatitude(latitude.toFixed(7));
+        setFormLongitude(longitude.toFixed(7));
         setLocating(false);
       },
       (error) => {
@@ -129,8 +156,68 @@ export function POIForm({
     );
   };
 
+  const handleAutoTranslateThisLang = async () => {
+    const viTrans = translations.find((tr) => tr.lang === 'vi');
+    if (!viTrans || (!viTrans.title.trim() && !viTrans.ttsScript.trim())) {
+      toast.error("Vui lòng điền tên và mô tả tiếng Việt trước khi dịch.");
+      return;
+    }
+    setTranslating(true);
+    try {
+      let updatedTitle = currentTranslation.title;
+      let updatedTts = currentTranslation.ttsScript;
+
+      if (viTrans.title.trim()) {
+        const titleRes = await axios.post('/api/admin/translate', {
+          text: viTrans.title,
+          targetLangs: [activeTab]
+        });
+        if (titleRes.data?.data?.[activeTab]) {
+          updatedTitle = titleRes.data.data[activeTab];
+        }
+      }
+
+      if (viTrans.ttsScript.trim()) {
+        const ttsRes = await axios.post('/api/admin/translate', {
+          text: viTrans.ttsScript,
+          targetLangs: [activeTab]
+        });
+        if (ttsRes.data?.data?.[activeTab]) {
+          updatedTts = ttsRes.data.data[activeTab];
+        }
+      }
+
+      const updated = translations.map((tr) =>
+        tr.lang === activeTab ? { ...tr, title: updatedTitle, ttsScript: updatedTts } : tr
+      );
+      setTranslations(updated);
+      toast.success(`Dịch tự động sang ${languages.find(l => l.code === activeTab)?.label} thành công!`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi khi dịch tự động.");
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  const latVal = Number(formLatitude) || 10.77582;
+  const lngVal = Number(formLongitude) || 106.70208;
+  const radiusVal = Number(formRadius) || 25;
+  const mapCenter: [number, number] = [latVal, lngVal];
+
+  const markerEvents = useMemo(() => ({
+    dragend(e: any) {
+      const marker = e.target;
+      if (marker != null) {
+        const latLng = marker.getLatLng();
+        setFormLatitude(latLng.lat.toFixed(7));
+        setFormLongitude(latLng.lng.toFixed(7));
+      }
+    }
+  }), [setFormLatitude, setFormLongitude]);
+
   return (
-    <div className="space-y-4 py-2">
+    <div className="w-full max-h-[85vh] overflow-y-auto pr-2 space-y-4 scrollbar-thin">
       {error && <p className="text-xs font-bold text-red-600">{error}</p>}
 
       {/* Multilingual Tabs */}
@@ -180,23 +267,79 @@ export function POIForm({
             className="w-full h-24 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold outline-none focus:border-blue-500 transition shadow-inner focus:bg-white resize-none"
           />
         </div>
+
+        {activeTab !== 'vi' && (
+          <div className="flex justify-end pt-1">
+            <button
+              type="button"
+              onClick={handleAutoTranslateThisLang}
+              disabled={translating}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-700 hover:bg-blue-100 transition disabled:opacity-50"
+            >
+              {translating ? <Loader2 size={13} className="animate-spin" /> : '✨'}
+              {t('common.auto_translate', { defaultValue: 'Dịch tự động ngôn ngữ này' })}
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Common fields */}
-      <div>
-        <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_stall')}</label>
-        <select
-          value={formStallId}
-          onChange={(e) => setFormStallId(e.target.value)}
-          className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
-        >
-          {stalls.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-          {stalls.length === 0 && <option value="">{t('poi.no_stall')}</option>}
-        </select>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* Common Stall field */}
+        <div>
+          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">
+            {t('poi.form_stall', { defaultValue: 'Sạp hàng (Stall)' })}
+          </label>
+          <select
+            value={formStallId}
+            onChange={(e) => setFormStallId(e.target.value)}
+            className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
+          >
+            {stalls.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Common Zone field */}
+        <div>
+          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('poi.form_zone', { defaultValue: 'Khu vực (Zone)' })}</label>
+          <select
+            value={formTourId}
+            onChange={(e) => setFormTourId(e.target.value)}
+            className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
+          >
+            {tours.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+            {tours.length === 0 && <option value="">{t('poi.no_zone', { defaultValue: 'Không có khu vực nào' })}</option>}
+          </select>
+        </div>
+      </div>
+
+      {/* Interactive Leaflet Map */}
+      <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-100">
+        <span className="block p-2 text-xs font-bold text-slate-500 bg-slate-50 border-b border-slate-200">
+          📍 Bản đồ vị trí POI (Nhấp để chọn, hoặc kéo marker để chỉnh sửa tọa độ)
+        </span>
+        <div style={{ height: '220px', width: '100%' }}>
+          <MapContainer center={mapCenter} zoom={17} style={{ height: '100%', width: '100%' }}>
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <MapClickHandler onLocationSelected={(lat, lng) => {
+              setFormLatitude(lat.toFixed(7));
+              setFormLongitude(lng.toFixed(7));
+            }} />
+            <ChangeMapCenter center={mapCenter} />
+            <Marker position={mapCenter} icon={customIcon} draggable={true} eventHandlers={markerEvents} />
+            <Circle center={mapCenter} radius={radiusVal} pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.15 }} />
+          </MapContainer>
+        </div>
       </div>
 
       {/* Coordinates section */}

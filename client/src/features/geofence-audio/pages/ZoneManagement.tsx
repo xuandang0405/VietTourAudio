@@ -1,11 +1,25 @@
 import { Edit3, MapPin, Plus, Search, Trash2, Store } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 import { AdminBadge } from '../../../admin/components/AdminBadge';
 import { AdminDataTable } from '../../../admin/components/AdminDataTable';
 import { AdminPageHeader } from '../../../admin/components/AdminPageHeader';
 import { AdminModal } from '../../../admin/components/AdminModal';
-import { useTours, useCreateTour, useUpdateTour, useDeleteTour, useStallsList } from '../../../admin/api/adminQueries';
+import { POIForm } from '../../poi/components/POIForm';
+import { 
+  useTours, 
+  useTour, 
+  useCreateTour, 
+  useUpdateTour, 
+  useDeleteTour, 
+  useArchiveTour,
+  useStallsList,
+  useCreatePoi,
+  useUpdatePoi,
+  useDeletePoi
+} from '../../../admin/api/adminQueries';
 
 function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371e3; // meters
@@ -24,12 +38,14 @@ function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number) 
 
 export function ZoneManagement() {
   const { t } = useTranslation();
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [modal, setModal] = useState<any>(null);
+  const [modal, setModal] = useState<any>(null); // { type: 'add' | 'edit' | 'delete' | 'add-poi' | 'edit-poi' | 'delete-poi', zone?: any, poi?: any }
   const [stallsModalZone, setStallsModalZone] = useState<any>(null);
   const [error, setError] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
-  // Form State
+  // Zone Form State
   const [formName, setFormName] = useState('');
   const [formZoneCode, setFormZoneCode] = useState('');
   const [formDescription, setFormDescription] = useState('');
@@ -38,11 +54,71 @@ export function ZoneManagement() {
   const [formLongitude, setFormLongitude] = useState('');
   const [formStatus, setFormStatus] = useState('DRAFT');
   const [formIsPremium, setFormIsPremium] = useState(false);
-  const [formVendorId, setFormVendorId] = useState('');
 
-  // Queries
-  const { data: tours = [], isLoading, error: fetchError } = useTours();
+  // POI Form State
+  const [poiFormName, setPoiFormName] = useState('');
+  const [poiFormStallId, setPoiFormStallId] = useState('');
+  const [poiFormTourId, setPoiFormTourId] = useState('');
+  const [poiFormDescription, setPoiFormDescription] = useState('');
+  const [poiFormLatitude, setPoiFormLatitude] = useState('');
+  const [poiFormLongitude, setPoiFormLongitude] = useState('');
+  const [poiFormRadius, setPoiFormRadius] = useState('25');
+  const [poiFormIsPremium, setPoiFormIsPremium] = useState(false);
+  const [poiFormStatus, setPoiFormStatus] = useState('ACTIVE');
+  const [poiFormTranslations, setPoiFormTranslations] = useState<any[]>([
+    { lang: 'vi', title: '', ttsScript: '' },
+    { lang: 'en', title: '', ttsScript: '' },
+    { lang: 'ja', title: '', ttsScript: '' },
+    { lang: 'ko', title: '', ttsScript: '' },
+    { lang: 'zh', title: '', ttsScript: '' }
+  ]);
+
+  // Queries & Mutations
+  const { data: tours = [], isLoading, error: fetchError, refetch } = useTours();
   const { data: stalls = [] } = useStallsList();
+  const { data: selectedTourDetail, isLoading: selectedTourLoading, refetch: refetchTourDetail } = useTour(selectedZoneId);
+
+  const createMutation = useCreateTour();
+  const updateMutation = useUpdateTour();
+  const deleteMutation = useDeleteTour();
+  const archiveMutation = useArchiveTour();
+
+  const createPoiMutation = useCreatePoi();
+  const updatePoiMutation = useUpdatePoi();
+  const deletePoiMutation = useDeletePoi();
+
+  const refreshData = () => {
+    refetch();
+    if (selectedZoneId) refetchTourDetail();
+  };
+
+  const handleResetQrCode = async (targetId: any) => {
+    if (!targetId) return;
+    try {
+      setIsResetting(true);
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/zones/reset-qr/${targetId}`);
+      if (response.data.success || response.status === 200) {
+        toast.success(t('notifications.reset_qr_success', { defaultValue: 'Cập nhật mã QR thành công!' }));
+        refreshData();
+      }
+    } catch (e) {
+      console.error("QR Code mutation sequence broken:", e);
+      toast.error(t('notifications.reset_qr_error', { defaultValue: 'Không thể reset mã QR. Vui lòng thử lại.' }));
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const handleArchiveZone = async (zoneId: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn lưu trữ khu vực này không? Các POIs con vẫn tiếp tục hoạt động bình thường.")) return;
+    try {
+      await archiveMutation.mutateAsync(zoneId);
+      toast.success("Đã chuyển trạng thái khu vực sang Lưu trữ.");
+      refreshData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error ?? "Lỗi khi lưu trữ khu vực.");
+    }
+  };
 
   const nearbyStalls = useMemo(() => {
     if (!stallsModalZone || stallsModalZone.latitude === null || stallsModalZone.longitude === null) return [];
@@ -60,10 +136,6 @@ export function ZoneManagement() {
       .filter((s: any) => s !== null && s.distance <= 1000)
       .sort((a: any, b: any) => a.distance - b.distance);
   }, [stalls, stallsModalZone]);
-  
-  const createMutation = useCreateTour();
-  const updateMutation = useUpdateTour();
-  const deleteMutation = useDeleteTour();
 
   const filteredZones = useMemo(() => {
     return tours.filter((tour: any) =>
@@ -82,7 +154,6 @@ export function ZoneManagement() {
     setFormLongitude('');
     setFormStatus('DRAFT');
     setFormIsPremium(false);
-    setFormVendorId(stalls[0]?.vendorId ?? '1');
     setModal({ type: 'add' });
   };
 
@@ -96,13 +167,65 @@ export function ZoneManagement() {
     setFormLongitude(zone.longitude !== null ? String(zone.longitude) : '');
     setFormStatus(zone.status ?? 'DRAFT');
     setFormIsPremium(Boolean(zone.isPremium));
-    setFormVendorId(zone.vendorId ?? '1');
     setModal({ type: 'edit', zone });
   };
 
   const openDeleteModal = (zone: any) => {
     setError('');
     setModal({ type: 'delete', zone });
+  };
+
+  const openAddPoiModal = (tourId: string) => {
+    setError('');
+    setPoiFormName('');
+    setPoiFormStallId(stalls[0]?.id ?? '1');
+    setPoiFormTourId(tourId);
+    setPoiFormDescription('');
+    setPoiFormLatitude('10.77582');
+    setPoiFormLongitude('106.70208');
+    setPoiFormRadius('25');
+    setPoiFormIsPremium(false);
+    setPoiFormStatus('ACTIVE');
+    setPoiFormTranslations([
+      { lang: 'vi', title: '', ttsScript: '' },
+      { lang: 'en', title: '', ttsScript: '' },
+      { lang: 'ja', title: '', ttsScript: '' },
+      { lang: 'ko', title: '', ttsScript: '' },
+      { lang: 'zh', title: '', ttsScript: '' }
+    ]);
+    setModal({ type: 'add-poi' });
+  };
+
+  const openEditPoiModal = (poi: any) => {
+    setError('');
+    setPoiFormName(poi.name ?? '');
+    setPoiFormStallId(poi.stallId ?? (stalls[0]?.id ?? '1'));
+    setPoiFormTourId(poi.tourId ? String(poi.tourId) : (selectedZoneId ?? ''));
+    setPoiFormDescription(poi.description ?? '');
+    setPoiFormLatitude(String(poi.latitude ?? ''));
+    setPoiFormLongitude(String(poi.longitude ?? ''));
+    setPoiFormRadius(String(poi.activationRadius ?? '25'));
+    setPoiFormIsPremium(Boolean(poi.isPremiumContent));
+    setPoiFormStatus(poi.status ?? 'ACTIVE');
+
+    const list = poi?.translations ?? [];
+    const safeTrans = ['vi', 'en', 'ja', 'ko', 'zh'].map((lang) => {
+      const match = list.find((item: any) => item.lang === lang);
+      if (match) {
+        return { lang, title: match.title ?? '', ttsScript: match.ttsScript ?? '' };
+      }
+      if (lang === 'vi') {
+        return { lang, title: poi?.name ?? '', ttsScript: poi?.description ?? '' };
+      }
+      return { lang, title: '', ttsScript: '' };
+    });
+    setPoiFormTranslations(safeTrans);
+    setModal({ type: 'edit-poi', poi });
+  };
+
+  const openDeletePoiModal = (poi: any) => {
+    setError('');
+    setModal({ type: 'delete-poi', poi });
   };
 
   const handleConfirm = async () => {
@@ -112,15 +235,20 @@ export function ZoneManagement() {
     try {
       if (modal.type === 'delete') {
         await deleteMutation.mutateAsync(modal.zone.id);
-      } else {
+        setSelectedZoneId(null);
+        setModal(null);
+        refreshData();
+      } else if (modal.type === 'delete-poi') {
+        await deletePoiMutation.mutateAsync(modal.poi.id);
+        setModal(null);
+        refreshData();
+      } else if (modal.type === 'add' || modal.type === 'edit') {
         if (!formName.trim()) {
           setError(t('zone.error_name_empty', { defaultValue: 'Tên khu vực không được để trống' }));
           return;
         }
-
         const lat = formLatitude.trim() ? Number(formLatitude) : null;
         const lng = formLongitude.trim() ? Number(formLongitude) : null;
-
         if (lat !== null && (isNaN(lat) || lat < -90 || lat > 90)) {
           setError(t('zone.error_lat_invalid', { defaultValue: 'Vĩ độ không hợp lệ (-90 đến 90)' }));
           return;
@@ -129,9 +257,8 @@ export function ZoneManagement() {
           setError(t('zone.error_lng_invalid', { defaultValue: 'Kinh độ không hợp lệ (-180 đến 180)' }));
           return;
         }
-
         const payload = {
-          vendorId: formVendorId || '1',
+          vendorId: 1,
           name: formName.trim(),
           slug: formZoneCode.trim() || undefined,
           description: formDescription.trim() || null,
@@ -141,92 +268,87 @@ export function ZoneManagement() {
           status: formStatus,
           isPremium: formIsPremium
         };
-
         if (modal.type === 'add') {
           await createMutation.mutateAsync(payload);
         } else {
           await updateMutation.mutateAsync({ id: modal.zone.id, data: payload });
         }
+        setModal(null);
+        refreshData();
+      } else if (modal.type === 'add-poi' || modal.type === 'edit-poi') {
+        if (!poiFormName.trim()) { setError(t('poi.error_name_empty')); return; }
+        if (!poiFormTourId) { setError('Vui lòng chọn Khu vực'); return; }
+        if (!poiFormStallId) { setError(t('poi.error_stall_empty')); return; }
+        const lat = Number(poiFormLatitude);
+        const lng = Number(poiFormLongitude);
+        const rad = Number(poiFormRadius);
+        if (!Number.isFinite(lat) || lat < -90 || lat > 90) { setError(t('poi.error_lat_invalid')); return; }
+        if (!Number.isFinite(lng) || lng < -180 || lng > 180) { setError(t('poi.error_lng_invalid')); return; }
+        if (!Number.isFinite(rad) || rad <= 0) { setError(t('poi.error_radius_invalid')); return; }
+
+        const payload = {
+          tourId: Number(poiFormTourId),
+          stallId: Number(poiFormStallId),
+          name: poiFormName.trim(),
+          description: poiFormDescription.trim(),
+          latitude: lat,
+          longitude: lng,
+          activationRadius: rad,
+          isPremiumContent: poiFormIsPremium,
+          status: poiFormStatus,
+          translations: poiFormTranslations
+        };
+
+        if (modal.type === 'add-poi') {
+          await createPoiMutation.mutateAsync(payload);
+        } else {
+          await updatePoiMutation.mutateAsync({ id: modal.poi.id, data: payload });
+        }
+        setModal(null);
+        refreshData();
       }
-      setModal(null);
     } catch (err: any) {
-      setError(err.response?.data?.error ?? t('zone.error_save', { defaultValue: 'Lỗi khi lưu thông tin khu vực.' }));
+      setError(err.response?.data?.error ?? t('zone.error_save', { defaultValue: 'Lỗi khi thực hiện thao tác.' }));
     }
   };
 
-  const columns = [
+  const poiColumns = [
     {
       key: 'id',
-      label: t('zone.table.id', { defaultValue: 'Mã' }),
-      render: (zone: any) => <span className="font-black text-slate-950">#{zone.id}</span>
+      label: 'Mã POI',
+      render: (poi: any) => <span className="font-mono font-bold text-slate-800">#{poi.id}</span>
     },
     {
       key: 'name',
-      label: t('zone.table.name', { defaultValue: 'Khu vực' }),
-      render: (zone: any) => (
-        <div className="flex items-center gap-3">
-          {zone.coverImageUrl && (
-            <img src={zone.coverImageUrl} alt={zone.name} className="h-10 w-10 rounded-lg object-cover" />
-          )}
-          <div>
-            <p className="font-black text-slate-950">{zone.name}</p>
-            <p className="mt-0.5 text-xs font-mono text-slate-500">code: {zone.slug}</p>
-          </div>
+      label: 'Tên POI / Thuyết minh',
+      render: (poi: any) => (
+        <div>
+          <p className="font-black text-slate-950">{poi.name}</p>
+          <span className="mt-1 inline-block"><AdminBadge status={poi.status} /></span>
         </div>
       )
     },
     {
-      key: 'coordinates',
-      label: t('zone.table.coordinates', { defaultValue: 'Tọa độ tâm' }),
-      render: (zone: any) => (
-        <span className="text-xs font-mono text-slate-600">
-          {zone.latitude !== null ? zone.latitude.toFixed(6) : '-'}, {zone.longitude !== null ? zone.longitude.toFixed(6) : '-'}
-        </span>
-      )
-    },
-    {
-      key: 'pois',
-      label: t('zone.table.pois', { defaultValue: 'Điểm POI' }),
-      render: (zone: any) => (
-        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
-          {zone.poiCount} POI
-        </span>
-      )
-    },
-    {
-      key: 'status',
-      label: t('common.status'),
-      render: (zone: any) => <AdminBadge status={zone.status} />
-    },
-    {
       key: 'actions',
-      label: t('common.action'),
+      label: 'Thao tác',
       cellClassName: 'px-4 py-3 text-right',
-      render: (zone: any) => (
+      render: (poi: any) => (
         <div className="flex justify-end gap-2">
           <button
             type="button"
-            onClick={() => setStallsModalZone(zone)}
-            className="grid h-9 w-9 place-items-center rounded-lg border border-blue-200 text-blue-700 transition hover:bg-blue-50"
-            title={t('zone.stalls_list', { defaultValue: 'Danh sách sạp' })}
+            onClick={() => openEditPoiModal(poi)}
+            className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+            title="Sửa POI"
           >
-            <Store size={16} />
+            <Edit3 size={14} />
           </button>
           <button
             type="button"
-            onClick={() => openEditModal(zone)}
-            className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50"
-            aria-label={t('zone.edit', { defaultValue: 'Sửa' })}
+            onClick={() => openDeletePoiModal(poi)}
+            className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-700 hover:bg-red-50"
+            title="Xóa POI"
           >
-            <Edit3 size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={() => openDeleteModal(zone)}
-            className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-700 transition hover:bg-red-50"
-            aria-label={t('zone.delete', { defaultValue: 'Xóa' })}
-          >
-            <Trash2 size={16} />
+            <Trash2 size={14} />
           </button>
         </div>
       )
@@ -257,25 +379,168 @@ export function ZoneManagement() {
         </div>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-        <label className="flex h-10 min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 w-full max-w-md">
-          <Search size={17} className="text-slate-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-slate-400"
-            placeholder={t('zone.search_placeholder', { defaultValue: 'Tìm kiếm khu vực...' })}
-          />
-        </label>
-      </section>
+      {/* Unified Master-Detail View */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[380px_1fr]">
+        
+        {/* Left Column: Master List of Zones */}
+        <aside className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+            <label className="flex h-10 min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 w-full">
+              <Search size={17} className="text-slate-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-slate-400"
+                placeholder={t('zone.search_placeholder', { defaultValue: 'Tìm kiếm khu vực...' })}
+              />
+            </label>
+          </div>
 
-      <AdminDataTable
-        columns={columns}
-        rows={filteredZones}
-        emptyText={isLoading ? t('common.loading') : t('zone.no_matching', { defaultValue: 'Không tìm thấy khu vực nào.' })}
-      />
+          <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm max-h-[calc(100vh-250px)] overflow-y-auto divide-y divide-slate-100">
+            {filteredZones.map((zone: any) => {
+              const isSelected = selectedZoneId === zone.id;
+              return (
+                <button
+                  key={zone.id}
+                  type="button"
+                  onClick={() => setSelectedZoneId(zone.id)}
+                  className={`w-full p-4 text-left transition ${isSelected ? 'bg-blue-50/70 border-l-4 border-blue-600' : 'hover:bg-slate-50'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    {zone.coverImageUrl && (
+                      <img src={zone.coverImageUrl} alt={zone.name} className="h-10 w-10 rounded-lg object-cover" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-black text-slate-950 truncate">{zone.name}</p>
+                      <p className="mt-0.5 text-xs font-mono text-slate-500 truncate">code: {zone.slug}</p>
+                    </div>
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-between gap-2">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-700">
+                      {zone.poiCount} POI
+                    </span>
+                    <AdminBadge status={zone.status} />
+                  </div>
+                </button>
+              );
+            })}
+            {filteredZones.length === 0 && (
+              <p className="p-8 text-center text-sm font-semibold text-slate-500">{t('zone.no_matching', { defaultValue: 'Không tìm thấy khu vực nào.' })}</p>
+            )}
+          </div>
+        </aside>
 
-      {/* Add / Edit Modal */}
+        {/* Right Column: Zone Detail & POI List */}
+        <main className="space-y-6">
+          {selectedZoneId ? (
+            selectedTourLoading ? (
+              <div className="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+              </div>
+            ) : selectedTourDetail ? (
+              <>
+                {/* Zone Details */}
+                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <h2 className="text-xl font-black text-slate-900">{selectedTourDetail.name}</h2>
+                      <p className="text-xs font-mono text-slate-500 mt-1">ID: #{selectedTourDetail.id} | Slug: {selectedTourDetail.slug}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleResetQrCode(selectedTourDetail.id)}
+                        disabled={isResetting}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
+                      >
+                        {t('common.reset_qr', { defaultValue: 'Reset QR' })}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStallsModalZone(selectedTourDetail)}
+                        className="grid h-9 w-9 place-items-center rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50"
+                        title={t('zone.stalls_list', { defaultValue: 'Danh sách sạp' })}
+                      >
+                        <Store size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(selectedTourDetail)}
+                        className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleArchiveZone(selectedTourDetail.id)}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 text-xs font-bold text-amber-700 transition hover:bg-amber-100"
+                        title="Lưu trữ"
+                      >
+                        Lưu trữ
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openDeleteModal(selectedTourDetail)}
+                        className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-sm font-semibold text-slate-600 leading-relaxed">{selectedTourDetail.description || 'Chưa có mô tả.'}</p>
+                  
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 bg-slate-50 p-4 rounded-xl text-xs font-bold text-slate-700">
+                    <div>
+                      <p className="text-slate-400 font-medium">Trạng thái</p>
+                      <div className="mt-1"><AdminBadge status={selectedTourDetail.status} /></div>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 font-medium">Tọa độ tâm</p>
+                      <p className="mt-1 font-mono text-slate-900">{selectedTourDetail.latitude !== null ? selectedTourDetail.latitude.toFixed(6) : '-'}, {selectedTourDetail.longitude !== null ? selectedTourDetail.longitude.toFixed(6) : '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 font-medium">Mã QR Code</p>
+                      <p className="mt-1 font-mono text-slate-900 text-sm">{selectedTourDetail.qrCode || 'Chưa có'}</p>
+                    </div>
+                  </div>
+                </section>
+
+                {/* POI List in Zone */}
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-black text-slate-900">Danh sách POIs trong Khu vực ({selectedTourDetail.pois?.length || 0})</h3>
+                    <button
+                      type="button"
+                      onClick={() => openAddPoiModal(selectedTourDetail.id)}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-xs font-black text-white hover:bg-blue-700"
+                    >
+                      <Plus size={15} />
+                      Thêm POI
+                    </button>
+                  </div>
+
+                  <AdminDataTable
+                    columns={poiColumns}
+                    rows={selectedTourDetail.pois || []}
+                    emptyText="Khu vực này chưa có điểm thuyết minh (POI) nào."
+                  />
+                </section>
+              </>
+            ) : null
+          ) : (
+            <div className="flex h-[400px] items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50">
+              <div className="text-center">
+                <MapPin size={48} className="mx-auto mb-3 text-slate-300 animate-pulse" />
+                <p className="text-sm font-black text-slate-600">Chọn một Khu vực từ danh sách bên trái</p>
+                <p className="mt-1 text-xs font-semibold text-slate-400">để xem chi tiết và danh sách các điểm thuyết minh con (POI).</p>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* Add / Edit Zone Modal */}
       <AdminModal
         open={Boolean(modal) && (modal?.type === 'add' || modal?.type === 'edit')}
         title={modal?.type === 'add' ? t('zone.add_title', { defaultValue: 'Thêm Khu vực mới' }) : t('zone.edit_title', { defaultValue: 'Chỉnh sửa Khu vực' })}
@@ -354,7 +619,7 @@ export function ZoneManagement() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('common.status')}</label>
               <select
@@ -365,18 +630,6 @@ export function ZoneManagement() {
                 <option value="DRAFT">{t('common.draft')}</option>
                 <option value="PUBLISHED">{t('status.published', { defaultValue: 'Đã xuất bản' })}</option>
                 <option value="ARCHIVED">{t('common.archived')}</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">{t('zone.form_vendor', { defaultValue: 'Nhà cung cấp' })}</label>
-              <select
-                value={formVendorId}
-                onChange={(e) => setFormVendorId(e.target.value)}
-                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-blue-500"
-              >
-                {stalls.map((s: any) => (
-                  <option key={s.id} value={s.vendorId}>{s.name} ({s.vendor?.businessName})</option>
-                ))}
               </select>
             </div>
             <div className="flex items-center gap-2 pt-6">
@@ -393,16 +646,68 @@ export function ZoneManagement() {
         </div>
       </AdminModal>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Zone Confirmation Modal */}
       <AdminModal
         open={modal?.type === 'delete'}
         title={t('zone.delete_title', { defaultValue: 'Xác nhận xóa Khu vực' })}
-        description={t('zone.delete_desc', { name: modal?.zone?.name, defaultValue: 'Khu vực sẽ bị chuyển trạng thái thành lưu trữ (ARCHIVED). Các POIs vẫn hoạt động. Bạn có chắc chắn muốn tiếp tục?' })}
+        description="Hành động này sẽ XÓA VĨNH VIỄN khu vực này trong cơ sở dữ liệu. Chỉ cho phép xóa khi không còn điểm thuyết minh (POI) nào đang hoạt động. Bạn có chắc chắn muốn tiếp tục?"
         confirmLabel={t('common.delete')}
         tone="danger"
         onClose={() => setModal(null)}
         onConfirm={handleConfirm}
-      />
+      >
+        {error && <p className="text-xs font-bold text-red-600 pb-2">{error}</p>}
+      </AdminModal>
+
+      {/* Add / Edit POI Modal */}
+      <AdminModal
+        open={Boolean(modal) && (modal?.type === 'add-poi' || modal?.type === 'edit-poi')}
+        title={modal?.type === 'add-poi' ? 'Thêm Điểm tham quan mới (POI)' : 'Chỉnh sửa Điểm tham quan (POI)'}
+        description="Nhập thông tin chi tiết và bản dịch thuyết minh cho POI."
+        confirmLabel={modal?.type === 'add-poi' ? t('common.add') : t('common.save')}
+        tone="success"
+        onClose={() => setModal(null)}
+        onConfirm={handleConfirm}
+      >
+        <POIForm
+          formName={poiFormName}
+          setFormName={setPoiFormName}
+          formStallId={poiFormStallId}
+          setFormStallId={setPoiFormStallId}
+          formTourId={poiFormTourId}
+          setFormTourId={setPoiFormTourId}
+          formDescription={poiFormDescription}
+          setFormDescription={setPoiFormDescription}
+          formLatitude={poiFormLatitude}
+          setFormLatitude={setPoiFormLatitude}
+          formLongitude={poiFormLongitude}
+          setFormLongitude={setPoiFormLongitude}
+          formRadius={poiFormRadius}
+          setFormRadius={setPoiFormRadius}
+          formIsPremium={poiFormIsPremium}
+          setFormIsPremium={setPoiFormIsPremium}
+          formStatus={poiFormStatus}
+          setFormStatus={setPoiFormStatus}
+          stalls={stalls}
+          tours={tours}
+          error={error}
+          translations={poiFormTranslations}
+          setTranslations={setPoiFormTranslations}
+        />
+      </AdminModal>
+
+      {/* Delete POI Confirmation Modal */}
+      <AdminModal
+        open={modal?.type === 'delete-poi'}
+        title="Xác nhận xóa Điểm thuyết minh"
+        description={`Bạn có chắc chắn muốn xóa điểm thuyết minh "${modal?.poi?.name}"?`}
+        confirmLabel="Xóa"
+        tone="danger"
+        onClose={() => setModal(null)}
+        onConfirm={handleConfirm}
+      >
+        {error && <p className="text-xs font-bold text-red-600 pb-2">{error}</p>}
+      </AdminModal>
 
       {/* Stalls Proximity Modal */}
       <AdminModal

@@ -2,8 +2,8 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'rec
 
 export function StatChart({ data }) {
   return (
-    <div className="h-72 rounded-2xl border border-amber-100 bg-white p-3">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="w-full h-72 min-w-0 min-h-[240px] relative rounded-2xl border border-amber-100 bg-white p-3">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={50}>
         <AreaChart data={data}>
           <defs>
             <linearGradient id="c1" x1="0" y1="0" x2="0" y2="1">

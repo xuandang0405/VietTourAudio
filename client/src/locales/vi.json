@@ -73,9 +73,16 @@
     "vendor": "Vendor",
     "stall": "Sạp",
     "actions": "Hành động",
-    "load_error": "Không tải được dữ liệu."
+    "load_error": "Không tải được dữ liệu.",
+    "reject": "Từ chối tài khoản",
+    "reset_qr": "Reset QR",
+    "gps_coordinates": "Tọa độ GPS",
+    "deposit_to_wallet": "Nạp tiền vào ví",
+    "lock_account": "Khóa tài khoản",
+    "webapp_rent_fee": "Phí thuê WebApp hàng tháng"
   },
   "poi": {
+    "get_current_location": "Lấy vị trí hiện tại của tôi",
     "management_subtitle": "POI MANAGEMENT",
     "management_description": "Quản lý POI, bán kính kích hoạt và nội dung đa ngôn ngữ cho hệ thống âm thanh tự động.",
     "poi_code": "Mã POI",
@@ -116,7 +123,7 @@
     "form_name_placeholder": "Ví dụ: Cổng chào Nguyễn Huệ",
     "form_desc_placeholder": "Giới thiệu ngắn gọn hoặc sự tích lịch sử của POI...",
     "no_stall": "Chưa có sạp nào",
-    "premium_content": "Premium Content (Nội dung trả phí)",
+    "premium_content": "Nội dung Premium",
     "vendor_title": "Quản lý POI & Audio",
     "vendor_desc": "Danh sách các điểm thuyết minh đang hoạt động trong vendor portal.",
     "vendor_add_disabled": "Sắp mở tạo POI",
@@ -143,7 +150,6 @@
     "product_delete_confirm": "Bạn có chắc chắn muốn xóa sản phẩm này?",
     "product_delete_error": "Không thể xóa sản phẩm.",
     "poi_id": "Mã POI",
-    "premium_content": "Nội dung Premium",
     "free_content": "Nội dung miễn phí",
     "no_poi_title": "Không tìm thấy POI",
     "no_poi_assigned": "Tài khoản chưa được gán điểm thuyết minh.",
@@ -174,7 +180,10 @@
     "new_product_name": "Tên sản phẩm",
     "new_product_price": "Giá tiền (VND)",
     "product_name": "Tên sản phẩm",
-    "product_price": "Giá bán"
+    "product_price": "Giá bán",
+    "pending_approvals_tab": "Yêu cầu duyệt",
+    "pending_approvals_count": "{{count}} yêu cầu",
+    "pending_approvals_count_other": "{{count}} yêu cầu"
   },
   "users": {
     "create_zone_admin": "Tạo Admin Khu vực",
@@ -289,7 +298,9 @@
     "pending": "Chờ duyệt",
     "approved": "Đã duyệt",
     "rejected": "Từ chối",
-    "suspended": "Bị khóa"
+    "suspended": "Bị khóa",
+    "locked": "Đã khóa",
+    "hidden": "Đang ẩn"
   },
   "dashboard": {
     "title": "Dashboard Vận Hành",
@@ -355,7 +366,8 @@
       "reason_required": "Lý do là bắt buộc cho hành động này.",
       "reason_placeholder": "Nhập lý do..."
     },
-    "management_subtitle": "Quản lý hồ sơ, kiểm tra gói dịch vụ, số dư ví và hoạt động của đối tác."
+    "management_subtitle": "Quản lý hồ sơ, kiểm tra gói dịch vụ, số dư ví và hoạt động của đối tác.",
+    "confirm_reject": "Bạn có chắc chắn muốn từ chối tài khoản này?"
   },
   "content": {
     "title": "Kiểm duyệt media",
@@ -689,7 +701,10 @@
       "coordinates": "Tọa độ tâm",
       "pois": "Điểm POI"
     },
-    "waiting_payment": "Đang chờ thanh toán..."
+    "waiting_payment": "Đang chờ thanh toán...",
+    "stalls_modal_title": "Danh sách Sạp thuộc Khu vực",
+    "no_nearby_stalls": "Không có sạp nào nằm trong khu vực này.",
+    "stalls_list": "Danh sách sạp"
   },
   "admin_topup": {
     "management_subtitle": "Quản lý Nạp Tiền",
@@ -719,7 +734,13 @@
     "modal_title": "Từ chối yêu cầu nạp tiền",
     "modal_desc": "Vui lòng nhập lý do từ chối yêu cầu này. Vendor sẽ nhận được thông báo này.",
     "modal_btn_reject": "Từ chối nạp tiền",
-    "placeholder_reason": "Nhập lý do từ chối..."
+    "placeholder_reason": "Nhập lý do từ chối...",
+    "loading": "Đang tải dữ liệu nạp tiền...",
+    "approve": "Duyệt nạp tiền",
+    "reject": "Từ chối nạp",
+    "modal_reject_title": "Từ chối yêu cầu nạp tiền",
+    "modal_reject_desc": "Vui lòng nhập lý do cụ thể để gửi thông báo phản hồi lại cho phía nhà cung cấp sạp sạp hàng:",
+    "reason_placeholder": "Nhập lý do từ chối (ví dụ: Sai nội dung chuyển khoản, Chưa nhận được tiền tiền thực tế...)"
   },
   "vendor_wallet": {
     "management_subtitle": "Tài Khoản Đối Tác",
@@ -760,7 +781,8 @@
     "label_reason": "Lý do audit",
     "placeholder_reason": "Nhập lý do điều chỉnh ví...",
     "health_no_sub": "Chưa có subscription",
-    "health_safe": "An toàn"
+    "health_safe": "An toàn",
+    "no_plan": "Chưa đăng ký gói"
   },
   "admin_users": {
     "settings": "Cài đặt",
@@ -800,7 +822,10 @@
     "placeholder_admin_name": "Ví dụ: Admin Khu Nguyễn Huệ",
     "placeholder_admin_email": "admin.khuvuc@example.com",
     "success_create_zone_admin": "Đã tạo Admin Khu vực {{name}} thành công!",
-    "error_create_zone_admin": "Không thể tạo tài khoản Admin Khu vực."
+    "error_create_zone_admin": "Không thể tạo tài khoản Admin Khu vực.",
+    "error_admin_name": "Họ tên Admin không được trống.",
+    "error_admin_email": "Email Admin không được trống.",
+    "error_zone_required": "Vui lòng chọn Khu vực được gán."
   },
   "tour": {
     "no_pois_assigned": "Chưa có điểm tham quan nào được gán cho Tour này."
@@ -818,6 +843,9 @@
     "clear_directions": "Hủy chỉ đường"
   },
   "admin": {
+    "common": {
+      "delete_reason_placeholder": "Nhập lý do xóa (Không bắt buộc)..."
+    },
     "notifications": {
       "title": "Thông báo",
       "empty": "Chưa có thông báo mới nào"
@@ -826,7 +854,8 @@
       "confirm_resolve": "Đánh dấu yêu cầu này đã được xử lý?",
       "status": {
         "PENDING": "Chờ xử lý",
-        "PROCESSED": "Đã xử lý"
+        "PROCESSED": "Đã xử lý",
+        "IN_PROGRESS": "Đang xử lý"
       },
       "table": {
         "date": "Thời gian",
@@ -918,5 +947,9 @@
     "official_contact": "Email liên hệ chính thức: support@viettouraudio.com",
     "sending": "Đang gửi...",
     "send_button": "Gửi tin nhắn"
+  },
+  "notifications": {
+    "reset_qr_success": "Cập nhật mã QR thành công!",
+    "reset_qr_error": "Không thể reset mã QR. Vui lòng thử lại."
   }
 }

@@ -429,6 +429,62 @@ export function useGeofenceAudio({ onToast }) {
     }
   }
 
+  // Helper to parse both structured routing payloads and raw OSRM payloads safely
+  function parseRouteResponse(payload) {
+    const data = payload?.data ?? payload;
+    if (!data) return null;
+
+    let distance = 0;
+    let duration = 0;
+    let leafletCoords = [];
+
+    // Shape 1: Standard structured response containing coordinates array
+    if (data.coordinates && Array.isArray(data.coordinates)) {
+      distance = data.distance ?? 0;
+      duration = data.duration ?? 0;
+      
+      leafletCoords = data.coordinates
+        .map(point => {
+          if (!point) return null;
+          if (Array.isArray(point)) {
+            if (point.length >= 2) {
+              return [Number(point[0]), Number(point[1])];
+            }
+            return null;
+          }
+          if (point.lat !== undefined && point.lng !== undefined) {
+            return [Number(point.lat), Number(point.lng)];
+          }
+          if (point.latitude !== undefined && point.longitude !== undefined) {
+            return [Number(point.latitude), Number(point.longitude)];
+          }
+          return null;
+        })
+        .filter(p => p !== null && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    }
+    // Shape 2: Raw OSRM response containing routes array
+    else if (data.routes && Array.isArray(data.routes) && data.routes.length > 0) {
+      const route = data.routes[0];
+      distance = route.distance ?? 0;
+      duration = route.duration ?? 0;
+      if (route.geometry && Array.isArray(route.geometry.coordinates)) {
+        leafletCoords = route.geometry.coordinates
+          .map(coord => {
+            if (Array.isArray(coord) && coord.length >= 2) {
+              // OSRM is [lng, lat], Leaflet is [lat, lng]
+              return [Number(coord[1]), Number(coord[0])];
+            }
+            return null;
+          })
+          .filter(p => p !== null && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+      }
+    }
+
+    if (leafletCoords.length === 0) return null;
+
+    return { distance, duration, coordinates: leafletCoords };
+  }
+
   async function handleGetDirections(targetPoi) {
     if (!position) {
       onToast?.(tRoot('routing.enable_gps', { defaultValue: 'Vui lòng bật GPS để tìm đường.' }));
@@ -438,22 +494,22 @@ export function useGeofenceAudio({ onToast }) {
 
     try {
       setRoutingInfo({ status: 'calculating' });
+      const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
       const response = await fetch(
-        `${appConfig.guestApiBaseUrl}/routing?startLng=${position.lng}&startLat=${position.lat}&endLng=${targetPoi.longitude}&endLat=${targetPoi.latitude}`
+        `${apiBase}/guest/routing?startLng=${position.lng}&startLat=${position.lat}&endLng=${targetPoi.longitude}&endLat=${targetPoi.latitude}`
       );
       if (!response.ok) throw new Error('Routing API error');
       const resJson = await response.json();
-      const data = resJson.data ?? resJson;
-      if (!data.routes || data.routes.length === 0) {
-        throw new Error('No route found');
+      
+      const parsed = parseRouteResponse(resJson);
+      if (!parsed) {
+        throw new Error('Failed to parse route coordinates');
       }
 
-      const route = data.routes[0];
-      const leafletCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
-      setRoutingCoordinates(leafletCoords);
+      setRoutingCoordinates(parsed.coordinates);
       setRoutingInfo({
-        distance: route.distance,
-        duration: route.duration,
+        distance: parsed.distance,
+        duration: parsed.duration,
         status: 'success'
       });
       lastRoutedPositionRef.current = { lat: position.lat, lng: position.lng };
@@ -470,27 +526,27 @@ export function useGeofenceAudio({ onToast }) {
   async function recalculateRoute(targetPoi, currentPosition) {
     if (!currentPosition || !targetPoi) return;
     try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
       const response = await fetch(
-        `${appConfig.guestApiBaseUrl}/routing?startLng=${currentPosition.lng}&startLat=${currentPosition.lat}&endLng=${targetPoi.longitude}&endLat=${targetPoi.latitude}`
+        `${apiBase}/guest/routing?startLng=${currentPosition.lng}&startLat=${currentPosition.lat}&endLng=${targetPoi.longitude}&endLat=${targetPoi.latitude}`
       );
       if (!response.ok) throw new Error('Routing API error');
       const resJson = await response.json();
-      const data = resJson.data ?? resJson;
-      if (!data.routes || data.routes.length === 0) {
-        throw new Error('No route found');
+
+      const parsed = parseRouteResponse(resJson);
+      if (!parsed) {
+        throw new Error('Failed to parse route coordinates');
       }
 
-      const route = data.routes[0];
-      const leafletCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
-      setRoutingCoordinates(leafletCoords);
+      setRoutingCoordinates(parsed.coordinates);
       setRoutingInfo({
-        distance: route.distance,
-        duration: route.duration,
+        distance: parsed.distance,
+        duration: parsed.duration,
         status: 'success'
       });
       lastRoutedPositionRef.current = { lat: currentPosition.lat, lng: currentPosition.lng };
     } catch (err) {
-      console.error('Background Routing error:', err);
+      console.error('Recalculate route error:', err);
     }
   }
 

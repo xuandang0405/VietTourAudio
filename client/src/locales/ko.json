@@ -25,7 +25,9 @@
     "vendor_email": "가맹점 이메일",
     "vendor_email_short": "이메일",
     "vendor_login_button": "가맹점 포털 로그인",
-    "demo_account_hint": "로컬 데모 계정:"
+    "demo_account_hint": "로컬 데모 계정:",
+    "vendor_code": "가맹점 코드",
+    "vendor_code_short": "코드"
   },
   "common": {
     "save": "변경 사항 저장",
@@ -71,9 +73,16 @@
     "vendor": "가맹점",
     "stall": "상점",
     "actions": "작업",
-    "load_error": "데이터를 불러올 수 없습니다."
+    "load_error": "데이터를 불러올 수 없습니다.",
+    "reject": "계정 거부",
+    "reset_qr": "QR 코드 재설정",
+    "gps_coordinates": "GPS 좌표",
+    "deposit_to_wallet": "지갑에 입금",
+    "lock_account": "계정 잠금",
+    "webapp_rent_fee": "월간 WebApp 대여료"
   },
   "poi": {
+    "get_current_location": "내 현재 위치 가져오기",
     "management_subtitle": "POI MANAGEMENT",
     "management_description": "자동 오디오 가이드 시스템을 위한 관광지(POI), GPS 좌표, 활성화 반경 및 프리미엄 등급을 관리합니다.",
     "poi_code": "POI 코드",
@@ -114,7 +123,7 @@
     "form_name_placeholder": "예: 응우옌후에 광장 환영 게이트",
     "form_desc_placeholder": "관광지에 대한 간략한 소개 또는 역사적 설명...",
     "no_stall": "등록된 가게 없음",
-    "premium_content": "프리미엄 콘텐츠 (유료 콘텐츠)",
+    "premium_content": "프리미엄 콘텐츠",
     "vendor_title": "POI 및 오디오 관리",
     "vendor_desc": "가맹점 포털에서 활성화된 관광지 목록입니다.",
     "vendor_add_disabled": "POI 추가 기능 출시 예정",
@@ -141,7 +150,6 @@
     "product_delete_confirm": "이 상품을 삭제하시겠습니까?",
     "product_delete_error": "상품을 삭제할 수 없습니다.",
     "poi_id": "POI ID",
-    "premium_content": "프리미엄 콘텐츠",
     "free_content": "무료 콘텐츠",
     "no_poi_title": "POI를 찾을 수 없습니다",
     "no_poi_assigned": "이 계정에 안내 지점이 배정되지 않았습니다.",
@@ -172,7 +180,10 @@
     "new_product_name": "상품명",
     "new_product_price": "가격 (VND)",
     "product_name": "상품명",
-    "product_price": "판매 가격"
+    "product_price": "판매 가격",
+    "pending_approvals_tab": "승인 대기",
+    "pending_approvals_count": "{{count}}개의 요청",
+    "pending_approvals_count_other": "{{count}}개의 요청"
   },
   "users": {
     "create_zone_admin": "구역 관리자 생성",
@@ -311,7 +322,9 @@
     "pending": "대기 중",
     "approved": "승인됨",
     "rejected": "거절됨",
-    "suspended": "정지됨"
+    "suspended": "정지됨",
+    "locked": "잠김",
+    "hidden": "숨김"
   },
   "dashboard": {
     "title": "운영 대시보드",
@@ -377,7 +390,8 @@
       "reason_required": "Reason is required for this action.",
       "reason_placeholder": "Enter reason..."
     },
-    "management_subtitle": "프로필 승인, 구독 확인, 지갑 잔액 및 공급업체 운영."
+    "management_subtitle": "프로필 승인, 구독 확인, 지갑 잔액 및 공급업체 운영.",
+    "confirm_reject": "이 계정을 거부하시겠습니까?"
   },
   "content": {
     "title": "Media Moderation",
@@ -561,7 +575,25 @@
     "demoMoved": "시뮬레이션 위치가 업데이트되었습니다",
     "favorites": "즐겨찾기",
     "no_favorites": "즐겨찾는 매장이 아직 없습니다",
-    "resume": "계속하기"
+    "resume": "계속하기",
+    "gps_granted": "허용됨",
+    "gps_requesting": "요청 중...",
+    "gps_denied": "데모 모드",
+    "gps_unavailable": "사용 불가",
+    "gps_idle": "대기 중",
+    "close_nav": "네비게이션 닫기",
+    "account_status": "계정 상태",
+    "audio_language": "오디오 언어",
+    "gps_location": "GPS 위치",
+    "demo_mode_active": "데모 모드 활성화됨",
+    "near_you": "주변 명소",
+    "view_all": "전체 보기",
+    "no_poi_nearby": "주변에 관광지가 없습니다.",
+    "auto_play_started": "📍 {{name}}에 진입했습니다. 오디오 자동 재생을 시작합니다.",
+    "camera_lock_on": "카메라 잠금",
+    "camera_lock_off": "카메라 잠금 해제",
+    "camera_lock_enable": "카메라 잠금 활성화",
+    "camera_lock_disable": "카메라 잠금 비활성화"
   },
   "map": {
     "no_gps": "GPS 없음"
@@ -627,7 +659,10 @@
       "coordinates": "중심 좌표",
       "pois": "POI 수"
     },
-    "waiting_payment": "결제 대기 중..."
+    "waiting_payment": "결제 대기 중...",
+    "stalls_modal_title": "구역 내 매장 목록",
+    "no_nearby_stalls": "이 구역에는 매장이 없습니다.",
+    "stalls_list": "가판대 목록"
   },
   "admin_topup": {
     "management_subtitle": "충전 관리",
@@ -657,7 +692,13 @@
     "modal_title": "충전 요청 거절",
     "modal_desc": "이 요청을 거절하는 사유를 입력해 주세요. 가맹점주에게 사유가 전달됩니다.",
     "modal_btn_reject": "거절",
-    "placeholder_reason": "거절 사유를 입력하세요..."
+    "placeholder_reason": "거절 사유를 입력하세요...",
+    "loading": "충전 데이터를 불러오는 중...",
+    "approve": "충전 승인",
+    "reject": "충전 거절",
+    "modal_reject_title": "충전 요청 거절",
+    "modal_reject_desc": "가맹점에 피드백을 보내기 위해 구체적인 사유를 입력하십시오:",
+    "reason_placeholder": "거절 사유를 입력하십시오 (예: 입금자명 불일치, 실제 미입금 등...)"
   },
   "vendor_wallet": {
     "management_subtitle": "공급업체 계정",
@@ -698,7 +739,8 @@
     "label_reason": "감사 사유",
     "placeholder_reason": "지갑 조정 사유를 입력하세요...",
     "health_no_sub": "구독 없음",
-    "health_safe": "안전"
+    "health_safe": "안전",
+    "no_plan": "등록된 요금제가 없습니다"
   },
   "admin_users": {
     "settings": "설정",
@@ -801,6 +843,9 @@
     "clear_directions": "경로 안내 취소"
   },
   "admin": {
+    "common": {
+      "delete_reason_placeholder": "삭제 사유를 입력하세요 (선택 사항)..."
+    },
     "notifications": {
       "title": "알림",
       "empty": "새로운 알림이 없습니다"
@@ -809,7 +854,8 @@
       "confirm_resolve": "이 요청을 처리 완료로 표시하시겠습니까?",
       "status": {
         "PENDING": "대기 중",
-        "PROCESSED": "처리됨"
+        "PROCESSED": "처리됨",
+        "IN_PROGRESS": "처리 중"
       },
       "table": {
         "date": "날짜",
@@ -901,5 +947,9 @@
     "official_contact": "공식 연락처 이메일: support@viettouraudio.com",
     "sending": "전송 중...",
     "send_button": "메시지 보내기"
+  },
+  "notifications": {
+    "reset_qr_success": "QR 코드가 성공적으로 재설정되었습니다!",
+    "reset_qr_error": "QR 코드를 재설정하지 못했습니다. 다시 시도하십시오."
   }
 }

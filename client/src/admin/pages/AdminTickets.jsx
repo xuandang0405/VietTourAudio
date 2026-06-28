@@ -110,7 +110,7 @@ export function AdminTickets() {
 
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
-          Không thể tải danh sách yêu cầu.
+          {t('common.load_error', { defaultValue: 'Không thể tải danh sách yêu cầu.' })}
         </div>
       )}
 

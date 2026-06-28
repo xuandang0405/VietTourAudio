@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AdminGuard } from './features/auth/components/AdminGuard';
 import { AdminLayout } from './admin/components/AdminLayout';
 import { AdminAnalytics } from './features/vendor-wallet/pages/AdminAnalytics';
@@ -140,7 +141,7 @@ function AppRoutes() {
               <Route path="content" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN', 'MODERATOR']}><AdminContent /></AdminGuard>} />
               <Route path="pois" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminPois /></AdminGuard>} />
               <Route path="vendor-accounts" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN', 'FINANCE']}><AdminVendorAccounts /></AdminGuard>} />
-              <Route path="topup" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN', 'FINANCE']}><AdminTopUps /></AdminGuard>} />
+              <Route path="topup" element={<Navigate to="/admin/vendor-accounts" replace />} />
               <Route path="revenue" element={<Navigate to="/admin/revenue/dashboard" replace />} />
               <Route path="revenue/dashboard" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN', 'FINANCE']}><AdminRevenue /></AdminGuard>} />
               <Route path="commissions" element={<AdminCommissions />} />
@@ -158,6 +159,7 @@ function AppRoutes() {
 
       <OfflineBanner />
       <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} onSuccess={handlePaymentSuccess} />
+      <Toaster position="top-right" />
       <Toast message={toast} />
       <Confetti show={showConfetti} />
     </>

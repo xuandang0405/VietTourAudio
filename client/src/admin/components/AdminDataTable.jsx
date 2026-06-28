@@ -1,4 +1,36 @@
-export function AdminDataTable({ columns, rows, emptyText = 'Chưa có dữ liệu', rowKey = 'id' }) {
+const getRowKey = (row, index) => {
+  if (!row || typeof row !== 'object') {
+    return `row-fallback-${index}`;
+  }
+
+  return (
+    row.id ??
+    row._id ??
+    row.uuid ??
+    row.key ??
+    row.poiId ??
+    row.poi_id ??
+    row.zoneId ??
+    row.zone_id ??
+    row.vendorId ??
+    row.vendor_id ??
+    row.userId ??
+    row.user_id ??
+    row.ticketId ??
+    row.ticket_id ??
+    row.walletId ??
+    row.wallet_id ??
+    row.transactionId ??
+    row.transaction_id ??
+    row.slug ??
+    row.code ??
+    row.zoneCode ??
+    row.email ??
+    `row-fallback-${index}`
+  );
+};
+
+export function AdminDataTable({ columns, rows, emptyText = 'Chưa có dữ liệu', rowKey = 'id', getRowId }) {
   return (
     <div className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="w-full overflow-x-auto">
@@ -21,11 +53,8 @@ export function AdminDataTable({ columns, rows, emptyText = 'Chưa có dữ li�
               </tr>
             ) : (
               rows.map((row, index) => {
-                let key = row[rowKey] ?? row.id ?? row.uuid ?? row._id;
-                if (key === undefined || key === null) {
-                  console.warn(`AdminDataTable: Row at index ${index} is missing a unique key (${rowKey}, id, uuid, _id). Using index as fallback key. Row data:`, row);
-                  key = index;
-                }
+                const customKey = getRowId?.(row, index) ?? (typeof rowKey === 'function' ? rowKey(row, index) : row[rowKey]);
+                const key = customKey ?? getRowKey(row, index);
                 return (
                   <tr key={key} className="transition duration-200 ease-out hover:bg-slate-50">
                     {columns.map((column) => (
@@ -43,3 +72,4 @@ export function AdminDataTable({ columns, rows, emptyText = 'Chưa có dữ li�
     </div>
   );
 }
+

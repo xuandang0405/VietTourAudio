@@ -25,7 +25,9 @@
     "vendor_email": "出店者メール",
     "vendor_email_short": "メール",
     "vendor_login_button": "出店者ポータルへログイン",
-    "demo_account_hint": "ローカルデモアカウント:"
+    "demo_account_hint": "ローカルデモアカウント:",
+    "vendor_code": "出店者コード",
+    "vendor_code_short": "コード"
   },
   "common": {
     "save": "変更を保存",
@@ -71,9 +73,16 @@
     "vendor": "出店者",
     "stall": "店舗",
     "actions": "操作",
-    "load_error": "データを読み込めません。"
+    "load_error": "データを読み込めません。",
+    "reject": "アカウントを拒否",
+    "reset_qr": "QRコードをリセット",
+    "gps_coordinates": "GPS座標",
+    "deposit_to_wallet": "ウォレットに入金",
+    "lock_account": "アカウントをロック",
+    "webapp_rent_fee": "月額WebAppレンタル料"
   },
   "poi": {
+    "get_current_location": "現在地を取得",
     "management_subtitle": "POI MANAGEMENT",
     "management_description": "自動音声システムのための観光スポット（POI）、GPS座標、有効半径、およびプレミアムステータスを管理します。",
     "poi_code": "POIコード",
@@ -114,7 +123,7 @@
     "form_name_placeholder": "例：グエンフエ通りウェルカムゲート",
     "form_desc_placeholder": "観光スポットの簡単な紹介または歴史的な話...",
     "no_stall": "店舗がありません",
-    "premium_content": "プレミアムコンテンツ（有料コンテンツ）",
+    "premium_content": "プレミアムコンテンツ",
     "vendor_title": "POIと音声の管理",
     "vendor_desc": "店舗ポータルで有効な観光スポットの一覧です。",
     "vendor_add_disabled": "間もなくスポット作成が可能になります",
@@ -141,7 +150,6 @@
     "product_delete_confirm": "この商品を削除してもよろしいですか？",
     "product_delete_error": "商品を削除できません。",
     "poi_id": "POI ID",
-    "premium_content": "プレミアムコンテンツ",
     "free_content": "無料コンテンツ",
     "no_poi_title": "POIが見つかりません",
     "no_poi_assigned": "このアカウントに案内地点が割り当てられていません。",
@@ -172,7 +180,10 @@
     "new_product_name": "商品名",
     "new_product_price": "価格 (VND)",
     "product_name": "商品名",
-    "product_price": "販売価格"
+    "product_price": "販売価格",
+    "pending_approvals_tab": "承認待ち",
+    "pending_approvals_count": "{{count}} 件の要求",
+    "pending_approvals_count_other": "{{count}} 件の要求"
   },
   "users": {
     "create_zone_admin": "エリア管理者を作成",
@@ -311,7 +322,9 @@
     "pending": "保留中",
     "approved": "承認済み",
     "rejected": "却下済み",
-    "suspended": "一時停止"
+    "suspended": "一時停止",
+    "locked": "ロック済み",
+    "hidden": "非表示"
   },
   "dashboard": {
     "title": "運用ダッシュボード",
@@ -377,7 +390,8 @@
       "reason_required": "Reason is required for this action.",
       "reason_placeholder": "Enter reason..."
     },
-    "management_subtitle": "プロフィールの承認、サブスクリプション、ウォレット残高、およびベンダーの運用を確認します。"
+    "management_subtitle": "プロフィールの承認、サブスクリプション、ウォレット残高、およびベンダーの運用を確認します。",
+    "confirm_reject": "このアカウントを拒否してもよろしいですか？"
   },
   "content": {
     "title": "Media Moderation",
@@ -561,7 +575,25 @@
     "demoMoved": "シミュレーション位置が更新されました",
     "favorites": "お気に入り",
     "no_favorites": "お気に入りの屋台はまだありません",
-    "resume": "再開"
+    "resume": "再開",
+    "gps_granted": "許可済み",
+    "gps_requesting": "取得中...",
+    "gps_denied": "デモモード",
+    "gps_unavailable": "利用不可",
+    "gps_idle": "待機中",
+    "close_nav": "ナビゲーションを閉じる",
+    "account_status": "アカウントステータス",
+    "audio_language": "音声言語",
+    "gps_location": "GPS位置情報",
+    "demo_mode_active": "デモモード有効",
+    "near_you": "あなたの近く",
+    "view_all": "すべて表示",
+    "no_poi_nearby": "近くに観光スポットがありません。",
+    "auto_play_started": "📍 {{name}} に入りました。自動再生を開始します。",
+    "camera_lock_on": "カメラロックオン",
+    "camera_lock_off": "カメラロックオフ",
+    "camera_lock_enable": "カメラロックを有効にする",
+    "camera_lock_disable": "カメラロックを無効にする"
   },
   "map": {
     "no_gps": "GPSがありません"
@@ -627,7 +659,10 @@
       "coordinates": "中心座標",
       "pois": "POI数"
     },
-    "waiting_payment": "支払いを待っています..."
+    "waiting_payment": "支払いを待っています...",
+    "stalls_modal_title": "エリア内の店舗一覧",
+    "no_nearby_stalls": "このエリアには店舗がありません。",
+    "stalls_list": "ブースリスト"
   },
   "admin_topup": {
     "management_subtitle": "トップアップ管理",
@@ -657,7 +692,13 @@
     "modal_title": "チャージ要求の拒否",
     "modal_desc": "この要求を拒否する理由を入力してください。ベンダーにこの理由が表示されます。",
     "modal_btn_reject": "拒否する",
-    "placeholder_reason": "拒否理由を入力してください..."
+    "placeholder_reason": "拒否理由を入力してください...",
+    "loading": "チャージデータを読み込み中...",
+    "approve": "入金承認",
+    "reject": "入金拒否",
+    "modal_reject_title": "入金リクエストの拒否",
+    "modal_reject_desc": "出店者にフィードバックを送信するため、具体的な理由を入力してください:",
+    "reason_placeholder": "拒否理由を入力してください（例：振込内容の誤り、未入金など...）"
   },
   "vendor_wallet": {
     "management_subtitle": "ベンダーアカウント",
@@ -698,7 +739,8 @@
     "label_reason": "監査理由",
     "placeholder_reason": "ウォレット調整の理由を入力してください...",
     "health_no_sub": "サブスクリプションなし",
-    "health_safe": "安全"
+    "health_safe": "安全",
+    "no_plan": "プラン未登録"
   },
   "admin_users": {
     "settings": "設定",
@@ -801,6 +843,9 @@
     "clear_directions": "ルート案内をキャンセル"
   },
   "admin": {
+    "common": {
+      "delete_reason_placeholder": "削除理由を入力してください（任意）..."
+    },
     "notifications": {
       "title": "通知",
       "empty": "新しい通知はありません"
@@ -809,7 +854,8 @@
       "confirm_resolve": "このリクエストを処理済みにしますか？",
       "status": {
         "PENDING": "保留中",
-        "PROCESSED": "処理済み"
+        "PROCESSED": "処理済み",
+        "IN_PROGRESS": "処理中"
       },
       "table": {
         "date": "日付",
@@ -901,5 +947,9 @@
     "official_contact": "公式連絡先メールアドレス：support@viettouraudio.com",
     "sending": "送信中...",
     "send_button": "メッセージを送信"
+  },
+  "notifications": {
+    "reset_qr_success": "QRコードが正常にリセットされました！",
+    "reset_qr_error": "QRコードのリセットに失敗しました。もう一度お試しください。"
   }
 }

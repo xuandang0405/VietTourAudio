@@ -8,6 +8,8 @@ USE viettuoraudio;
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+TRUNCATE TABLE unlocked_tours;
+TRUNCATE TABLE payment_requests;
 TRUNCATE TABLE revenue_daily;
 TRUNCATE TABLE analytics_daily_stall;
 TRUNCATE TABLE commission_earnings;

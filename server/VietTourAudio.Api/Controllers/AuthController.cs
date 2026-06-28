@@ -8,34 +8,22 @@ namespace VietTourAudio.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController : ControllerBase
+public sealed class AuthController(IAuthService auth) : ControllerBase
 {
-  private readonly IAuthService _authService;
-
-  public AuthController(IAuthService authService)
-  {
-    _authService = authService;
-  }
-
   [HttpPost("register")]
-  public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
-  {
-    var result = await _authService.RegisterAsync(request);
-    return Ok(ApiResponseFactory.Ok(result, "Đăng ký tài khoản thành công."));
-  }
+  public async Task<IActionResult> Register([FromBody] RegisterRequestDto request) =>
+    Ok(ApiResponseFactory.Ok(await auth.RegisterAsync(request)));
 
   [HttpPost("login")]
-  public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
-  {
-    var result = await _authService.LoginAsync(request);
-    return Ok(ApiResponseFactory.Ok(result, "Đăng nhập thành công."));
-  }
+  public async Task<IActionResult> Login([FromBody] LoginRequestDto request) =>
+    Ok(ApiResponseFactory.Ok(await auth.LoginAsync(request)));
+
+  [HttpPost("refresh")]
+  public async Task<IActionResult> Refresh([FromBody] RefreshRequest request) =>
+    Ok(ApiResponseFactory.Ok(await auth.RefreshAsync(request.RefreshToken)));
 
   [Authorize]
   [HttpGet("me")]
-  public async Task<IActionResult> Me()
-  {
-    var result = await _authService.GetCurrentUserAsync();
-    return Ok(ApiResponseFactory.Ok(result, "Thông tin người dùng hiện tại."));
-  }
+  public async Task<IActionResult> Me() =>
+    Ok(ApiResponseFactory.Ok(await auth.GetCurrentUserAsync()));
 }

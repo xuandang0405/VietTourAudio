@@ -56,7 +56,7 @@ CREATE TABLE users (
   email VARCHAR(255) NOT NULL,
   pass_hash VARCHAR(255) NOT NULL,
   full_name VARCHAR(160) NOT NULL,
-  role ENUM('SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'FINANCE') NOT NULL,
+  role ENUM('SUPER_ADMIN', 'ADMIN', 'ZONE_ADMIN', 'MODERATOR', 'FINANCE', 'VENDOR', 'USER') NOT NULL,
   assigned_zone_id BIGINT UNSIGNED NULL,
   status ENUM('ACTIVE', 'LOCKED', 'PENDING', 'DISABLED') NOT NULL DEFAULT 'ACTIVE',
   last_login_at TIMESTAMP NULL DEFAULT NULL,
@@ -310,6 +310,7 @@ CREATE TABLE stalls (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_stalls_vendor_slug (vendor_id, slug),
+  UNIQUE KEY uq_stalls_vendor_id (vendor_id),
   UNIQUE KEY uq_stalls_zone_code (zone_code),
   KEY idx_stalls_vendor_id (vendor_id),
   KEY idx_stalls_status (status),
@@ -924,6 +925,19 @@ CREATE TABLE revenue_daily (
 -- =============================================================================
 -- 21. UNLOCKED TOURS (Guest unlocked premium tours)
 -- =============================================================================
+
+CREATE TABLE payment_requests (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  guest_id VARCHAR(100) NOT NULL,
+  tour_id BIGINT UNSIGNED NOT NULL,
+  reference_code VARCHAR(100) NOT NULL,
+  status ENUM('PENDING', 'PAID', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_payment_requests_reference (reference_code),
+  KEY idx_payment_requests_guest_tour (guest_id, tour_id),
+  CONSTRAINT fk_payment_requests_tour FOREIGN KEY (tour_id) REFERENCES tours(id)
+    ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE unlocked_tours (
   id INT AUTO_INCREMENT PRIMARY KEY,
