@@ -158,6 +158,7 @@ builder.Services.AddScoped<IPaymentService, DatabasePaymentService>();
 builder.Services.AddScoped<ICommissionService, CommissionService>();
 builder.Services.AddScoped<IAdminLogService, AdminLogService>();
 builder.Services.AddScoped<IGeofenceService, GeofenceService>();
+builder.Services.AddScoped<PaymentEntitlementService>();
 builder.Services.AddSingleton<PrototypeAnalyticsState>();
 
 builder.Services.AddSignalR();
@@ -238,6 +239,12 @@ builder.Services
 
 var app = builder.Build();
 var supportedCultures = new[] { "vi", "en", "ja", "ko", "zh" }.Select(x => new CultureInfo(x)).ToArray();
+
+using (var schemaScope = app.Services.CreateScope())
+{
+  var schemaDb = schemaScope.ServiceProvider.GetRequiredService<AppDbContext>();
+  await PaymentSchemaInitializer.InitializeAsync(schemaDb);
+}
 
 var uploadsPath = Path.GetFullPath(Path.Combine(
   app.Environment.ContentRootPath,

@@ -17,6 +17,8 @@ public class AppDbContext : DbContext
   public DbSet<Wallet> Wallets => Set<Wallet>();
   public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
   public DbSet<SystemTicket> SystemTickets => Set<SystemTicket>();
+  public DbSet<AdminPaymentConfig> AdminPaymentConfigs => Set<AdminPaymentConfig>();
+  public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -136,6 +138,37 @@ public class AppDbContext : DbContext
       entity.Property(x => x.CreatedAt).HasColumnName("created_at");
       entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
       entity.HasIndex(x => x.Status);
+    });
+    modelBuilder.Entity<AdminPaymentConfig>(entity =>
+    {
+      entity.ToTable("admin_payment_configs");
+      entity.HasKey(x => x.Id);
+      entity.Property(x => x.Id).HasColumnName("id");
+      entity.Property(x => x.GatewayType).HasColumnName("gateway_type").HasMaxLength(20);
+      entity.Property(x => x.AccountName).HasColumnName("account_name").HasMaxLength(255);
+      entity.Property(x => x.AccountNumber).HasColumnName("account_number").HasMaxLength(120);
+      entity.Property(x => x.QrCodeUrl).HasColumnName("qr_code_url").HasMaxLength(600);
+      entity.Property(x => x.TransferMemoPattern).HasColumnName("transfer_memo_pattern").HasMaxLength(255);
+      entity.Property(x => x.IsActive).HasColumnName("is_active");
+      entity.HasIndex(x => x.GatewayType).IsUnique();
+    });
+    modelBuilder.Entity<PaymentTransaction>(entity =>
+    {
+      entity.ToTable("payment_transactions");
+      entity.HasKey(x => x.Id);
+      entity.Property(x => x.Id).HasColumnName("id").HasColumnType("char(36)");
+      entity.Property(x => x.SenderId).HasColumnName("sender_id").HasMaxLength(160);
+      entity.Property(x => x.SenderType).HasColumnName("sender_type").HasMaxLength(20);
+      entity.Property(x => x.PaymentMethod).HasColumnName("payment_method").HasMaxLength(20);
+      entity.Property(x => x.TransactionType).HasColumnName("transaction_type").HasMaxLength(40);
+      entity.Property(x => x.Amount).HasColumnName("amount").HasPrecision(14, 2);
+      entity.Property(x => x.TransferMemo).HasColumnName("transfer_memo").HasMaxLength(255);
+      entity.Property(x => x.ProofAttachmentUrl).HasColumnName("proof_attachment_url").HasMaxLength(600);
+      entity.Property(x => x.Status).HasColumnName("status").HasMaxLength(20);
+      entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+      entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+      entity.HasIndex(x => new { x.Status, x.CreatedAt });
+      entity.HasIndex(x => x.TransferMemo).IsUnique();
     });
   }
 }

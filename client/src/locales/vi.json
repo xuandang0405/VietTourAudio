@@ -951,5 +951,20 @@
   "notifications": {
     "reset_qr_success": "Cập nhật mã QR thành công!",
     "reset_qr_error": "Không thể reset mã QR. Vui lòng thử lại."
+  },
+  "payment": {
+    "waiting_title": "Hệ thống đang xác thực giao dịch...", "waiting_desc": "Vui lòng không đóng cửa sổ này. Tài khoản Premium sẽ tự động kích hoạt ngay khi Ban quản trị phê duyệt minh chứng chuyển khoản.", "approved_title": "Hoàn tất nâng cấp Premium!", "approved_desc": "Giao dịch đã được phê duyệt. Toàn bộ tính năng Premium đã được kích hoạt trên thiết bị này.", "approved_toast": "Giao dịch đã được duyệt — Premium đã kích hoạt!", "rejected_title": "Minh chứng chưa được chấp nhận", "rejected_desc": "Vui lòng kiểm tra lại thông tin chuyển khoản và gửi ảnh minh chứng mới.", "rejected_toast": "Admin đã từ chối giao dịch.", "try_again": "Gửi lại minh chứng",
+    "premium_presentation_title": "Nâng Cấp Tài Khoản Premium - Bản Đồ Thuyết Minh Tự Động", "days": "ngày", "loading_gateways": "Đang tải cấu hình thanh toán...", "gateway_load_error": "Không thể tải cấu hình thanh toán từ hệ thống", "no_gateways": "Hiện chưa có phương thức thanh toán nào được kích hoạt.", "method_unavailable": "Phương thức này đang tạm tắt trong cấu hình Admin.", "inactive": "Tạm tắt", "qr_unavailable": "Admin chưa tải ảnh QR", "copy_failed": "Không thể sao chép. Vui lòng sao chép thủ công.", "manual_submission_success": "Giao dịch của bạn đã được gửi thành công! Hệ thống đang chờ Admin phê duyệt thực tế tại trang Admin.", "upload_failed": "Đã xảy ra lỗi khi tải minh chứng chuyển khoản", "cardholder_name": "Tên chủ thẻ", "cardholder_placeholder": "NGUYEN VAN A", "secure_processing": "Đang xác thực giao dịch an toàn", "secure_processing_desc": "Hệ thống đang kết nối cổng thẻ và kích hoạt Premium...",
+    "title": "Thanh toán hóa đơn", "select_method": "Chọn phương thức thanh toán", "momo": "Ví điện tử MoMo", "bank": "Chuyển khoản Ngân hàng", "visa": "Thẻ tín dụng Quốc tế Visa/Mastercard",
+    "account_number": "Số tài khoản / Số điện thoại", "account_name": "Tên chủ tài khoản", "memo": "Nội dung chuyển khoản bắt buộc", "memo_warning": "Chú ý: Nhập chính xác nội dung chuyển khoản ở trên để hệ thống tự động nhận diện và kích hoạt gói.",
+    "upload_proof": "Tải lên ảnh chụp hóa đơn giao dịch thành công", "submit_transaction": "Xác nhận đã chuyển tiền", "visa_card_no": "Số thẻ", "visa_expiry": "Ngày hết hạn (MM/YY)", "visa_cvv": "Mã bảo mật CVV", "visa_submit": "Thanh toán ngay bằng thẻ Visa",
+    "memo_copied": "Đã sao chép nội dung chuyển khoản", "proof_required": "Vui lòng tải lên ảnh hóa đơn", "proof_submitted": "Đã gửi hóa đơn chờ duyệt", "waiting_admin": "Hệ thống đang chờ Admin duyệt giao dịch...", "success": "Thanh toán thành công", "card_failed": "Không thể xử lý thẻ",
+    "premium_title": "Nâng cấp VietTourAudio Premium", "premium_desc": "Mở khóa trải nghiệm audio không giới hạn trong 30 ngày.", "feature_audio": "Audio đa ngôn ngữ", "feature_map": "Bản đồ và dẫn đường", "feature_unlimited": "Không giới hạn lượt nghe",
+    "vendor_billing_title": "Thanh toán & Gói Vendor", "vendor_billing_desc": "Gia hạn phí tháng hoặc nâng cấp gói Premium.", "vendor_subscription": "Gia hạn thuê bao tháng", "vendor_premium": "Nâng cấp Vendor Premium"
+  },
+  "admin_wallet": {
+    "config_title": "Cấu hình Cổng Thanh toán Hệ thống", "config_desc": "Quản lý ví nhận tiền và duyệt giao dịch thủ công.", "pending_approvals": "Danh sách Duyệt Giao dịch Nạp tiền",
+    "momo_tab": "Cấu hình Ví MoMo", "bank_tab": "Cấu hình Ngân hàng", "visa_tab": "Cổng Thẻ Visa", "qr_upload": "Ảnh QR nhận tiền", "active": "Đang kích hoạt", "saved": "Đã lưu cấu hình", "updated": "Đã cập nhật giao dịch",
+    "sender": "Người gửi", "type": "Loại", "method": "Phương thức", "amount": "Số tiền", "memo": "Nội dung", "proof": "Hóa đơn", "actions": "Thao tác", "view_proof": "Xem hóa đơn", "no_pending": "Không có giao dịch chờ duyệt"
   }
 }

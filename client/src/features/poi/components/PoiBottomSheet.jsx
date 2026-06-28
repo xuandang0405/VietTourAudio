@@ -228,14 +228,19 @@ export function PoiBottomSheet({
                         {t('landing.insideRadius')}
                       </p>
                     )}
-                    <button
-                      type="button"
-                      data-testid="replay-audio"
+                    <button 
+                      type="button" 
+                      data-testid="replay-audio" 
                       onClick={handleReplay}
-                      className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-teal-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition duration-150 ease-out hover:bg-teal-700 active:scale-[0.98]"
+                      className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-teal-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition duration-150 ease-out hover:bg-teal-700 active:scale-[0.98] cursor-pointer"
                     >
-                      <RefreshCw size={18} />
-                      {poi.isInsideRadius ? t('landing.replay', { defaultValue: 'Phát lại' }) : t('landing.replay')}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-refresh-cw">
+                        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                        <path d="M21 3v5h-5"></path>
+                        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                        <path d="M8 16H3v5"></path>
+                      </svg>
+                      {t('audio.replay', { defaultValue: 'Phát lại' })}
                     </button>
                     <p className="mt-3 text-center text-xs font-semibold text-slate-500">{t('landing.browserTts')}: {getLanguageMeta().name}</p>
                   </div>

@@ -115,3 +115,29 @@ public sealed class SystemTicket : IEntity
   public DateTime CreatedAt { get; set; }
   public DateTime UpdatedAt { get; set; }
 }
+
+public sealed class AdminPaymentConfig
+{
+  public int Id { get; set; }
+  public string GatewayType { get; set; } = "";
+  public string AccountName { get; set; } = "";
+  public string AccountNumber { get; set; } = "";
+  public string? QrCodeUrl { get; set; }
+  public string TransferMemoPattern { get; set; } = "VTA PREMIUM [Id]";
+  public bool IsActive { get; set; } = true;
+}
+
+public sealed class PaymentTransaction
+{
+  public Guid Id { get; set; }
+  public string SenderId { get; set; } = "";
+  public string SenderType { get; set; } = "";
+  public string PaymentMethod { get; set; } = "";
+  public string TransactionType { get; set; } = "";
+  public decimal Amount { get; set; }
+  public string TransferMemo { get; set; } = "";
+  public string? ProofAttachmentUrl { get; set; }
+  public string Status { get; set; } = "PENDING";
+  public DateTime CreatedAt { get; set; }
+  public DateTime UpdatedAt { get; set; }
+}

@@ -14,6 +14,11 @@ echo   VietTourAudio - Run for Windows
 echo ============================================================
 echo.
 
+echo Stopping existing .NET processes...
+taskkill /IM dotnet.exe /F >nul 2>&1
+echo   [OK]  Existing dotnet.exe processes cleared
+echo.
+
 echo [1/3] Checking database on localhost:3306...
 netstat -ano | findstr /R /C:":3306 .*LISTENING" >nul 2>&1
 if %ERRORLEVEL% equ 0 (

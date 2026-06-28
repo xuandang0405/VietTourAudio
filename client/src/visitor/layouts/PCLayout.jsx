@@ -123,14 +123,7 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
               <Heart size={20} className={isFav ? "text-red-500 fill-red-500" : "text-slate-400"} />
             </motion.button>
           )}
-          <button
-            type="button"
-            onClick={handleToggleAudio}
-            className="h-12 w-12 flex items-center justify-center rounded-full bg-teal-600 text-white shadow-sm hover:bg-teal-700 transition active:scale-[0.98]"
-            aria-label={isPlaying ? t('common.pause', { defaultValue: 'Tạm dừng' }) : t('common.play', { defaultValue: 'Phát âm thanh' })}
-          >
-            {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
-          </button>
+
         </div>
       </div>
       

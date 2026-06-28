@@ -951,5 +951,13 @@
   "notifications": {
     "reset_qr_success": "二维码重置成功！",
     "reset_qr_error": "重置二维码失败。请重试。"
+  },
+  "payment": {
+    "waiting_title": "正在验证交易...", "waiting_desc": "请勿关闭此窗口。管理员批准凭证后，Premium将自动激活。", "approved_title": "Premium升级完成！", "approved_desc": "交易已获批准，Premium现已激活。", "approved_toast": "交易已批准 — Premium已激活！", "rejected_title": "付款凭证未获批准", "rejected_desc": "请检查转账信息并重新提交凭证。", "rejected_toast": "管理员已拒绝该交易。", "try_again": "重新提交",
+    "premium_presentation_title": "升级Premium账户 - 自动语音导览地图", "days": "天", "loading_gateways": "正在加载支付配置...", "gateway_load_error": "无法加载支付配置", "no_gateways": "暂无启用的支付方式。", "method_unavailable": "该支付方式已被管理员停用。", "inactive": "已停用", "qr_unavailable": "尚未配置二维码", "copy_failed": "复制失败", "manual_submission_success": "交易已提交，正在等待管理员审核。", "upload_failed": "上传付款凭证失败", "cardholder_name": "持卡人姓名", "cardholder_placeholder": "NGUYEN VAN A", "secure_processing": "安全处理中", "secure_processing_desc": "正在连接卡片网关并激活Premium...",
+    "title": "账单支付", "select_method": "选择支付方式", "momo": "MoMo电子钱包", "bank": "银行转账", "visa": "Visa/Mastercard信用卡", "account_number": "账号/电话", "account_name": "账户名", "memo": "必填转账附言", "memo_warning": "请准确填写附言。", "upload_proof": "上传付款凭证", "submit_transaction": "确认转账", "visa_card_no": "卡号", "visa_expiry": "有效期 (MM/YY)", "visa_cvv": "CVV", "visa_submit": "立即刷卡支付", "memo_copied": "已复制", "proof_required": "请上传凭证", "proof_submitted": "凭证已提交", "waiting_admin": "等待管理员审核...", "success": "支付成功", "card_failed": "卡片处理失败", "premium_title": "升级Premium", "premium_desc": "解锁30天无限音频。", "feature_audio": "多语言音频", "feature_map": "地图与导航", "feature_unlimited": "无限收听", "vendor_billing_title": "Vendor账单", "vendor_billing_desc": "续订月费或升级Premium。", "vendor_subscription": "月度订阅", "vendor_premium": "Vendor Premium"
+  },
+  "admin_wallet": {
+    "config_title": "系统支付网关配置", "config_desc": "管理收款账户和人工审核。", "pending_approvals": "待审核交易", "momo_tab": "MoMo钱包", "bank_tab": "银行账户", "visa_tab": "Visa网关", "qr_upload": "收款二维码", "active": "启用", "saved": "已保存", "updated": "已更新", "sender": "付款人", "type": "类型", "method": "方式", "amount": "金额", "memo": "附言", "proof": "凭证", "actions": "操作", "view_proof": "查看凭证", "no_pending": "暂无待审核交易"
   }
 }

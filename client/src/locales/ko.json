@@ -951,5 +951,13 @@
   "notifications": {
     "reset_qr_success": "QR 코드가 성공적으로 재설정되었습니다!",
     "reset_qr_error": "QR 코드를 재설정하지 못했습니다. 다시 시도하십시오."
+  },
+  "payment": {
+    "waiting_title": "거래 확인 중...", "waiting_desc": "창을 닫지 마세요. 관리자 승인 즉시 Premium이 자동 활성화됩니다.", "approved_title": "Premium 업그레이드 완료!", "approved_desc": "거래가 승인되어 Premium이 활성화되었습니다.", "approved_toast": "결제 승인 — Premium 활성화!", "rejected_title": "증빙이 승인되지 않았습니다", "rejected_desc": "송금 정보를 확인하고 새 증빙을 제출하세요.", "rejected_toast": "관리자가 거래를 거절했습니다.", "try_again": "다시 제출",
+    "premium_presentation_title": "Premium 업그레이드 - 자동 오디오 가이드 지도", "days": "일", "loading_gateways": "결제 설정 로딩 중...", "gateway_load_error": "결제 설정을 불러올 수 없습니다", "no_gateways": "활성 결제 수단이 없습니다.", "method_unavailable": "관리자가 비활성화한 결제 수단입니다.", "inactive": "비활성", "qr_unavailable": "QR 이미지 없음", "copy_failed": "복사할 수 없습니다", "manual_submission_success": "거래가 제출되었습니다. 관리자 승인을 기다려 주세요.", "upload_failed": "결제 증빙 업로드 실패", "cardholder_name": "카드 소유자", "cardholder_placeholder": "NGUYEN VAN A", "secure_processing": "안전하게 처리 중", "secure_processing_desc": "카드 게이트웨이에 연결 중...",
+    "title": "결제", "select_method": "결제 수단 선택", "momo": "MoMo 지갑", "bank": "은행 송금", "visa": "Visa/Mastercard", "account_number": "계좌번호 / 전화번호", "account_name": "예금주", "memo": "필수 송금 메모", "memo_warning": "메모를 정확히 입력하세요.", "upload_proof": "영수증 업로드", "submit_transaction": "송금 확인", "visa_card_no": "카드 번호", "visa_expiry": "만료일 (MM/YY)", "visa_cvv": "CVV", "visa_submit": "카드로 결제", "memo_copied": "복사됨", "proof_required": "영수증을 업로드하세요", "proof_submitted": "제출됨", "waiting_admin": "관리자 승인 대기 중...", "success": "결제 성공", "card_failed": "카드 처리 실패", "premium_title": "Premium 업그레이드", "premium_desc": "30일 무제한 오디오를 이용하세요.", "feature_audio": "다국어 오디오", "feature_map": "지도와 길찾기", "feature_unlimited": "무제한 듣기", "vendor_billing_title": "Vendor 결제", "vendor_billing_desc": "월 구독 갱신 또는 Premium 업그레이드.", "vendor_subscription": "월 구독", "vendor_premium": "Vendor Premium"
+  },
+  "admin_wallet": {
+    "config_title": "결제 게이트웨이 설정", "config_desc": "수취 계정 및 승인을 관리합니다.", "pending_approvals": "승인 대기 결제", "momo_tab": "MoMo", "bank_tab": "은행", "visa_tab": "Visa", "qr_upload": "QR 이미지", "active": "활성", "saved": "저장됨", "updated": "업데이트됨", "sender": "송금자", "type": "유형", "method": "방법", "amount": "금액", "memo": "메모", "proof": "영수증", "actions": "작업", "view_proof": "보기", "no_pending": "대기 거래 없음"
   }
 }

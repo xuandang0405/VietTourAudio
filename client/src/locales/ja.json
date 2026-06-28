@@ -951,5 +951,13 @@
   "notifications": {
     "reset_qr_success": "QRコードが正常にリセットされました！",
     "reset_qr_error": "QRコードのリセットに失敗しました。もう一度お試しください。"
+  },
+  "payment": {
+    "waiting_title": "取引を確認しています...", "waiting_desc": "この画面を閉じないでください。管理者の承認後、Premiumが自動的に有効になります。", "approved_title": "Premiumアップグレード完了！", "approved_desc": "取引が承認され、Premiumが有効になりました。", "approved_toast": "承認されました。Premiumが有効です！", "rejected_title": "領収書は承認されませんでした", "rejected_desc": "振込情報を確認して再送信してください。", "rejected_toast": "取引が拒否されました。", "try_again": "再送信",
+    "premium_presentation_title": "Premiumアップグレード - 自動音声ガイドマップ", "days": "日", "loading_gateways": "決済設定を読み込み中...", "gateway_load_error": "決済設定を取得できません", "no_gateways": "有効な決済方法がありません。", "method_unavailable": "管理者により無効化されています。", "inactive": "無効", "qr_unavailable": "QR画像がありません", "copy_failed": "コピーできませんでした", "manual_submission_success": "取引を送信しました。管理者の承認をお待ちください。", "upload_failed": "領収書のアップロードに失敗しました", "cardholder_name": "カード名義", "cardholder_placeholder": "NGUYEN VAN A", "secure_processing": "安全に処理しています", "secure_processing_desc": "カードゲートウェイに接続しています...",
+    "title": "支払い", "select_method": "支払い方法を選択", "momo": "MoMoウォレット", "bank": "銀行振込", "visa": "Visa/Mastercard", "account_number": "口座番号・電話番号", "account_name": "口座名義", "memo": "振込メモ", "memo_warning": "メモを正確に入力してください。", "upload_proof": "領収書をアップロード", "submit_transaction": "振込を確認", "visa_card_no": "カード番号", "visa_expiry": "有効期限 (MM/YY)", "visa_cvv": "CVV", "visa_submit": "カードで支払う", "memo_copied": "コピーしました", "proof_required": "領収書を選択してください", "proof_submitted": "送信しました", "waiting_admin": "管理者の承認待ち...", "success": "支払い完了", "card_failed": "カード処理に失敗しました", "premium_title": "Premiumへアップグレード", "premium_desc": "30日間無制限で利用できます。", "feature_audio": "多言語音声", "feature_map": "地図とナビ", "feature_unlimited": "無制限再生", "vendor_billing_title": "Vendor支払い", "vendor_billing_desc": "月額更新またはPremiumへアップグレード。", "vendor_subscription": "月額契約", "vendor_premium": "Vendor Premium"
+  },
+  "admin_wallet": {
+    "config_title": "決済ゲートウェイ設定", "config_desc": "受取口座と承認を管理します。", "pending_approvals": "承認待ち取引", "momo_tab": "MoMo", "bank_tab": "銀行", "visa_tab": "Visa", "qr_upload": "QR画像", "active": "有効", "saved": "保存しました", "updated": "更新しました", "sender": "送信者", "type": "種類", "method": "方法", "amount": "金額", "memo": "メモ", "proof": "領収書", "actions": "操作", "view_proof": "表示", "no_pending": "承認待ちはありません"
   }
 }

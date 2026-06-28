@@ -56,7 +56,8 @@ const navGroups = [
     labelKey: 'sidebar.group_finance',
     items: [
       { labelKey: 'sidebar.vendor_wallet', to: '/admin/vendor-accounts', icon: WalletCards, roles: roles.finance },
-      { labelKey: 'sidebar.revenue', to: '/admin/revenue/dashboard', icon: ChartNoAxesCombined, roles: roles.finance }
+      { labelKey: 'sidebar.revenue', to: '/admin/revenue/dashboard', icon: ChartNoAxesCombined, roles: roles.finance },
+      { labelKey: 'admin_wallet.config_title', to: '/admin/payment-settings', icon: CreditCard, roles: roles.finance }
     ]
   },
   {
@@ -83,7 +84,8 @@ const breadcrumbByPath = {
   '/admin/geofences': ['Admin', 'Geofences'],
   '/admin/audit-logs': ['Admin', 'Nhật ký'],
   '/admin/settings/users': ['Admin', 'Admin users'],
-  '/admin/tickets': ['Admin', 'Hộp thư hỗ trợ']
+  '/admin/tickets': ['Admin', 'Hộp thư hỗ trợ'],
+  '/admin/payment-settings': ['Admin', 'Payment Gateway']
 };
 
 const crumbTranslationKeys = {
@@ -100,7 +102,8 @@ const crumbTranslationKeys = {
   'Nhật ký': 'sidebar.audit_logs',
   'Admin users': 'sidebar.admin_users',
   'Chi tiết': 'common.detail',
-  'Hộp thư hỗ trợ': 'sidebar.tickets'
+  'Hộp thư hỗ trợ': 'sidebar.tickets',
+  'Payment Gateway': 'admin_wallet.config_title'
 };
 
 const getBreadcrumbUrl = (crumb, currentPathname) => {
@@ -130,6 +133,8 @@ const getBreadcrumbUrl = (crumb, currentPathname) => {
       return '/admin/settings/users';
     case 'Hộp thư hỗ trợ':
       return '/admin/tickets';
+    case 'Payment Gateway':
+      return '/admin/payment-settings';
     case 'Chi tiết':
       return currentPathname;
     default:

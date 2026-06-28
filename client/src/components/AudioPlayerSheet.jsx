@@ -33,6 +33,12 @@ export function AudioPlayerSheet({ enrichedPois = [], selectedStall }) {
 
   const activePoiData = enrichedPois.find(p => p.id === currentPoiId) || visitorPois.find(p => p.id === currentPoiId);
   const activePoi = activePoiData ? localizePoi(activePoiData, currentLanguage) : null;
+
+  const serverBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace('/api', '');
+  const footerPoiImageUrl = activePoi?.imageUrl?.startsWith('http')
+    ? activePoi.imageUrl
+    : `${serverBaseUrl}${activePoi?.imageUrl || activePoi?.image || '/uploads/default-poi.png'}`;
+
   const activeStallName = activePoi?.stall_name || selectedStall?.name || t('common.unknown_stall');
   const activeStallDescription = activePoi?.stall_description || selectedStall?.description || t('landing.no_description');
 
@@ -73,9 +79,18 @@ export function AudioPlayerSheet({ enrichedPois = [], selectedStall }) {
     return (
       <aside className="absolute bottom-20 left-4 right-4 z-45 pointer-events-auto flex items-center justify-between rounded-2xl bg-white/95 p-3 shadow-lg backdrop-blur-md border border-slate-200 transition-all duration-300">
         <div className="flex items-center gap-3 overflow-hidden cursor-pointer w-full" onClick={() => setIsCollapsed(false)}>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-600 shadow-sm border border-teal-200">
-            <Headphones size={20} className={isPlaying ? 'animate-pulse' : ''} />
-          </div>
+          {activePoi ? (
+            <img 
+              src={footerPoiImageUrl} 
+              alt="Thumbnail" 
+              onError={(e) => { e.target.src = '/uploads/default-poi.png'; }}
+              className="h-10 w-10 rounded-lg object-cover"
+            />
+          ) : (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-600 shadow-sm border border-teal-200">
+              <Headphones size={20} className={isPlaying ? 'animate-pulse' : ''} />
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-slate-900">{activePoi?.title || t('landing.waiting')}</p>
             <p className="text-xs font-medium text-slate-500">

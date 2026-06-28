@@ -42,6 +42,9 @@ import { ListPage } from './features/poi/pages/ListPage';
 import { MapPage } from './features/poi/pages/MapPage';
 import { SettingsPage } from './features/poi/pages/SettingsPage';
 import { ZonePage } from './features/poi/pages/ZonePage';
+import { AdminPaymentSettings } from './features/payment/AdminPaymentSettings';
+import { UserPremiumUpgrade } from './features/payment/UserPremiumUpgrade';
+import { VendorBilling } from './features/payment/VendorBilling';
 
 function AppRoutes() {
   const { t } = useTranslation('translation', { keyPrefix: 'landing' });
@@ -118,6 +121,7 @@ function AppRoutes() {
             <Route path="/map" element={<MapPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
             <Route path="/list" element={<ListPage onUpgrade={() => setCheckoutOpen(true)} />} />
             <Route path="/settings" element={<SettingsPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
+            <Route path="/premium-upgrade" element={<UserPremiumUpgrade />} />
           </Route>
 
           <Route path="/vendor/login" element={<VendorLoginPage />} />
@@ -128,6 +132,7 @@ function AppRoutes() {
               <Route path="content" element={<VendorContent />} />
               <Route path="pois" element={<VendorPOIs />} />
               <Route path="revenue" element={<VendorRevenue />} />
+              <Route path="billing" element={<VendorBilling />} />
             </Route>
           </Route>
 
@@ -150,6 +155,7 @@ function AppRoutes() {
               <Route path="audit-logs" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminAuditLogs /></AdminGuard>} />
               <Route path="settings/users" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminUsers /></AdminGuard>} />
               <Route path="tickets" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminTickets /></AdminGuard>} />
+              <Route path="payment-settings" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN', 'FINANCE']}><AdminPaymentSettings /></AdminGuard>} />
             </Route>
           </Route>
 

@@ -14,6 +14,17 @@ namespace VietTourAudio.Api.Controllers;
 [Route("api/guest")]
 public sealed class GuestController(AppDbContext db, IHttpClientFactory clients, Microsoft.AspNetCore.Hosting.IWebHostEnvironment env, Microsoft.AspNetCore.SignalR.IHubContext<VietTourAudio.Api.Hubs.NotificationHub> hubContext) : ControllerBase
 {
+  [HttpGet("payment-gateways")]
+  public async Task<IActionResult> GetPublicGateways()
+  {
+    var activeConfigs = await db.AdminPaymentConfigs
+      .Where(config => config.IsActive)
+      .AsNoTracking()
+      .OrderBy(config => config.Id)
+      .ToListAsync();
+    return Ok(new { success = true, data = activeConfigs });
+  }
+
   [HttpGet("resolve-code/{param}")]
   public async Task<IActionResult> ResolveZoneOrSlug(
     [FromRoute] string param,

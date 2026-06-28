@@ -16,6 +16,12 @@ function SharedAudioBarComponent({ onUpgrade }) {
   const resumeAudio = useAudioStore((state) => state.resumeAudio);
 
   const currentPoi = visitorPois.find((poi) => poi.id === currentPoiId);
+  const serverBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace('/api', '');
+  const imageUrl = currentPoi?.imageUrl || currentPoi?.image;
+  const footerPoiImageUrl = imageUrl?.startsWith('http')
+    ? imageUrl
+    : `${serverBaseUrl}${imageUrl || '/uploads/default-poi.png'}`;
+
   // Audio bị khóa khi: không phải premium VÀ không còn lượt free
   const audioLocked = !isPremium && freeListensRemaining === 0;
 
@@ -82,8 +88,9 @@ function SharedAudioBarComponent({ onUpgrade }) {
         <div className="flex flex-1 items-center justify-between gap-4 pc:gap-6">
           <div className="flex min-w-0 flex-1 items-center gap-3 pc:gap-4">
             <img
-              src={currentPoi.image}
-              alt={currentPoi.title}
+              src={footerPoiImageUrl}
+              alt={currentPoi.title || "Thumbnail"}
+              onError={(e) => { e.target.src = '/uploads/default-poi.png'; }}
               className="h-12 w-12 flex-shrink-0 rounded-xl border border-glassBorder object-cover"
               loading="lazy"
               decoding="async"

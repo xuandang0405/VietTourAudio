@@ -4,11 +4,9 @@ import {
   ArrowUpCircle, 
   RefreshCcw, 
   WalletCards, 
-  UploadCloud, 
   CheckCircle2, 
   XCircle, 
-  ImageOff, 
-  Upload 
+  ImageOff 
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -31,7 +29,7 @@ const emptyForm = { amount: '', description: '', reason: '' };
 
 export function AdminVendorAccounts() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState('wallets'); // 'wallets' | 'topups' | 'bank_qr'
+  const [activeTab, setActiveTab] = useState('wallets'); // 'wallets' | 'topups'
 
   // Wallets Section Queries
   const { data: vendors = [], isLoading: isWalletsLoading, error: walletsError, refetch: refetchWallets } = useVendorWallets();
@@ -55,26 +53,11 @@ export function AdminVendorAccounts() {
   const approveTopupMutation = useApproveTopUp();
   const rejectTopupMutation = useRejectTopUp();
 
-  // Bank QR Section States
-  const [bankQrUrl, setBankQrUrl] = useState('/qr_fallback.svg');
-  const [uploadingQr, setUploadingQr] = useState(false);
-
   useEffect(() => {
     if (!selectedVendorId && vendors.length) {
       setSelectedVendorId(vendors[0].id);
     }
   }, [selectedVendorId, vendors]);
-
-  // Load Bank QR on mount
-  useEffect(() => {
-    adminApiClient.get('/admin/wallets/bank-qr')
-      .then(res => {
-        if (res?.url) {
-          setBankQrUrl(res.url);
-        }
-      })
-      .catch(err => console.error("Error loading bank QR:", err));
-  }, []);
 
   const walletRows = useMemo(() => vendors.map((vendor) => ({ ...vendor, health: getBalanceHealth(vendor, t) })), [vendors, t]);
   const selectedVendor = selectedWallet.data ?? vendors.find((vendor) => vendor.id === selectedVendorId);
@@ -152,28 +135,7 @@ export function AdminVendorAccounts() {
     }
   }
 
-  // Bank QR upload action
-  const handleQrUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append('file', file);
-    setUploadingQr(true);
-    try {
-      const res = await adminApiClient.post('/admin/wallets/update-admin-qr', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      if (res?.url) {
-        setBankQrUrl(res.url);
-        toast.success("Cập nhật QR ngân hàng nền tảng thành công!");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Lỗi khi tải ảnh QR mới lên.");
-    } finally {
-      setUploadingQr(false);
-    }
-  };
+
 
   const topupTabs = useMemo(() => [
     { label: t('admin_topup.tab_pending'), value: 'PENDING' },
@@ -187,7 +149,7 @@ export function AdminVendorAccounts() {
       <AdminPageHeader
         eyebrow="Quản lý tài chính & Ví"
         title="Sổ cái & Tài chính Vendor"
-        description="Quản lý số dư, lịch sử giao dịch kiểm toán, phê duyệt nạp tiền và cấu hình mã QR chuyển khoản ngân hàng."
+        description="Quản lý số dư, lịch sử giao dịch kiểm toán và phê duyệt nạp tiền."
         action={
           <button
             type="button"
@@ -225,17 +187,7 @@ export function AdminVendorAccounts() {
           >
             Duyệt yêu cầu nạp tiền
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('bank_qr')}
-            className={`py-3 text-sm font-black border-b-2 transition ${
-              activeTab === 'bank_qr'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-            }`}
-          >
-            Cấu hình QR Ngân hàng
-          </button>
+
         </nav>
       </div>
 
@@ -564,44 +516,7 @@ export function AdminVendorAccounts() {
         </>
       )}
 
-      {activeTab === 'bank_qr' && (
-        <section className="max-w-xl mx-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
-          <div>
-            <h2 className="text-lg font-black text-slate-950">Ảnh QR Chuyển khoản Ngân hàng</h2>
-            <p className="text-xs font-semibold text-slate-500 mt-1">Ảnh QR này sẽ hiển thị cho tất cả Vendor trên cổng thanh toán của họ để nạp tiền.</p>
-          </div>
 
-          <div className="flex justify-center rounded-xl bg-slate-50 p-4 border border-dashed border-slate-200">
-            <img 
-              src={bankQrUrl} 
-              alt="Bank Transfer QR Code" 
-              className="h-64 w-64 object-contain rounded-lg shadow-sm bg-white" 
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
-              Tải lên mã QR mới
-            </label>
-            <div className="flex items-center gap-4">
-              <label className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-sm font-black text-white transition shadow-sm disabled:opacity-50">
-                <Upload size={16} />
-                {uploadingQr ? "Đang tải lên..." : "Chọn ảnh QR"}
-                <input 
-                  type="file" 
-                  accept="image/png,image/jpeg,image/svg+xml" 
-                  className="hidden" 
-                  disabled={uploadingQr} 
-                  onChange={handleQrUpload} 
-                />
-              </label>
-              <span className="text-xs font-semibold text-slate-400">
-                Hỗ trợ định dạng PNG, JPG, hoặc SVG.
-              </span>
-            </div>
-          </div>
-        </section>
-      )}
     </div>
   );
 }
