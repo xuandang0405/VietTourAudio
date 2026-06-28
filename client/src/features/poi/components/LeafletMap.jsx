@@ -1,7 +1,7 @@
 import L from 'leaflet';
 import { memo, useEffect, useMemo, useRef } from 'react';
 import { Circle, MapContainer, Marker, TileLayer, Tooltip, useMap, useMapEvents, Polyline, Popup } from 'react-leaflet';
-import { mapCenter, visitorPois } from '../../../data/visitorPois';
+import { mapCenter } from '../../../data/visitorPois';
 import { useTranslation } from 'react-i18next';
 import { useLocationStore } from '../../geofence-audio/stores/locationStore';
 
@@ -219,25 +219,36 @@ const MapMarkers = memo(function MapMarkers({ pois, selectedPoi, position, onSel
 
   const markerData = useMemo(
     () =>
-      pois.map((poi) => {
+      pois.map((poi, index) => {
+        const latitude = Number.parseFloat(poi.latitude ?? poi.lat);
+        const longitude = Number.parseFloat(poi.longitude ?? poi.lng ?? poi.long);
+        if (
+          !Number.isFinite(latitude) ||
+          !Number.isFinite(longitude) ||
+          latitude === 0 ||
+          longitude === 0
+        ) return null;
+
+        const normalizedPoi = { ...poi, latitude, longitude };
         const isActive = selectedPoi?.id === poi.id || poi.isInsideRadius;
         return {
-          poi,
+          poi: normalizedPoi,
+          key: poi.id || `poi-marker-${index}`,
           active: isActive,
           icon: createPoiIcon({
             category: poi.category,
             isActive
           })
         };
-      }),
+      }).filter(Boolean),
     [pois, selectedPoi]
   );
 
   return (
     <>
-      {markerData.map(({ poi, active, icon }) => (
+      {markerData.map(({ poi, key, active, icon }) => (
         <Marker
-          key={poi.id}
+          key={key}
           position={[poi.latitude, poi.longitude]}
           icon={icon}
           zIndexOffset={active ? 999 : 0}
@@ -249,12 +260,12 @@ const MapMarkers = memo(function MapMarkers({ pois, selectedPoi, position, onSel
           }}
         >
           <Tooltip direction="top" offset={[0, -8]} opacity={1}>
-            <span className="text-xs font-bold">{poi.title}</span>
+            <span className="text-xs font-bold">{poi.stallName || poi.name || poi.title}</span>
           </Tooltip>
           <Popup className="tourism-popup">
             <div className="min-w-[220px] max-w-[280px] rounded-xl font-sans text-slate-900">
               <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                {poi.title}
+                {poi.stallName || poi.name || poi.title}
               </h3>
 
               <p className="mt-1 text-xs text-slate-500 line-clamp-2">
@@ -288,11 +299,11 @@ const MapMarkers = memo(function MapMarkers({ pois, selectedPoi, position, onSel
         </Marker>
       ))}
 
-      {pois
-        .filter((poi) => poi.isInsideRadius)
-        .map((poi) => (
+      {markerData
+        .filter(({ poi }) => poi.isInsideRadius)
+        .map(({ poi, key }) => (
           <Circle
-            key={`${poi.id}-radius`}
+            key={`${key}-radius`}
             center={[poi.latitude, poi.longitude]}
             radius={poi.activationRadius}
             pathOptions={{
@@ -330,7 +341,19 @@ function MapRegister() {
 }
 
 function LeafletMapComponent({ selectedPoi, enrichedPois, position, onSelectPoi, routingCoordinates, zoneCenter }) {
-  const pois = Array.isArray(enrichedPois) && enrichedPois.length > 0 ? enrichedPois : visitorPois;
+  const pois = Array.isArray(enrichedPois)
+    ? enrichedPois
+        .map((poi) => ({
+          ...poi,
+          latitude: Number.parseFloat(poi.latitude ?? poi.lat),
+          longitude: Number.parseFloat(poi.longitude ?? poi.lng ?? poi.long)
+        }))
+        .filter((poi) =>
+          Number.isFinite(poi.latitude) &&
+          Number.isFinite(poi.longitude) &&
+          poi.latitude !== 0 &&
+          poi.longitude !== 0)
+    : [];
   const hasActiveRoute = Boolean(routingCoordinates && routingCoordinates.length > 0);
   const isProgrammaticMoveRef = useRef(false);
 

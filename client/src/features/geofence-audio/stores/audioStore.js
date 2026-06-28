@@ -4,7 +4,7 @@ import { speakText, stopSpeech } from '../../../utils/ttsPlayer';
 import { useAudioQueueStore } from './audioQueueStore';
 import { visitorTrackingService } from '../services/visitorTrackingService';
 import { usePremiumStore } from '../../vendor-wallet/stores/premiumStore';
-import { appConfig } from '../../../config/appConfig';
+import { resolveBackendMediaUrl } from '../../../utils/mediaUrl';
 
 const DEFAULT_COOLDOWN_MS = 10 * 60 * 1000;
 let globalAudio = null;
@@ -108,14 +108,7 @@ export const useAudioStore = create(
           const audio = getAudioElement({ getState: () => get(), setState: set });
           if (audio) {
             try {
-              let resolvedUrl = audioUrl;
-              if (audioUrl.startsWith('/uploads')) {
-                const origin = appConfig.apiBaseUrl.replace('/api', '');
-                resolvedUrl = `${origin}${audioUrl}`;
-              } else if (!audioUrl.startsWith('http')) {
-                const origin = appConfig.apiBaseUrl.replace('/api', '');
-                resolvedUrl = `${origin}/uploads/${audioUrl}`;
-              }
+              const resolvedUrl = resolveBackendMediaUrl(audioUrl);
 
               audio.src = resolvedUrl;
               audio.load();

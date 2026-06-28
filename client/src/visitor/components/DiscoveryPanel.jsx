@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useLocationStore } from '../../features/geofence-audio/stores/locationStore';
 import axios from 'axios';
 import { appConfig } from '../../config/appConfig';
+import { resolveBackendMediaUrl } from '../../utils/mediaUrl';
 
 const CATEGORY_EMOJI = {
   food: '🍜', restaurant: '🍜',
@@ -190,10 +191,13 @@ export function DiscoveryPanel() {
                           <div className="flex-shrink-0 h-12 w-12 rounded-xl overflow-hidden border border-slate-100 shadow-sm bg-slate-50">
                           {zone.coverImage ? (
                             <img
-                              src={zone.coverImage}
+                              src={resolveBackendMediaUrl(zone.coverImage)}
                               alt={zone.name}
                               className="h-full w-full object-cover"
                               loading="lazy"
+                              onError={(event) => {
+                                event.currentTarget.style.display = 'none';
+                              }}
                             />
                           ) : (
                             <div className="h-full w-full grid place-items-center text-slate-300">

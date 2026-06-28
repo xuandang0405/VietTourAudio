@@ -184,9 +184,9 @@ export function MobileLayout({
                       onClick={() => handleSelectPoi(poi)}
                       className="grid grid-cols-[58px_1fr_auto] items-center gap-3 p-2 text-left bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition active:scale-[0.99] pointer-events-auto"
                     >
-                      <img className="h-14 w-14 rounded-xl border border-slate-100 object-cover" src={poi.image} alt={poi.title} loading="lazy" decoding="async" />
+                      {poi.image && <img className="h-14 w-14 rounded-xl border border-slate-100 object-cover" src={poi.image} alt={poi.stallName || poi.name || poi.title} loading="lazy" decoding="async" />}
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-bold text-slate-900">{poi.title}</span>
+                        <span className="block truncate text-sm font-bold text-slate-900">{poi.stallName || poi.name || poi.title}</span>
                         <span className="mt-1 block text-xs font-semibold text-teal-600">{poi.distanceLabel}</span>
                       </span>
                       <span className={poi.isInsideRadius ? 'h-3 w-3 rounded-full bg-orange-500 shadow-sm' : 'h-3 w-3 rounded-full bg-slate-200'} />
@@ -206,9 +206,9 @@ export function MobileLayout({
                       onClick={() => handleSelectPoi(poi)}
                       className="grid grid-cols-[58px_1fr_auto] items-center gap-3 p-2 text-left bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition active:scale-[0.99] pointer-events-auto"
                     >
-                      <img className="h-14 w-14 rounded-xl border border-slate-100 object-cover" src={poi.image} alt={poi.title} loading="lazy" decoding="async" />
+                      {poi.image && <img className="h-14 w-14 rounded-xl border border-slate-100 object-cover" src={poi.image} alt={poi.stallName || poi.name || poi.title} loading="lazy" decoding="async" />}
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-bold text-slate-900">{poi.title}</span>
+                        <span className="block truncate text-sm font-bold text-slate-900">{poi.stallName || poi.name || poi.title}</span>
                         <span className="mt-1 block text-xs font-semibold text-teal-600">{poi.distanceLabel}</span>
                       </span>
                       <span className={poi.isInsideRadius ? 'h-3 w-3 rounded-full bg-orange-500 shadow-sm' : 'h-3 w-3 rounded-full bg-slate-200'} />

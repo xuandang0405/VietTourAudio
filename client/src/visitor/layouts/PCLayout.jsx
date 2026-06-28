@@ -24,6 +24,9 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
   const currentPoiId = useAudioStore((state) => state.currentPoiId);
   const pauseAudio = useAudioStore((state) => state.pauseAudio);
   const resumeAudio = useAudioStore((state) => state.resumeAudio);
+  const playPoi = useAudioStore((state) => state.playPoi);
+  const getLanguageMeta = useLanguageStore((state) => state.getLanguageMeta);
+  const activePoi = useLocationStore((state) => state.activePoi);
 
   // HTML5 Progress states
   const currentTime = useAudioStore((state) => state.currentTime);
@@ -31,7 +34,11 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
   const isHtml5 = useAudioStore((state) => state.isHtml5);
   const seek = useAudioStore((state) => state.seek);
 
-  const currentPoi = enrichedPois.find((poi) => poi.id === currentPoiId) || visitorPois.find((poi) => poi.id === currentPoiId);
+  const currentPoi =
+    enrichedPois.find((poi) => poi.id === currentPoiId) ||
+    enrichedPois.find((poi) => poi.id === activePoi?.id) ||
+    activePoi ||
+    visitorPois.find((poi) => poi.id === currentPoiId);
   const audioLocked = !isPremium && freeListensRemaining === 0;
   const activeStallName = currentPoi?.stall_name || selectedStall?.name || t('common.unknown_stall');
   const activeStallDescription = currentPoi?.stall_description || selectedStall?.description || t('landing.no_description');
@@ -39,6 +46,18 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
   const isFavorite = useFavoritesStore((state) => state.isFavorite);
   const stallId = currentPoi?.stallId || selectedStall?.id;
   const isFav = stallId ? isFavorite(stallId) : false;
+  const handleToggleAudio = () => {
+    if (!currentPoi) return;
+    if (isPlaying && currentPoi.id === currentPoiId) {
+      pauseAudio();
+      return;
+    }
+    if (!isPlaying && currentPoi.id === currentPoiId) {
+      resumeAudio();
+      return;
+    }
+    playPoi(currentPoi, getLanguageMeta());
+  };
 
   const formatTime = (secs) => {
     if (isNaN(secs) || secs === Infinity) return '00:00';
@@ -105,8 +124,10 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
             </motion.button>
           )}
           <button
-            onClick={() => isPlaying ? pauseAudio() : resumeAudio()}
+            type="button"
+            onClick={handleToggleAudio}
             className="h-12 w-12 flex items-center justify-center rounded-full bg-teal-600 text-white shadow-sm hover:bg-teal-700 transition active:scale-[0.98]"
+            aria-label={isPlaying ? t('common.pause', { defaultValue: 'Tạm dừng' }) : t('common.play', { defaultValue: 'Phát âm thanh' })}
           >
             {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
           </button>
@@ -339,10 +360,10 @@ export function PCLayout({
                     onClick={() => handleSelectPoi(poi)}
                     className={`flex gap-3 p-3 rounded-xl border transition cursor-pointer ${isActive ? 'bg-teal-50 border-teal-200 shadow-sm' : 'bg-white border-slate-100 hover:border-teal-100 hover:shadow-sm'}`}
                   >
-                     <img src={poi.image} alt={poi.title} className="w-[72px] h-[72px] rounded-lg object-cover bg-slate-200 flex-shrink-0" />
+                     {poi.image && <img src={poi.image} alt={poi.stallName || poi.name || poi.title} className="w-[72px] h-[72px] rounded-lg object-cover bg-slate-200 flex-shrink-0" />}
                      <div className="flex-1 min-w-0 flex flex-col justify-center">
                         <p className="text-xs font-bold text-teal-600 truncate mb-1 uppercase">{poi.category}</p>
-                        <p className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug">{poi.title}</p>
+                        <p className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug">{poi.stallName || poi.name || poi.title}</p>
                         <div className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-500">
                           <MapPin size={12} className={poi.isInsideRadius ? "text-orange-500" : "text-slate-400"} />
                           <span className={poi.isInsideRadius ? "text-orange-600 font-bold" : ""}>{poi.distanceLabel || 'Đang tính...'}</span>
@@ -361,10 +382,10 @@ export function PCLayout({
                       onClick={() => handleSelectPoi(poi)}
                       className={`flex gap-3 p-3 rounded-xl border transition cursor-pointer ${isActive ? 'bg-teal-50 border-teal-200 shadow-sm' : 'bg-white border-slate-100 hover:border-teal-100 hover:shadow-sm'}`}
                     >
-                       <img src={poi.image} alt={poi.title} className="w-[72px] h-[72px] rounded-lg object-cover bg-slate-200 flex-shrink-0" />
+                       {poi.image && <img src={poi.image} alt={poi.stallName || poi.name || poi.title} className="w-[72px] h-[72px] rounded-lg object-cover bg-slate-200 flex-shrink-0" />}
                        <div className="flex-1 min-w-0 flex flex-col justify-center">
                           <p className="text-xs font-bold text-teal-600 truncate mb-1 uppercase">{poi.category}</p>
-                          <p className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug">{poi.title}</p>
+                          <p className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug">{poi.stallName || poi.name || poi.title}</p>
                           <div className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-500">
                             <MapPin size={12} className={poi.isInsideRadius ? "text-orange-500" : "text-slate-400"} />
                             <span className={poi.isInsideRadius ? "text-orange-600 font-bold" : ""}>{poi.distanceLabel || 'Đang tính...'}</span>

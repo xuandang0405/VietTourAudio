@@ -14,6 +14,173 @@ namespace VietTourAudio.Api.Controllers;
 [Route("api/guest")]
 public sealed class GuestController(AppDbContext db, IHttpClientFactory clients, Microsoft.AspNetCore.Hosting.IWebHostEnvironment env, Microsoft.AspNetCore.SignalR.IHubContext<VietTourAudio.Api.Hubs.NotificationHub> hubContext) : ControllerBase
 {
+  [HttpGet("resolve-code/{param}")]
+  public async Task<IActionResult> ResolveZoneOrSlug(
+    [FromRoute] string param,
+    [FromQuery] string? lang)
+  {
+    if (string.IsNullOrWhiteSpace(param))
+      return BadRequest(new { success = false, message = "Param is missing." });
+
+    var normalizedParam = param.Trim().ToLowerInvariant();
+    var publicZones = db.FestivalZones
+      .Include(zone => zone.Pois.Where(poi =>
+        poi.Status == "ACTIVE" && poi.ApprovalStatus == ApprovalStatus.APPROVED))
+        .ThenInclude(poi => poi.Products)
+      .AsNoTracking();
+
+    var activeZone = await publicZones.FirstOrDefaultAsync(zone =>
+        (zone.Status == "ACTIVE" || zone.Status == "PUBLISHED") &&
+        zone.Slug.ToLower() == normalizedParam);
+
+    if (activeZone is null)
+    {
+      var qrTour = (await DatabaseSql.QueryRowsAsync(db, """
+        SELECT tour_id AS tourId
+        FROM qr_codes
+        WHERE qr_type = 'TOUR'
+          AND tour_id IS NOT NULL
+          AND (
+            (LOWER(REPLACE(code, '-', '')) = REPLACE(@param, '-', '') AND is_active = 1)
+            OR (
+              LOWER(SUBSTRING_INDEX(TRIM(TRAILING '/' FROM target_url), '/', -1)) = @param
+              AND is_active = 1
+            )
+          )
+        ORDER BY is_active DESC, id DESC
+        LIMIT 1
+        """, new Dictionary<string, object?> { ["@param"] = normalizedParam }))
+        .SingleOrDefault();
+
+      if (qrTour is not null)
+      {
+        var tourId = Convert.ToUInt64(qrTour["tourId"]);
+        // An explicitly active TOUR QR is itself a public-entry grant. This keeps
+        // unscanned drafts private while allowing their issued QR deep link.
+        activeZone = await publicZones.FirstOrDefaultAsync(zone => zone.Id == tourId);
+      }
+    }
+
+    if (activeZone is null)
+    {
+      var stall = (await DatabaseSql.QueryRowsAsync(db, """
+        SELECT id, name, slug, description, status, zone_code AS zoneCode
+        FROM stalls
+        WHERE (LOWER(zone_code) = @param OR LOWER(slug) = @param)
+          AND status = 'APPROVED'
+          AND billing_suspended = 0
+        LIMIT 1
+        """, new Dictionary<string, object?> { ["@param"] = normalizedParam }))
+        .SingleOrDefault();
+
+      if (stall is not null)
+      {
+        var stallId = Convert.ToUInt64(stall["id"]);
+        var contents = await LoadApprovedPoiContentAsync(stallId, false, lang);
+        var stallPois = await db.Pois
+          .Where(poi =>
+            poi.StallId == stallId &&
+            poi.Status == "ACTIVE" &&
+            poi.ApprovalStatus == ApprovalStatus.APPROVED)
+          .Include(poi => poi.Products)
+          .AsNoTracking()
+          .ToListAsync();
+
+        return Ok(ApiResponseFactory.Ok(new
+        {
+          stall,
+          pois = stallPois.Select(poi => new
+          {
+            poi.Id,
+            poi.Name,
+            poi.Slug,
+            poi.Description,
+            poi.Latitude,
+            poi.Longitude,
+            poi.ActivationRadius,
+            poi.StallId,
+            poi.TourId,
+            poi.Status,
+            approvalStatus = poi.ApprovalStatus.ToString(),
+            audioUrl = contents.GetValueOrDefault(poi.Id)?.GetValueOrDefault("audioUrl"),
+            ttsScript = contents.GetValueOrDefault(poi.Id)?.GetValueOrDefault("ttsScript"),
+            products = poi.Products.Select(product => new
+            {
+              product.Id,
+              product.Name,
+              product.Price
+            })
+          })
+        }));
+      }
+    }
+
+    if (activeZone is null)
+      return NotFound(new { success = false, message = "Zone not found." });
+
+    var zoneContents = await LoadApprovedPoiContentAsync(activeZone.Id, true, lang);
+    var data = new
+    {
+      stall = new
+      {
+        activeZone.Id,
+        activeZone.Name,
+        activeZone.Slug,
+        activeZone.Description,
+        activeZone.Status,
+        tourId = activeZone.Id,
+        tourSlug = activeZone.Slug,
+        isTour = true
+      },
+      pois = activeZone.Pois.Select(poi => new
+      {
+        poi.Id,
+        poi.Name,
+        poi.Slug,
+        poi.Description,
+        poi.Latitude,
+        poi.Longitude,
+        poi.ActivationRadius,
+        poi.StallId,
+        poi.TourId,
+        poi.Status,
+        approvalStatus = poi.ApprovalStatus.ToString(),
+        audioUrl = zoneContents.GetValueOrDefault(poi.Id)?.GetValueOrDefault("audioUrl"),
+        ttsScript = zoneContents.GetValueOrDefault(poi.Id)?.GetValueOrDefault("ttsScript"),
+        products = poi.Products.Select(product => new
+        {
+          product.Id,
+          product.Name,
+          product.Price
+        })
+      })
+    };
+
+    return Ok(ApiResponseFactory.Ok(data));
+  }
+
+  private async Task<Dictionary<ulong, Dictionary<string, object?>>> LoadApprovedPoiContentAsync(
+    ulong scopeId,
+    bool tourScope,
+    string? lang)
+  {
+    var scopeColumn = tourScope ? "tour_id" : "stall_id";
+    var rows = await DatabaseSql.QueryRowsAsync(db, $"""
+      SELECT pc.poi_id AS poiId, pc.audio_url AS audioUrl, pc.tts_script AS ttsScript
+      FROM poi_contents pc
+      JOIN zones poi ON poi.id = pc.poi_id
+      WHERE poi.{scopeColumn} = @scopeId
+        AND pc.lang = @lang
+        AND pc.approval_status = 'approved'
+      """, new Dictionary<string, object?>
+    {
+      ["@scopeId"] = scopeId,
+      ["@lang"] = SupportedLanguage(lang ?? "vi")
+    });
+
+    return rows.ToDictionary(row => Convert.ToUInt64(row["poiId"]));
+  }
+
   [HttpGet("zones")]
   [HttpGet("tours")]
   public async Task<IActionResult> Zones()

@@ -25,6 +25,7 @@ import {
   useVendors
 } from '../../../admin/api/adminQueries';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
+import { resolveBackendMediaUrl } from '../../../utils/mediaUrl';
 import L from 'leaflet';
 
 const customIcon = new L.Icon({
@@ -651,7 +652,12 @@ export function ZoneManagement() {
                 >
                   <div className="flex items-center gap-3">
                     {zone.coverImageUrl && (
-                      <img src={zone.coverImageUrl} alt={zone.name} className="h-10 w-10 rounded-lg object-cover" />
+                      <img
+                        src={resolveBackendMediaUrl(zone.coverImageUrl)}
+                        alt={zone.name}
+                        className="h-10 w-10 rounded-lg object-cover"
+                        onError={(event) => { event.currentTarget.style.display = 'none'; }}
+                      />
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="font-black text-slate-950 truncate">{zone.name}</p>
@@ -918,7 +924,7 @@ export function ZoneManagement() {
                 </div>
                 {previewUrl && (
                   <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-slate-200">
-                    <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                    <img src={resolveBackendMediaUrl(previewUrl)} alt="Preview" className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={clearSelectedFile}
@@ -942,7 +948,7 @@ export function ZoneManagement() {
                 {formCoverImageUrl && (
                   <div className="w-full aspect-video rounded-lg overflow-hidden border border-slate-200">
                     <img
-                      src={formCoverImageUrl}
+                      src={resolveBackendMediaUrl(formCoverImageUrl)}
                       alt="Preview URL"
                       className="w-full h-full object-cover"
                       onError={(e) => {

@@ -3,6 +3,8 @@ using VietTourAudio.Api.DTOs;
 using VietTourAudio.Api.Helpers;
 using VietTourAudio.Api.Interfaces;
 using VietTourAudio.Api.Data;
+using VietTourAudio.Api.Domain;
+using Microsoft.EntityFrameworkCore;
 
 namespace VietTourAudio.Api.Controllers;
 
@@ -56,9 +58,12 @@ public class StallController : ControllerBase
     return Ok(ApiResponseFactory.Ok(result, "Đã tạm khóa sạp."));
   }
 
-  [HttpGet("/api/guest/resolve-code/{code}")]
-  public async Task<IActionResult> ResolveCode(string code)
+  [HttpGet("resolve-code/{code}")]
+  public async Task<IActionResult> ResolveCode([FromRoute] string code, [FromQuery] string? lang)
   {
+    if (string.IsNullOrWhiteSpace(code))
+      return BadRequest(ApiResponseFactory.Fail("Mã xác thực khu vực trống."));
+
     var trimmedCode = code.Trim();
 
     // Strategy 1: Find Tour via QR code
@@ -90,7 +95,7 @@ public class StallController : ControllerBase
           Request.Headers["User-Agent"].ToString(),
           Request.Headers["Referer"].ToString());
 
-        var pois = await GetZonesForTour(connection, tourId);
+        var pois = await LoadActiveTourPoisAsync(tourId);
         return Ok(ApiResponseFactory.Ok(new
         {
           Stall = new { Id = tourId, Name = tourName, Slug = tourSlug, Description = tourDesc, Status = tourStatus, IsTour = true, TourId = tourId, TourSlug = tourSlug },
@@ -102,7 +107,13 @@ public class StallController : ControllerBase
     // Strategy 2: Find Tour by slug
     await using (var slugLookup = connection.CreateCommand())
     {
-      slugLookup.CommandText = "SELECT id, name, slug, description, status, vendor_id FROM tours WHERE slug = @slug AND status = 'PUBLISHED' LIMIT 1";
+      slugLookup.CommandText = """
+        SELECT id, name, slug, description, status, vendor_id
+        FROM tours
+        WHERE LOWER(TRIM(slug)) = @slug
+          AND status IN ('ACTIVE', 'PUBLISHED')
+        LIMIT 1
+        """;
       slugLookup.AddParameter("@slug", trimmedCode.ToLowerInvariant());
       await using var reader = await slugLookup.ExecuteReaderAsync();
       if (await reader.ReadAsync())
@@ -121,7 +132,7 @@ public class StallController : ControllerBase
           Request.Headers["User-Agent"].ToString(),
           Request.Headers["Referer"].ToString());
 
-        var pois = await GetZonesForTour(connection, tourId);
+        var pois = await LoadActiveTourPoisAsync(tourId);
         return Ok(ApiResponseFactory.Ok(new
         {
           Stall = new { Id = tourId, Name = tourName, Slug = tourSlug, Description = tourDesc, Status = tourStatus, IsTour = true, TourId = tourId, TourSlug = tourSlug },
@@ -178,32 +189,37 @@ public class StallController : ControllerBase
     }
   }
 
-  private static async Task<List<object>> GetZonesForTour(System.Data.Common.DbConnection connection, ulong tourId)
+  private async Task<IReadOnlyCollection<object>> LoadActiveTourPoisAsync(ulong tourId)
   {
-    var results = new List<object>();
-    await using var command = connection.CreateCommand();
-    command.CommandText = @"SELECT z.id, z.name, z.slug, z.description, z.latitude, z.longitude,
-                                   z.activation_radius, z.is_premium_content, z.status, z.sort_order
-                            FROM zones z WHERE z.tour_id = @tourId AND z.status = 'ACTIVE'
-                            ORDER BY z.sort_order ASC, z.id ASC";
-    command.AddParameter("@tourId", tourId);
-    await using var reader = await command.ExecuteReaderAsync();
-    while (await reader.ReadAsync())
-    {
-      results.Add(new
+    var activeTour = await _db.FestivalZones
+      .Include(t => t.Pois.Where(p =>
+        p.Status == "ACTIVE" && p.ApprovalStatus == ApprovalStatus.APPROVED))
+        .ThenInclude(p => p.Products)
+      .AsNoTracking()
+      .FirstOrDefaultAsync(t =>
+        t.Id == tourId && (t.Status == "ACTIVE" || t.Status == "PUBLISHED"));
+
+    return activeTour?.Pois
+      .Select(p => (object)new
       {
-        Id = reader.UInt64("id"),
-        Name = reader.GetString(reader.GetOrdinal("name")),
-        Slug = reader.GetString(reader.GetOrdinal("slug")),
-        Description = reader.NullableString("description"),
-        Latitude = reader.Decimal("latitude"),
-        Longitude = reader.Decimal("longitude"),
-        ActivationRadius = reader.Int32("activation_radius"),
-        IsPremium = reader.Boolean("is_premium_content"),
-        Status = reader.GetString(reader.GetOrdinal("status")),
-        SortOrder = reader.Int32("sort_order")
-      });
-    }
-    return results;
+        p.Id,
+        p.Name,
+        p.Slug,
+        p.Description,
+        p.Latitude,
+        p.Longitude,
+        p.ActivationRadius,
+        p.StallId,
+        p.TourId,
+        p.Status,
+        p.ApprovalStatus,
+        Products = p.Products.Select(product => new
+        {
+          product.Id,
+          product.Name,
+          product.Price
+        })
+      })
+      .ToArray() ?? [];
   }
 }

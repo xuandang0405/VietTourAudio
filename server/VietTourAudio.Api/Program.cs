@@ -205,7 +205,7 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddCors(options =>
 {
-  options.AddPolicy("ClientApp", policy =>
+  options.AddPolicy("AllowReactClients", policy =>
   {
     policy
       .WithOrigins(allowedOrigins)
@@ -272,7 +272,7 @@ app.UseStaticFiles(new StaticFileOptions
 });
 app.UseStaticFiles();
 app.UseRouting();
-app.UseCors("ClientApp");
+app.UseCors("AllowReactClients");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapHub<VietTourAudio.Api.Hubs.NotificationHub>("/hub/notifications");

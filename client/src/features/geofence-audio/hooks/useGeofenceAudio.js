@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { appConfig } from '../../../config/appConfig';
 import { poiService } from '../../poi/services/poiService';
-import { stallService } from '../../vendor-wallet/services/stallService';
 import { useAudioStore } from '../stores/audioStore';
 import { useLanguageStore } from '../../../stores/languageStore';
 import { useLocationStore } from '../stores/locationStore';
 import { usePremiumStore } from '../../vendor-wallet/stores/premiumStore';
 import { visitorTrackingService } from '../services/visitorTrackingService';
 import { enrichPoisWithDistance, getDistanceMeters } from '../../../utils/geo';
-import { visitorPois, localizePoi } from '../../../data/visitorPois';
+import { localizePoi } from '../../../data/visitorPois';
+import { resolveBackendMediaUrl } from '../../../utils/mediaUrl';
 
 /**
  * [UC08] View Nearby POI & Audio Playback - Custom Hook.
@@ -22,7 +21,7 @@ export function useGeofenceAudio({ onToast }) {
   const { t: tRoot } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedPoiId, setSelectedPoiId] = useState(searchParams.get('poi'));
-  const [pois, setPois] = useState(visitorPois);
+  const [pois, setPois] = useState([]);
   const [selectedStall, setSelectedStall] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [routingCoordinates, setRoutingCoordinates] = useState([]);
@@ -57,17 +56,12 @@ export function useGeofenceAudio({ onToast }) {
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
 
   const enrichedPois = useMemo(() => {
-    const tourSlug = searchParams.get('zone');
-    let filteredPois = pois.filter((poi) => (poi.status ?? 'ACTIVE') === 'ACTIVE' && (poi.approvalStatus ?? 'APPROVED') === 'APPROVED');
-    if (tourSlug) {
-      const isNumericQuery = /^\d+$/.test(tourSlug);
-      filteredPois = filteredPois.filter((poi) => {
-        if (isNumericQuery) {
-          return poi.tourId !== null && Number(poi.tourId) === Number(tourSlug);
-        }
-        return poi.tourSlug === tourSlug;
-      });
-    }
+    const filteredPois = pois.filter((poi) =>
+      String(poi.status ?? 'ACTIVE').toUpperCase() === 'ACTIVE' &&
+      ['APPROVED', 'ACTIVE', '1'].includes(
+        String(poi.approvalStatus ?? 'APPROVED').toUpperCase()
+      )
+    );
     const localizedPois = filteredPois.map((poi) => localizePoi(poi, currentLanguage));
     if (!position) {
       return localizedPois.map((poi) => ({ ...poi, distanceLabel: poi.distanceHint, isInsideRadius: false }));
@@ -148,10 +142,6 @@ export function useGeofenceAudio({ onToast }) {
         localStorage.setItem('locked_zone', zoneParam);
         sessionStorage.setItem('last_scanned_zone', zoneParam);
 
-        // Record scan event in backend (resolves and saves to qr_scan_events)
-        stallService.resolveCode(zoneParam, i18n.language).catch(() => {
-          // Ignore background resolution/analytics errors
-        });
       }
     } else {
       // If zone param is missing in URL but we are locked, restore it
@@ -164,136 +154,100 @@ export function useGeofenceAudio({ onToast }) {
     }
   }, [searchParams, setSearchParams]);
 
-  // Load POIs from backend, merge with local data fallback
+  // Resolve the scanned zone and load its relational POIs from the live API.
   useEffect(() => {
     let active = true;
-    const zoneCode = searchParams.get('zone');
+    const queryParams = new URLSearchParams(window.location.search);
+    const zoneToken = queryParams.get('zone');
 
-    const mapApiPois = (apiPois, currentPois) => {
-      if (apiPois.length === 0) return currentPois;
-
-      return apiPois.map((apiPoi) => {
+    const mapApiPois = (apiPois) =>
+      apiPois
+        .map((apiPoi) => {
+        const latitude = Number.parseFloat(apiPoi.latitude ?? apiPoi.lat);
+        const longitude = Number.parseFloat(apiPoi.longitude ?? apiPoi.lng ?? apiPoi.long);
+        if (
+          !Number.isFinite(latitude) ||
+          !Number.isFinite(longitude) ||
+          latitude === 0 ||
+          longitude === 0 ||
+          latitude < -90 ||
+          latitude > 90 ||
+          longitude < -180 ||
+          longitude > 180
+        ) return null;
         const apiId = Number(apiPoi.id);
-        const localPoi = currentPois.find((candidate) => candidate.apiId === apiId);
-        const fallback = localPoi ?? currentPois[0] ?? visitorPois[0];
-        const description = apiPoi.description ?? fallback.description;
+        const description = apiPoi.description ?? '';
+        const displayName = apiPoi.stallName ?? apiPoi.name ?? apiPoi.title ?? '';
+        const approvalStatus = apiPoi.approvalStatus === 1
+          ? 'APPROVED'
+          : String(apiPoi.approvalStatus ?? 'APPROVED').toUpperCase();
         return {
-          ...fallback,
           id: apiPoi.slug ?? String(apiPoi.id),
           apiId,
-          stallId: Number(apiPoi.stallId),
-          title: apiPoi.name ?? fallback.title,
-          zoneName: apiPoi.zoneName ?? fallback.zoneName,
-          category: apiPoi.category ?? fallback.category,
-          image: apiPoi.imageUrl ?? fallback.image,
+          stallId: apiPoi.stallId == null ? null : Number(apiPoi.stallId),
+          name: apiPoi.name ?? displayName,
+          title: displayName,
+          zoneName: apiPoi.zoneName ?? '',
+          category: apiPoi.category ?? '',
+          image: resolveBackendMediaUrl(apiPoi.imageUrl),
           description,
-          descriptions: localPoi?.descriptions ?? { vi: description },
-          narration: localPoi?.narration ?? { vi: description },
-          latitude: Number(apiPoi.latitude),
-          longitude: Number(apiPoi.longitude),
-          activationRadius: apiPoi.activationRadius ?? fallback.activationRadius,
-          isPremiumPoi: apiPoi.isPremium ?? fallback.isPremiumPoi,
-          qrCodeId: apiPoi.qrCodeId ?? localPoi?.qrCodeId ?? apiId,
+          descriptions: { vi: description },
+          narration: { [currentLanguage]: apiPoi.ttsScript ?? description },
+          latitude,
+          longitude,
+          activationRadius: Number(apiPoi.activationRadius) || 30,
+          isPremiumPoi: Boolean(apiPoi.isPremium ?? apiPoi.isPremiumContent),
+          qrCodeId: apiPoi.qrCodeId ?? apiId,
+          products: Array.isArray(apiPoi.products) ? apiPoi.products : [],
+          audioUrl: apiPoi.audioUrl ?? apiPoi.audioFileUrl ?? null,
           tourSlug: apiPoi.tourSlug ?? null,
           tourId: apiPoi.tourId ? String(apiPoi.tourId) : null,
-          zone_code: apiPoi.zone_code ?? null,
-          stall_name: apiPoi.stall_name ?? fallback.stall_name ?? null,
-          stall_description: apiPoi.stall_description ?? fallback.stall_description ?? null,
-          status: apiPoi.status ?? 'ACTIVE',
-          approvalStatus: apiPoi.approvalStatus ?? 'APPROVED'
+          zoneCode: apiPoi.zoneCode ?? null,
+          stallName: apiPoi.stallName ?? apiPoi.name ?? null,
+          status: String(apiPoi.status ?? 'ACTIVE').toUpperCase(),
+          approvalStatus
         };
-      });
-    };
+      })
+      .filter(Boolean);
 
-    if (!zoneCode) {
+    if (!zoneToken) {
       poiService.getAll()
         .then((response) => {
           if (!active) return;
           const apiPois = response.data?.data ?? [];
           setSelectedStall(null);
-          setPois((currentPois) => mapApiPois(apiPois, currentPois));
+          setPois(mapApiPois(apiPois));
         })
         .catch(() => {
-          // Ignore API errors, fallback is active
-        });
-      return;
-    }
-
-    const needsResolution = /[A-Z]/;
-
-    const isAlphanumeric = needsResolution.test(zoneCode) || zoneCode.includes('-ST-') || zoneCode.includes('-TOUR-');
-
-    if (isAlphanumeric) {
-      stallService.resolveCode(zoneCode, i18n.language)
-        .then((res) => {
-          if (!active) return;
-          const data = res.data?.data ?? res.data;
-          const resolvedSlug = data.stall?.slug ?? zoneCode.toLowerCase();
-          const resolvedId = data.stall?.id;
-
-          if (data.stall) {
-            setSelectedStall(data.stall);
-          } else {
-            setSelectedStall(null);
-          }
-
-          // Sync URL search params and storage to the resolved lowercase slug
-          if (resolvedSlug && resolvedSlug !== zoneCode) {
-            const nextParams = new URLSearchParams(searchParams);
-            nextParams.set('zone', resolvedSlug);
-            setSearchParams(nextParams, { replace: true });
-            localStorage.setItem('locked_zone', resolvedSlug);
-            sessionStorage.setItem('last_scanned_zone', resolvedSlug);
-          }
-
-          // Fetch using the true numeric ID (or resolvedId)
-          const targetFetchCode = resolvedId ? String(resolvedId) : resolvedSlug;
-          poiService.getGuestPois(targetFetchCode, i18n.language)
-            .then((response) => {
-              if (!active) return;
-              const apiPois = response.data?.data ?? [];
-              if (apiPois.length > 0 && apiPois[0].stall_name) {
-                setSelectedStall((prev) => prev ?? { name: apiPois[0].stall_name });
-              }
-              setPois((currentPois) => mapApiPois(apiPois, currentPois));
-            })
-            .catch(() => {});
-        })
-        .catch(() => {
-          // Fallback if resolver fails
-          poiService.getGuestPois(zoneCode, i18n.language)
-            .then((response) => {
-              if (!active) return;
-              const apiPois = response.data?.data ?? [];
-              if (apiPois.length > 0 && apiPois[0].stall_name) {
-                setSelectedStall((prev) => prev ?? { name: apiPois[0].stall_name });
-              }
-              setPois((currentPois) => mapApiPois(apiPois, currentPois));
-            })
-            .catch(() => {});
+          if (active) setPois([]);
         });
     } else {
-      // Standard lowercase slug or direct numeric ID, fetch directly
-      poiService.getGuestPois(zoneCode, i18n.language)
+      poiService.resolveGuestZone(zoneToken, i18n.language)
         .then((response) => {
           if (!active) return;
-          const apiPois = response.data?.data ?? [];
-          if (apiPois.length > 0 && apiPois[0].stall_name) {
-            setSelectedStall({ name: apiPois[0].stall_name });
-          } else {
-            setSelectedStall(null);
+          if (import.meta.env.DEV) {
+            console.log('👉 USER MAP API DATA INTERCEPT:', response.data);
           }
-          setPois((currentPois) => mapApiPois(apiPois, currentPois));
+          const zonePayload = response.data?.data ?? response.data;
+          const extractedPois =
+            zonePayload?.pois ||
+            zonePayload?.stalls ||
+            zonePayload?.poiList ||
+            [];
+          setSelectedStall(zonePayload?.stall ?? null);
+          setPois(mapApiPois(Array.isArray(extractedPois) ? extractedPois : []));
         })
         .catch(() => {
-          // Ignore API errors, fallback is active
+          if (!active) return;
+          setSelectedStall(null);
+          setPois([]);
         });
     }
 
     return () => {
       active = false;
     };
-  }, [isFakeMode, simulateNearPoi, searchParams.get('zone'), i18n.language]);
+  }, [searchParams, i18n.language]);
 
   // Handle simulation mode GPS tracking safely in a controlled side effect
   useEffect(() => {
@@ -337,15 +291,22 @@ export function useGeofenceAudio({ onToast }) {
       setPois((currentPois) => currentPois.map((poi) => {
         if (poi.apiId !== selectedPoi.apiId) return poi;
         const narration = { ...poi.narration };
+        let audioUrl = poi.audioUrl;
         contents.forEach((content) => {
           if (content.ttsScript) narration[content.languageCode] = content.ttsScript;
+          if (
+            content.languageCode === currentLanguage &&
+            (content.audioFileUrl || content.audioUrl)
+          ) {
+            audioUrl = content.audioFileUrl ?? content.audioUrl;
+          }
         });
-        return { ...poi, narration };
+        return { ...poi, narration, audioUrl };
       }));
     }).catch(() => {
       // Ignore content errors, fallback to default narration
     });
-  }, [selectedPoi?.apiId]);
+  }, [currentLanguage, selectedPoi?.apiId]);
 
   // Geofence Entry visit tracking
   useEffect(() => {
