@@ -1,5 +1,17 @@
 # Database VietTourAudio
 
+## Cài đặt đầy đủ bằng một lệnh
+
+Từ thư mục gốc của dự án, chạy:
+
+```bash
+mysql -u root -p < database/full_database.sql
+```
+
+`full_database.sql` là điểm vào duy nhất, lần lượt dựng toàn bộ schema và dữ
+liệu nền. Lệnh này reset database `viettuoraudio`; hãy backup dữ liệu thật
+trước khi chạy.
+
 Database bắt buộc của dự án là `viettuoraudio`.
 
 ## File chính

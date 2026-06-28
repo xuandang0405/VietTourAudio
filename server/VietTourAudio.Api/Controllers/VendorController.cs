@@ -358,10 +358,10 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
       storedName = await StoreFileAsync(request.Image, ["image/png", "image/jpeg"], [".png", ".jpg", ".jpeg"], "vendor");
     }
 
+    var stallId = await PrimaryStallIdAsync();
     var poi = await db.Pois.FirstOrDefaultAsync(p => p.VendorId == VendorId);
     if (poi == null)
     {
-      var stallId = await PrimaryStallIdAsync();
       poi = new Poi
       {
         VendorId = VendorId,
@@ -392,6 +392,31 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
       poi.UpdatedAt = DateTime.UtcNow;
     }
     await db.SaveChangesAsync();
+
+    if (storedName is not null)
+    {
+      var config = (IConfiguration)HttpContext.RequestServices.GetService(typeof(IConfiguration))!;
+      var publicBaseUrl = (config["Storage:PublicBaseUrl"] ?? "http://localhost:45200/uploads").TrimEnd('/');
+      var publicUrl = $"{publicBaseUrl}/vendor/{storedName}";
+      var relativePath = $"/uploads/vendor/{storedName}";
+
+      await DatabaseSql.ExecuteAsync(db, """
+        INSERT INTO media_files
+          (vendor_id, stall_id, poi_id, file_type, file_name, file_path, public_url, mime_type, file_size, moderation_status)
+        VALUES
+          (@vendorId, @stallId, @poiId, 'IMAGE', @fileName, @filePath, @publicUrl, @mimeType, @fileSize, 'PENDING')
+        """, new Dictionary<string, object?>
+      {
+        ["@vendorId"] = VendorId,
+        ["@stallId"] = stallId,
+        ["@poiId"] = poi.Id,
+        ["@fileName"] = request.Image!.FileName,
+        ["@filePath"] = relativePath,
+        ["@publicUrl"] = publicUrl,
+        ["@mimeType"] = request.Image.ContentType,
+        ["@fileSize"] = (ulong)request.Image.Length
+      });
+    }
 
     // Background auto-translation chain
     try

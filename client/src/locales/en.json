@@ -212,7 +212,8 @@
     "admin_portal": "Admin Portal",
     "stall_location": "Stall Location",
     "tts_content": "TTS Content",
-    "poi_management": "POI Management"
+    "poi_management": "POI Management",
+    "stall_poi_management": "Stall Management (POI)"
   },
   "vendor": {
     "management": "Vendor Management",
@@ -300,7 +301,12 @@
     "rejected": "Rejected",
     "suspended": "Suspended",
     "locked": "Locked",
-    "hidden": "Hidden"
+    "hidden": "Hidden",
+    "stall": "Stall",
+    "image": "Image",
+    "audio": "Audio",
+    "video": "Video",
+    "document": "Document"
   },
   "dashboard": {
     "title": "Operational Dashboard",
@@ -433,7 +439,9 @@
     "pending_approval_notice": "Changes are awaiting Admin approval and are not public yet.",
     "submitted_for_approval": "Changes were submitted for approval.",
     "error_load": "Unable to load stall information.",
-    "error_save": "Unable to submit stall changes."
+    "error_save": "Unable to submit stall changes.",
+    "published": "Published / Completed",
+    "add_secondary": "Add Secondary Stall (+)"
   },
   "landing": {
     "no_description": "No description available",

@@ -16,6 +16,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 -- Drop in reverse-dependency order
 DROP TABLE IF EXISTS revenue_daily;
+DROP TABLE IF EXISTS payment_transactions;
+DROP TABLE IF EXISTS admin_payment_configs;
 DROP TABLE IF EXISTS analytics_daily_stall;
 DROP TABLE IF EXISTS commission_earnings;
 DROP TABLE IF EXISTS wallet_transactions;
@@ -761,6 +763,7 @@ CREATE TABLE vendor_wallets (
   vendor_id BIGINT UNSIGNED NOT NULL,
   currency CHAR(3) NOT NULL DEFAULT 'VND',
   balance DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+  promo_balance DECIMAL(14,2) NOT NULL DEFAULT 0.00,
   total_top_up DECIMAL(14,2) NOT NULL DEFAULT 0.00,
   total_spent DECIMAL(14,2) NOT NULL DEFAULT 0.00,
   total_commission DECIMAL(14,2) NOT NULL DEFAULT 0.00,
@@ -947,6 +950,42 @@ CREATE TABLE payment_requests (
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- 24. UNIFIED CHECKOUT / ADMIN PAYMENT GATEWAYS
+-- =============================================================================
+
+CREATE TABLE admin_payment_configs (
+  id INT NOT NULL AUTO_INCREMENT,
+  gateway_type VARCHAR(20) NOT NULL,
+  account_name VARCHAR(255) NOT NULL DEFAULT '',
+  account_number VARCHAR(120) NOT NULL DEFAULT '',
+  qr_code_url VARCHAR(600) NULL,
+  transfer_memo_pattern VARCHAR(255) NOT NULL DEFAULT 'VTA PREMIUM [Id]',
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_admin_payment_configs_gateway_type (gateway_type),
+  KEY idx_admin_payment_configs_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE payment_transactions (
+  id CHAR(36) NOT NULL,
+  sender_id VARCHAR(160) NOT NULL,
+  sender_type VARCHAR(20) NOT NULL,
+  payment_method VARCHAR(20) NOT NULL,
+  transaction_type VARCHAR(40) NOT NULL,
+  amount DECIMAL(14,2) NOT NULL,
+  transfer_memo VARCHAR(255) NOT NULL,
+  proof_attachment_url VARCHAR(600) NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+  created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_payment_transactions_transfer_memo (transfer_memo),
+  KEY idx_payment_transactions_status_created (status, created_at),
+  KEY idx_payment_transactions_sender (sender_type, sender_id),
+  KEY idx_payment_transactions_method (payment_method)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE unlocked_tours (
   id INT AUTO_INCREMENT PRIMARY KEY,
   guest_id VARCHAR(100) NOT NULL,
@@ -958,6 +997,39 @@ CREATE TABLE unlocked_tours (
 
 -- =============================================================================
 -- 22. APP SETTINGS (Key-Value configuration store)
+-- =============================================================================
+-- 23. ADMIN PAYMENT CONFIGS & PAYMENT TRANSACTIONS
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS admin_payment_configs (
+  id INT NOT NULL AUTO_INCREMENT,
+  gateway_type VARCHAR(20) NOT NULL,
+  account_name VARCHAR(255) NOT NULL,
+  account_number VARCHAR(120) NOT NULL,
+  qr_code_url VARCHAR(600) NULL,
+  transfer_memo_pattern VARCHAR(255) NOT NULL DEFAULT 'VTA [Type] [Id]',
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_admin_payment_configs_gateway (gateway_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS payment_transactions (
+  id CHAR(36) NOT NULL,
+  sender_id VARCHAR(160) NOT NULL,
+  sender_type VARCHAR(20) NOT NULL,
+  payment_method VARCHAR(20) NOT NULL,
+  transaction_type VARCHAR(40) NOT NULL,
+  amount DECIMAL(14,2) NOT NULL,
+  transfer_memo VARCHAR(255) NOT NULL,
+  proof_attachment_url VARCHAR(600) NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+  created_at DATETIME(6) NOT NULL,
+  updated_at DATETIME(6) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_payment_transactions_transfer_memo (transfer_memo),
+  KEY idx_payment_transactions_status_created (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- =============================================================================
 
 CREATE TABLE app_settings (
@@ -975,8 +1047,8 @@ DROP TRIGGER IF EXISTS after_zone_insert;
 CREATE TRIGGER after_zone_insert
 AFTER INSERT ON zones
 FOR EACH ROW
-INSERT INTO pois (id, stall_id, zone_code, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order, pending_name, pending_description, pending_cover_image_url, pending_latitude, pending_longitude, approval_status, created_at, updated_at)
-VALUES (NEW.id, NEW.stall_id, CONCAT('ZONE-', NEW.id), NEW.free_listens_allowed, NEW.name, NEW.slug, NEW.description, NEW.latitude, NEW.longitude, NEW.activation_radius, NEW.is_premium_content, NEW.status, NEW.sort_order, NEW.pending_name, NEW.pending_description, NEW.pending_cover_image_url, NEW.pending_latitude, NEW.pending_longitude, NEW.approval_status, NEW.created_at, NEW.updated_at);
+INSERT INTO pois (id, stall_id, vendor_id, zone_code, free_listens_allowed, name, slug, description, cover_url, latitude, longitude, activation_radius, is_premium_content, status, sort_order, pending_name, pending_description, pending_cover_image_url, pending_latitude, pending_longitude, approval_status, created_at, updated_at)
+VALUES (NEW.id, NEW.stall_id, NEW.vendor_id, COALESCE((SELECT zone_code FROM stalls WHERE id=NEW.stall_id),CONCAT('ZONE-', NEW.id)), NEW.free_listens_allowed, NEW.name, NEW.slug, NEW.description, NEW.cover_url, NEW.latitude, NEW.longitude, NEW.activation_radius, NEW.is_premium_content, NEW.status, NEW.sort_order, NEW.pending_name, NEW.pending_description, NEW.pending_cover_image_url, NEW.pending_latitude, NEW.pending_longitude, NEW.approval_status, NEW.created_at, NEW.updated_at);
 
 DROP TRIGGER IF EXISTS after_zone_update;
 CREATE TRIGGER after_zone_update
@@ -984,10 +1056,12 @@ AFTER UPDATE ON zones
 FOR EACH ROW
 UPDATE pois SET
   stall_id = NEW.stall_id,
+  vendor_id = NEW.vendor_id,
   free_listens_allowed = NEW.free_listens_allowed,
   name = NEW.name,
   slug = NEW.slug,
   description = NEW.description,
+  cover_url = NEW.cover_url,
   latitude = NEW.latitude,
   longitude = NEW.longitude,
   activation_radius = NEW.activation_radius,

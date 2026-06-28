@@ -85,6 +85,7 @@ public sealed class Wallet : IEntity
   public ulong Id { get; set; }
   public ulong VendorId { get; set; }
   public decimal Balance { get; set; }
+  public decimal PromoBalance { get; set; }
   public decimal TotalTopUp { get; set; }
   public decimal TotalSpent { get; set; }
   public VendorProfile Vendor { get; set; } = null!;

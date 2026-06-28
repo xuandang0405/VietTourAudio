@@ -191,9 +191,9 @@
   },
   "sidebar": {
     "tickets": "Hộp thư hỗ trợ",
-    "group_management": "Quản lý",
-    "group_finance": "Tài chính",
-    "group_system": "Hệ thống",
+    "group_management": "QUẢN LÝ",
+    "group_finance": "TÀI CHÍNH",
+    "group_system": "HỆ THỐNG",
     "dashboard": "Bảng điều khiển",
     "vendors": "Nhà cung cấp",
     "zones": "Khu vực",
@@ -209,10 +209,11 @@
     "admin_users": "Tài khoản Admin",
     "logout": "Đăng xuất",
     "vendor_portal": "Vendor Portal",
-    "admin_portal": "Admin Portal",
+    "admin_portal": "Quản trị hệ thống",
     "stall_location": "Vị trí sạp",
     "tts_content": "Nội dung TTS",
-    "poi_management": "Quản lý POI"
+    "poi_management": "Quản lý POI",
+    "stall_poi_management": "Quản lý sạp hàng (POI)"
   },
   "vendor": {
     "management": "Quản lý nhà cung cấp",
@@ -300,7 +301,12 @@
     "rejected": "Từ chối",
     "suspended": "Bị khóa",
     "locked": "Đã khóa",
-    "hidden": "Đang ẩn"
+    "hidden": "Đang ẩn",
+    "stall": "Sạp hàng",
+    "image": "Hình ảnh",
+    "audio": "Audio",
+    "video": "Video",
+    "document": "Tài liệu"
   },
   "dashboard": {
     "title": "Dashboard Vận Hành",
@@ -418,22 +424,24 @@
     "total": "{{count}} tổng",
     "premium_conversions": "{{count}} premium",
     "category": "Danh mục",
-    "cover_image": "Ảnh bìa",
-    "select_image": "Chọn ảnh",
+    "cover_image": "Ảnh bìa sạp hàng",
+    "select_image": "Chọn tệp ảnh từ thiết bị",
     "premium_stall": "Sạp Premium",
     "premium_desc": "Premium: Bán kính từ 10m trở lên và được ưu tiên phát audio khi có chồng lấn.",
     "save_stall": "Lưu vị trí & thông tin sạp",
-    "radius_display": "Bán kính: {{radius}}m",
+    "radius_display": "Bán kính vùng kích hoạt phát thanh thuyết minh",
     "error_file_type": "Chỉ chấp nhận ảnh JPEG, PNG, WebP hoặc GIF.",
     "geolocation_unavailable": "Thiết bị không hỗ trợ định vị.",
     "geolocation_failed": "Không thể lấy vị trí hiện tại. Hãy kiểm tra quyền định vị.",
-    "use_my_location": "Vị trí của tôi",
-    "map_instruction": "Bấm trên bản đồ hoặc kéo điểm đánh dấu để chọn tọa độ mới.",
+    "use_my_location": "Lấy vị trí của tôi",
+    "map_instruction": "Chấm một vị trí trên Google Map làm tọa độ trung tâm",
     "image_requirements": "Ảnh JPEG, PNG, WebP hoặc GIF; tối đa 5MB.",
     "pending_approval_notice": "Thay đổi đang chờ Admin duyệt và chưa hiển thị công khai.",
     "submitted_for_approval": "Đã gửi thay đổi vào hàng chờ duyệt.",
     "error_load": "Không tải được thông tin sạp.",
-    "error_save": "Không thể gửi thay đổi sạp."
+    "error_save": "Không thể gửi thay đổi sạp.",
+    "published": "Đã xuất bản / Hoàn tất",
+    "add_secondary": "Thêm sạp phụ (+)"
   },
   "landing": {
     "no_description": "Chưa có mô tả",

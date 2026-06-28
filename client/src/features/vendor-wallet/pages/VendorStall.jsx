@@ -373,15 +373,15 @@ export function VendorStall() {
               <h3 className="flex items-center gap-2 text-sm font-black text-slate-900"><MapPinned size={17} />{t('poi.coordinates')}</h3>
               <button type="button" onClick={locateDevice} disabled={locating} className="inline-flex items-center gap-1.5 rounded-lg bg-teal-50 px-3 py-2 text-xs font-bold text-teal-700 hover:bg-teal-100 disabled:opacity-50">
                 {locating ? <Loader2 size={14} className="animate-spin" /> : <LocateFixed size={14} />}
-                {t('stall.use_my_location')}
+                {t('stall.use_my_location', { defaultValue: 'Lấy vị trí của tôi' })}
               </button>
             </div>
-            <p className="mt-3 text-xs text-slate-500">{t('stall.map_instruction')}</p>
+            <p className="mt-3 text-xs text-slate-500">{t('stall.map_instruction', { defaultValue: 'Chấm một vị trí trên Google Map làm tọa độ trung tâm' })}</p>
             <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-xs font-bold">
               <span className="rounded-lg bg-slate-50 p-2">{form.latitude.toFixed(7)}</span>
               <span className="rounded-lg bg-slate-50 p-2">{form.longitude.toFixed(7)}</span>
             </div>
-            <p className="mt-3 flex items-center gap-1 text-xs font-bold text-teal-700"><Crosshair size={14} />{t('stall.radius_display', { radius: stall.activationRadius })}</p>
+            <p className="mt-3 flex items-center gap-1 text-xs font-bold text-teal-700"><Crosshair size={14} />{t('stall.radius_display', { radius: stall.activationRadius, defaultValue: 'Bán kính vùng kích hoạt phát thanh thuyết minh' })}</p>
           </section>
 
           <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -396,11 +396,11 @@ export function VendorStall() {
 
             {/* Cover Image Uploader */}
             <div className="border-t border-slate-100 pt-3">
-              <span className="text-xs font-bold text-slate-600">{t('stall.cover_image')}</span>
+              <span className="text-xs font-bold text-slate-600">{t('stall.cover_image', { defaultValue: 'Ảnh bìa sạp hàng' })}</span>
               <div className="mt-2 flex items-center gap-3">
-                {previewImage ? <img src={previewImage} alt={t('stall.cover_image')} className="h-16 w-16 rounded-xl border object-cover" /> : <div className="grid h-16 w-16 place-items-center rounded-xl border-2 border-dashed text-slate-400"><ImagePlus /></div>}
+                {previewImage ? <img src={previewImage} alt={t('stall.cover_image', { defaultValue: 'Ảnh bìa sạp hàng' })} className="h-16 w-16 rounded-xl border object-cover" /> : <div className="grid h-16 w-16 place-items-center rounded-xl border-2 border-dashed text-slate-400"><ImagePlus /></div>}
                 <label className="cursor-pointer rounded-xl border px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
-                  {t('stall.select_image')}
+                  {t('stall.select_image', { defaultValue: 'Chọn tệp ảnh từ thiết bị' })}
                   <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleImageChange} />
                 </label>
               </div>

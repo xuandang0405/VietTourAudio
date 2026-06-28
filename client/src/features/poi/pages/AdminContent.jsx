@@ -232,19 +232,46 @@ export function AdminContent() {
   );
 }
 
+const serverBaseUrl = import.meta.env.VITE_API_BASE_URL.replace('/api', '');
+
 function MediaPreview({ item }) {
-  if (item.mediaType === 'IMAGE') {
-    return <img className="h-full w-full object-cover" src={item.publicUrl} alt={item.storagePath} loading="lazy" decoding="async" />;
+  if (item.mediaType === 'IMAGE' || item.mediaType === 'STALL') {
+    const rawPath = item.publicUrl;
+    const absoluteImgUrl = rawPath?.startsWith('http')
+      ? rawPath
+      : rawPath
+        ? `${serverBaseUrl}${rawPath}`
+        : '/assets/logo.png';
+    return (
+      <img
+        className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+        src={absoluteImgUrl}
+        alt={item.storagePath || item.stall?.name || item.poi?.name || 'Verification Asset'}
+        onError={(e) => {
+          e.target.src = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=500';
+        }}
+        loading="lazy"
+        decoding="async"
+      />
+    );
   }
 
   if (item.mediaType === 'VIDEO') {
-    return <video className="h-full w-full object-cover" src={item.publicUrl} controls preload="metadata" />;
+    const rawPath = item.publicUrl;
+    const absoluteVideoUrl = rawPath?.startsWith('http')
+      ? rawPath
+      : `${serverBaseUrl}${rawPath}`;
+    return <video className="h-full w-full object-cover" src={absoluteVideoUrl} controls preload="metadata" />;
   }
 
   if (item.mediaType === 'AUDIO') {
+    const rawPath = item.publicUrl;
+    const absoluteAudioUrl = rawPath?.startsWith('http')
+      ? rawPath
+      : `${serverBaseUrl}${rawPath}`;
     return (
       <div className="grid h-full place-items-center p-4">
-        <audio className="w-full" src={item.publicUrl} controls preload="none" />
+        <audio className="w-full" src={absoluteAudioUrl} controls preload="none" />
       </div>
     );
   }

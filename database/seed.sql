@@ -8,6 +8,8 @@ USE viettuoraudio;
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+TRUNCATE TABLE payment_transactions;
+TRUNCATE TABLE admin_payment_configs;
 TRUNCATE TABLE unlocked_tours;
 TRUNCATE TABLE revenue_daily;
 TRUNCATE TABLE analytics_daily_stall;
@@ -42,6 +44,18 @@ TRUNCATE TABLE app_settings;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
+INSERT INTO admin_payment_configs
+  (gateway_type, account_name, account_number, qr_code_url, transfer_memo_pattern, is_active)
+VALUES
+  ('MOMO', 'VietTourAudio MoMo', '', NULL, 'VTA [Type] [Id]', 1),
+  ('BANK', 'VietTourAudio', '', NULL, 'VTA [Type] [Id]', 1),
+  ('VISA', 'VietTourAudio Card Gateway', 'VISA', NULL, 'VTA VISA [Id]', 1);
+
+INSERT INTO payment_transactions (id, sender_id, sender_type, payment_method, transaction_type, amount, transfer_memo, proof_attachment_url, status, created_at, updated_at) VALUES
+('b271db8c-1e24-4f8e-a226-8051df52b9b7', '1', 'VENDOR', 'BANK', 'STALL_RENEWAL', 599000.00, 'VTA VENDOR 1 RENEW', NULL, 'APPROVED', NOW(), NOW()),
+('d96a7d5b-21d3-4638-b7fb-9457fb73cf21', '2', 'VENDOR', 'MOMO', 'STALL_RENEWAL', 599000.00, 'VTA VENDOR 2 RENEW', NULL, 'APPROVED', NOW(), NOW()),
+('a59e9a4e-1a41-4775-9277-2f3bf4b5d4f1', 'visitor_demo_1', 'VISITOR', 'VISA', 'PREMIUM_UPGRADE', 30000.00, 'VTA PREMIUM visitor_demo_1', NULL, 'APPROVED', NOW(), NOW());
+
 -- =============================================================================
 -- USERS — Password for all admin users: Admin123
 -- Hash: $2b$10$aAWkIkwtjeGwFmzbMI6bNuwS6cuTh1J8.JVP0TY.du7PuXvf7JP.y
@@ -66,9 +80,9 @@ INSERT INTO subscription_plans (id, code, name, price, max_stalls, max_pois_per_
 -- =============================================================================
 
 INSERT INTO vendors (id, legal_name, trade_name, slug, vendor_code, assigned_tour_id, contact_name, contact_email, phone, address, status, approved_by_user_id, approved_at) VALUES
-(1, 'Công ty TNHH Sủi Cảo Thiên Thiên', 'Sủi Cảo Thiên Thiên', 'sui-cao-thien-thien', 'VND-HTQ01', 1, 'Lâm Thiên', 'thienthien@viettuoraudio.vn', '02838561111', '197 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 'APPROVED', 2, '2026-06-01 09:00:00'),
+(1, 'Công ty TNHH Sủi Cảo Thiên Thiên', 'Sủi Cảo Thiên Thiên', 'sui-cao-thien-thien', 'VND-HTQ01', 1, 'Lâm Thiên', 'thienthien@gmail.com', '02838561111', '197 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 'APPROVED', 2, '2026-06-01 09:00:00'),
 (2, 'Hộ Kinh Doanh Sủi Cảo Ngọc Ý', 'Sủi Cảo Ngọc Ý', 'sui-cao-ngoc-y', 'VND-HTQ02', 1, 'Trương Ngọc Ý', 'ngocy@viettuoraudio.vn', '02839556666', '187 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 'APPROVED', 2, '2026-06-01 09:10:00'),
-(3, 'Hộ Kinh Doanh Sủi Cảo Như Ý', 'Sủi Cảo Như Ý', 'sui-cao-nhu-y', 'VND-HTQ03', 1, 'Lý Như Ý', 'nhuy@viettuoraudio.vn', '02839558888', '185 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 'APPROVED', 2, '2026-06-01 09:20:00');
+(3, 'Hộ Kinh Doanh Sủi Cảo Như Ý', 'Sủi Cảo Như Ý', 'sui-cao-nhu-y', 'VND-HTQ03', 1, 'Lý Như Ý', 'nhuy@gmail.com', '02839558888', '185 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 'APPROVED', 2, '2026-06-01 09:20:00');
 
 -- =============================================================================
 -- VENDOR PORTAL USERS — Password: Vendor123
@@ -76,9 +90,9 @@ INSERT INTO vendors (id, legal_name, trade_name, slug, vendor_code, assigned_tou
 -- =============================================================================
 
 INSERT INTO vendor_portal_users (id, vendor_id, email, pass_hash, full_name, status) VALUES
-(1, 1, 'thienthien@viettuoraudio.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Lâm Thiên', 'ACTIVE'),
+(1, 1, 'thienthien@gmail.com', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Lâm Thiên', 'ACTIVE'),
 (2, 2, 'ngocy@viettuoraudio.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Trương Ngọc Ý', 'ACTIVE'),
-(3, 3, 'nhuy@viettuoraudio.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Lý Như Ý', 'ACTIVE');
+(3, 3, 'nhuy@gmail.com', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Lý Như Ý', 'ACTIVE');
 
 -- =============================================================================
 -- VENDOR SUBSCRIPTIONS & WALLETS
@@ -89,10 +103,12 @@ INSERT INTO vendor_subscriptions (id, vendor_id, plan_id, status, period_start, 
 (2, 2, 2, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, '2026-06-30', 'paid', 599000.00),
 (3, 3, 2, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, '2026-06-30', 'paid', 599000.00);
 
-INSERT INTO vendor_wallets (id, vendor_id, balance, promo_balance, created_at, updated_at) VALUES
-(1, 1, 2500000.00, 500000.00, NOW(), NOW()),
-(2, 2, 1800000.00, 200000.00, NOW(), NOW()),
-(3, 3, 3200000.00, 800000.00, NOW(), NOW());
+INSERT INTO vendor_wallets
+  (id, vendor_id, balance, total_top_up, total_spent, total_commission, created_at, updated_at)
+VALUES
+(1, 1, 2500000.00, 3000000.00, 500000.00, 0.00, NOW(), NOW()),
+(2, 2, 1800000.00, 2000000.00, 200000.00, 0.00, NOW(), NOW()),
+(3, 3, 3200000.00, 4000000.00, 800000.00, 0.00, NOW(), NOW());
 
 -- =============================================================================
 -- TOURS — Food walking tour on Hà Tôn Quyền Street
@@ -123,7 +139,7 @@ INSERT INTO zones (id, tour_id, stall_id, vendor_id, free_listens_allowed, name,
 -- POIs (Unified with zones)
 -- =============================================================================
 
-INSERT INTO pois (id, stall_id, vendor_id, zone_code, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order, approval_status) VALUES
+INSERT IGNORE INTO pois (id, stall_id, vendor_id, zone_code, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order, approval_status) VALUES
 (1, 1, 1, 'STALL-01', 2, 'Sủi Cảo Thiên Thiên', 'sui-cao-thien-thien-poi', 'Quán sủi cảo lâu đời với không gian rộng rãi, nổi tiếng với nước lèo thanh ngọt nấu từ xương và mực khô.', 10.7600860, 106.6576820, 10, 1, 'ACTIVE', 1, 'APPROVED'),
 (2, 2, 2, 'STALL-02', 2, 'Sủi Cảo Ngọc Ý', 'sui-cao-ngoc-y-poi', 'Được lòng thực khách nhờ sủi cảo to tròn, vỏ mỏng dai mịn ôm trọn nhân tôm thịt tươi ngon giòn sần sật.', 10.7602350, 106.6574710, 10, 1, 'ACTIVE', 2, 'APPROVED'),
 (3, 3, 3, 'STALL-03', 2, 'Sủi Cảo Như Ý', 'sui-cao-nhu-y-poi', 'Nơi bán sủi cảo chiên giòn rụm chấm nước sốt xí muội cực phẩm và món sủi cảo chưng cách thủy nhân hẹ thơm lừng.', 10.7601950, 106.6575000, 10, 1, 'ACTIVE', 3, 'APPROVED');
@@ -141,7 +157,7 @@ INSERT INTO tour_pois (tour_id, poi_id, sort_order) VALUES
 -- POI CONTENTS — Rich bilingual & multilingual auto translation strings for TTS
 -- =============================================================================
 
-INSERT INTO poi_contents (id, poi_id, lang, title, tts_script, voice_type, approval_status) VALUES
+INSERT INTO poi_contents (id, poi_id, lang, title, tts_script, voice_profile, approval_status) VALUES
 -- Sủi Cảo Thiên Thiên
 (1, 1, 'vi', 'Sủi Cảo Thiên Thiên', 'Chào mừng bạn đến với sủi cảo Thiên Thiên, một trong những quán ăn lâu đời và nổi tiếng nhất tại phố ẩm thực Hà Tôn Quyền. Món sủi cảo ở đây nổi tiếng với nhân tôm thịt tươi giòn sần sật ôm trọn trong vỏ bánh mỏng mịn. Nước dùng được hầm kỹ từ xương ống heo cùng mực khô nướng đem lại hậu vị thanh mát ngọt đậm đà khó quên.', 'NORMAL', 'APPROVED'),
 (2, 1, 'en', 'Thien Thien Dumplings', 'Welcome to Thien Thien Dumplings, one of the oldest and most legendary eateries on Ha Ton Quyen Food Street. Our dumplings are famous for their thin, smooth wraps holding fresh, crunchy shrimp and pork filling. The broth is simmered with pork bones and grilled dried squid, delivering a uniquely sweet, savory, and unforgettable aftertaste.', 'NORMAL', 'APPROVED'),

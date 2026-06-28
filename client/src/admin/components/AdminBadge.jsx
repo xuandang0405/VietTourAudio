@@ -22,6 +22,7 @@ const toneClassByStatus = {
   VIDEO: 'bg-purple-50 text-purple-700 ring-purple-200',
   AUDIO: 'bg-teal-50 text-teal-700 ring-teal-200',
   DOCUMENT: 'bg-slate-100 text-slate-700 ring-slate-200',
+  STALL: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
   TOP_UP: 'bg-green-50 text-green-700 ring-green-200',
   SUBSCRIPTION_FEE: 'bg-blue-50 text-blue-700 ring-blue-200',
   REFUND: 'bg-sky-50 text-sky-700 ring-sky-200',

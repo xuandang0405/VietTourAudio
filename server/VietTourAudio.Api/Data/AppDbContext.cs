@@ -106,6 +106,7 @@ public class AppDbContext : DbContext
       entity.Property(x => x.Id).HasColumnName("id");
       entity.Property(x => x.VendorId).HasColumnName("vendor_id");
       entity.Property(x => x.Balance).HasColumnName("balance").HasPrecision(14, 2);
+      entity.Property(x => x.PromoBalance).HasColumnName("promo_balance").HasPrecision(14, 2);
       entity.Property(x => x.TotalTopUp).HasColumnName("total_top_up").HasPrecision(14, 2);
       entity.Property(x => x.TotalSpent).HasColumnName("total_spent").HasPrecision(14, 2);
       entity.HasIndex(x => x.VendorId).IsUnique();
