@@ -37,15 +37,18 @@ public static class PaymentSchemaInitializer
         KEY idx_payment_transactions_status_created (status, created_at)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       """);
-    await db.Database.ExecuteSqlRawAsync("""
-      INSERT INTO admin_payment_configs
-        (gateway_type, account_name, account_number, transfer_memo_pattern, is_active)
-      VALUES
-        ('MOMO', 'VietTourAudio MoMo', '', 'VTA [Type] [Id]', 1),
-        ('BANK', 'VietTourAudio', '', 'VTA [Type] [Id]', 1),
-        ('VISA', 'VietTourAudio Card Gateway', 'VISA', 'VTA VISA [Id]', 1)
-      ON DUPLICATE KEY UPDATE gateway_type = VALUES(gateway_type)
-      """);
+    if (Environment.GetEnvironmentVariable("VTA_BOOTSTRAP_PAYMENT_CONFIG") == "1")
+    {
+      await db.Database.ExecuteSqlRawAsync("""
+        INSERT INTO admin_payment_configs
+          (gateway_type, account_name, account_number, transfer_memo_pattern, is_active)
+        VALUES
+          ('MOMO', '', '', 'VTA [Type] [Id]', 0),
+          ('BANK', '', '', 'VTA [Type] [Id]', 0),
+          ('VISA', '', '', 'VTA VISA [Id]', 0)
+        ON DUPLICATE KEY UPDATE gateway_type = VALUES(gateway_type)
+        """);
+    }
 
     // Demo ledger rows removed to prevent destructive runtime database drop behaviors.
   }

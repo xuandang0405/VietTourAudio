@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer,
   Tooltip, XAxis, YAxis
@@ -7,18 +7,16 @@ import {
   CircleDollarSign, RefreshCcw, TrendingUp, Users, WalletCards,
   Clock, Wifi
 } from 'lucide-react';
-import { HubConnectionBuilder } from '@microsoft/signalr';
+import { subscribeRealtime } from '../../../services/realtimeClient';
 import { AdminPageHeader } from '../../../admin/components/AdminPageHeader';
 import { AdminStatCard } from '../../../admin/components/AdminStatCard';
 import { usePaymentRevenueStats } from '../../../admin/api/adminQueries';
 import { formatCurrency } from '../../../admin/utils/formatters';
-import { appConfig } from '../../../config/appConfig';
 
 export function AdminRevenue() {
   const { data: stats, isLoading, refetch } = usePaymentRevenueStats();
   const [activeOnlineUsers, setActiveOnlineUsers] = useState(0);
   const [timePeriod, setTimePeriod] = useState('allTime');
-  const connectionRef = useRef(null);
 
   // Seed initial active users from the REST fallback
   useEffect(() => {
@@ -29,35 +27,20 @@ export function AdminRevenue() {
 
   // Subscribe to real-time active user count via SignalR
   useEffect(() => {
-    const backendUrl = appConfig.apiBaseUrl.replace(/\/api\/?$/, '');
-    const hubUrl = `${backendUrl}/hub/notifications`;
-
-    const connection = new HubConnectionBuilder()
-      .withUrl(hubUrl)
-      .withAutomaticReconnect()
-      .build();
-
-    connection.on('UpdateActiveUsersCount', (liveCount) => {
+    const unsubscribeUsers = subscribeRealtime('UpdateActiveUsersCount', (liveCount) => {
       setActiveOnlineUsers(liveCount);
     });
 
     // Also auto-refresh financial stats when a payment is verified by admin
-    connection.on('ReceiveNotification', (notification) => {
+    const unsubscribeNotifications = subscribeRealtime('ReceiveNotification', (notification) => {
       if (notification?.type === 'PAYMENT_PROOF' || notification?.type === 'PAYMENT_APPROVED') {
         refetch();
       }
     });
 
-    connection.start()
-      .then(() => console.log('[RevenueDashboard] SignalR connected'))
-      .catch((err) => console.error('[RevenueDashboard] SignalR error:', err));
-
-    connectionRef.current = connection;
-
     return () => {
-      connection.off('UpdateActiveUsersCount');
-      connection.off('ReceiveNotification');
-      connection.stop().catch(() => {});
+      unsubscribeUsers();
+      unsubscribeNotifications();
     };
   }, [refetch]);
 

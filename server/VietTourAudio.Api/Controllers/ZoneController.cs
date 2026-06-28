@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using VietTourAudio.Api.Data;
 using VietTourAudio.Api.Domain;
 using VietTourAudio.Api.Helpers;
@@ -29,6 +30,7 @@ public sealed class ZoneController(AppDbContext db, IWebHostEnvironment env) : C
 
       list.Add(new {
         id = z.Id.ToString(),
+        vendorId = (string?)null,
         z.Name,
         z.Slug,
         z.Description,
@@ -92,7 +94,7 @@ public sealed class ZoneController(AppDbContext db, IWebHostEnvironment env) : C
 
     var item = new {
       id = z.Id.ToString(),
-      z.VendorId,
+      vendorId = (string?)null,
       z.Name,
       z.Slug,
       z.Description,
@@ -110,6 +112,17 @@ public sealed class ZoneController(AppDbContext db, IWebHostEnvironment env) : C
   [HttpPost]
   public async Task<IActionResult> Create([FromForm] ZoneRequest request)
   {
+    if (string.IsNullOrWhiteSpace(request.Name))
+      return BadRequest(new { success = false, message = "Tên khu vực là bắt buộc." });
+    if (!TryParseCoordinates(request.Latitude, request.Longitude, out var latitude, out var longitude))
+      return BadRequest(new { success = false, message = "Tọa độ khu vực không hợp lệ. Hãy chọn trực tiếp trên bản đồ." });
+    if (!new[] { "DRAFT", "PUBLISHED", "ARCHIVED" }.Contains(request.Status))
+      return BadRequest(new { success = false, message = "Trạng thái khu vực không hợp lệ." });
+
+    var slug = string.IsNullOrWhiteSpace(request.Slug) ? Slugify(request.Name) : Slugify(request.Slug);
+    if (await db.FestivalZones.AsNoTracking().AnyAsync(zone => zone.Slug == slug))
+      return Conflict(new { success = false, message = "Mã khu vực đã tồn tại." });
+
     string? imageUrl = request.CoverImageUrl;
     if (request.CoverFile != null)
     {
@@ -120,27 +133,43 @@ public sealed class ZoneController(AppDbContext db, IWebHostEnvironment env) : C
       }
     }
 
-    var slug = string.IsNullOrWhiteSpace(request.Slug) ? Slugify(request.Name) : request.Slug;
     var entity = new FestivalZone { 
-      VendorId = request.VendorId, 
       Name = request.Name.Trim(), 
-      Slug = slug.Trim(),
+      Slug = slug,
       Description = request.Description, 
       CoverImageUrl = imageUrl, 
-      Latitude = (decimal?)request.Latitude,
-      Longitude = (decimal?)request.Longitude, 
+      Latitude = latitude,
+      Longitude = longitude,
       Status = request.Status, 
       SortOrder = request.SortOrder 
     };
     db.FestivalZones.Add(entity); 
     await db.SaveChangesAsync();
-    return Ok(ApiResponseFactory.Ok(new { id = entity.Id.ToString(), entity.Name, entity.Slug }));
+    return Ok(new
+    {
+      success = true,
+      message = "Khu vực đã được lưu trữ thành công!",
+      data = new
+      {
+        id = entity.Id.ToString(),
+        vendorId = (string?)null,
+        entity.Name,
+        entity.Slug,
+        entity.Description,
+        entity.CoverImageUrl,
+        entity.Latitude,
+        entity.Longitude,
+        entity.Status
+      }
+    });
   }
 
   [HttpPut("{id:long}")]
   public async Task<IActionResult> Update(ulong id, [FromForm] ZoneRequest request)
   {
     var entity = await db.FestivalZones.SingleAsync(x => x.Id == id);
+    if (!TryParseCoordinates(request.Latitude, request.Longitude, out var latitude, out var longitude))
+      return BadRequest(new { success = false, message = "Tọa độ khu vực không hợp lệ. Hãy chọn trực tiếp trên bản đồ." });
     
     string? imageUrl = request.CoverImageUrl;
     if (request.CoverFile != null)
@@ -163,8 +192,8 @@ public sealed class ZoneController(AppDbContext db, IWebHostEnvironment env) : C
       entity.CoverImageUrl = imageUrl;
     }
     
-    entity.Latitude = (decimal?)request.Latitude; 
-    entity.Longitude = (decimal?)request.Longitude;
+    entity.Latitude = latitude; 
+    entity.Longitude = longitude;
     entity.Status = request.Status; 
     entity.SortOrder = request.SortOrder; 
     await db.SaveChangesAsync();
@@ -181,18 +210,49 @@ public sealed class ZoneController(AppDbContext db, IWebHostEnvironment env) : C
     return Ok(ApiResponseFactory.Ok(true));
   }
 
-  [HttpDelete("{id:long}")]
-  public async Task<IActionResult> Delete([FromRoute] ulong id)
+  [HttpDelete("{id}")]
+  [Authorize(Roles = "SUPER_ADMIN,ADMIN")]
+  public async Task<IActionResult> DeleteFestivalZone([FromRoute] string id)
   {
-    var zone = await db.FestivalZones.Include(z => z.Pois).SingleOrDefaultAsync(x => x.Id == id);
-    if (zone is null) return NotFound(ApiResponseFactory.Fail("zone.not_found"));
-    if (zone.Pois.Any(p => p.Status != "ARCHIVED"))
+    Console.WriteLine($"[DELETE REQUEST RECEIVED]: Attempting to locate Zone ID -> {id}");
+
+    if (Guid.TryParse(id, out Guid parsedZoneGuid))
     {
-      return BadRequest(new { success = false, message = "Không thể xóa khu vực này vì hiện tại vẫn đang chứa các sạp hàng hoạt động." });
+      return BadRequest(new { success = false, message = "Định dạng mã định danh ID khu vực không hợp lệ (Cơ sở dữ liệu yêu cầu ID dạng số ulong)." });
     }
-    db.FestivalZones.Remove(zone);
-    await db.SaveChangesAsync();
-    return Ok(ApiResponseFactory.Ok(true));
+
+    if (!ulong.TryParse(id, out ulong parsedId))
+    {
+      return BadRequest(new { success = false, message = "Định dạng mã định danh ID khu vực không hợp lệ." });
+    }
+
+    try
+    {
+      // 1. Delete associated users in the main users table by matching email with the vendor's contact email
+      await db.Database.ExecuteSqlRawAsync(
+        "DELETE FROM users WHERE email IN (SELECT contact_email FROM vendors WHERE assigned_tour_id = {0})", 
+        parsedId);
+
+      // 2. Explicitly delete associated vendor portal users to guarantee account deletion
+      await db.Database.ExecuteSqlRawAsync(
+        "DELETE FROM vendor_portal_users WHERE vendor_id IN (SELECT id FROM vendors WHERE assigned_tour_id = {0})", 
+        parsedId);
+
+      // 3. Delete vendors associated with this zone
+      await db.Database.ExecuteSqlRawAsync("DELETE FROM vendors WHERE assigned_tour_id = {0}", parsedId);
+
+      // 4. Delete the zone itself (which cascade deletes Pois and QR codes due to MySQL physical foreign keys constraint on delete cascade)
+      var rowsAffected = await db.Database.ExecuteSqlRawAsync("DELETE FROM tours WHERE id = {0}", parsedId);
+
+      if (rowsAffected == 0)
+        return NotFound(new { success = false, message = "Không tìm thấy khu vực tương ứng trong hệ thống database." });
+
+      return Ok(new { success = true, message = "Đã xóa bỏ khu vực thành công!" });
+    }
+    catch (Exception ex)
+    {
+      return StatusCode(500, new { success = false, message = $"Lỗi máy chủ khi xóa khu vực: {ex.Message}" });
+    }
   }
 
   [HttpPost("reset-qr/{id:long}")]
@@ -258,18 +318,34 @@ public sealed class ZoneController(AppDbContext db, IWebHostEnvironment env) : C
     return $"/uploads/zones/{uniqueFileName}";
   }
 
+  private static bool TryParseCoordinates(
+    string? latitudeText,
+    string? longitudeText,
+    out decimal latitude,
+    out decimal longitude)
+  {
+    var latitudeValid = decimal.TryParse(
+      latitudeText, NumberStyles.Float, CultureInfo.InvariantCulture, out latitude);
+    var longitudeValid = decimal.TryParse(
+      longitudeText, NumberStyles.Float, CultureInfo.InvariantCulture, out longitude);
+    return latitudeValid
+      && longitudeValid
+      && latitude is >= -90 and <= 90
+      && longitude is >= -180 and <= 180;
+  }
+
   private static string Slugify(string value) => string.Join('-', value.Trim().ToLowerInvariant()
     .Split(' ', StringSplitOptions.RemoveEmptyEntries)).Replace("đ", "d");
 }
 
 public sealed record ZoneRequest(
-  ulong VendorId,
   string Name,
+  ulong? VendorId = null,
   string? Slug = null,
   string? Description = null,
   string? CoverImageUrl = null,
-  double? Latitude = null,
-  double? Longitude = null,
+  string? Latitude = null,
+  string? Longitude = null,
   string Status = "DRAFT",
   int SortOrder = 0,
   IFormFile? CoverFile = null

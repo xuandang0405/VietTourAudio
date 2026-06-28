@@ -30,7 +30,7 @@ import { useAdminAuthStore } from '../store/adminAuthStore';
 import { LanguageSwitcher } from '../../components/LanguageSwitcher';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchAdminNotifications, markAdminNotificationRead } from '../api/adminApi';
-import { HubConnectionBuilder } from '@microsoft/signalr';
+import { subscribeRealtime } from '../../services/realtimeClient';
 import { appConfig } from '../../config/appConfig';
 import toast from 'react-hot-toast';
 
@@ -154,15 +154,7 @@ export function AdminLayout() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const backendUrl = appConfig.apiBaseUrl.replace(/\/api\/?$/, '');
-    const hubUrl = `${backendUrl}/hub/notifications`;
-
-    const connection = new HubConnectionBuilder()
-      .withUrl(hubUrl)
-      .withAutomaticReconnect()
-      .build();
-
-    connection.on('ReceiveNotification', (notification) => {
+    const handleNotification = (notification) => {
       console.log('Real-time notification received via SignalR:', notification);
 
       toast.success(
@@ -175,16 +167,15 @@ export function AdminLayout() {
 
       // Refresh react-query caches
       queryClient.invalidateQueries();
+    };
+    const unsubscribeNotification = subscribeRealtime('ReceiveNotification', handleNotification);
+    const unsubscribeStallRequest = subscribeRealtime('VendorStallUpdateSubmitted', () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'content'] });
     });
-
-    connection.start()
-      .then(() => console.log('Successfully connected to real-time SignalR Hub.'))
-      .catch((err) => console.error('Error connecting to SignalR Hub:', err));
-
     return () => {
-      connection.stop()
-        .then(() => console.log('Successfully stopped SignalR Hub connection.'))
-        .catch((err) => console.error('Error stopping SignalR Hub connection:', err));
+      unsubscribeNotification();
+      unsubscribeStallRequest();
     };
   }, [queryClient]);
   const { data: notifications = [] } = useQuery({

@@ -18,7 +18,10 @@ const customIcon = new L.Icon({
 function MapClickHandler({ onLocationSelected }: { onLocationSelected: (lat: number, lng: number) => void }) {
   useMapEvents({
     click(e) {
-      onLocationSelected(e.latlng.lat, e.latlng.lng);
+      const latitude = Number.parseFloat(e.latlng.lat.toFixed(6));
+      const longitude = Number.parseFloat(e.latlng.lng.toFixed(6));
+      console.log(`📌 POI Pinpoint Selected: Lat ${latitude.toFixed(6)}, Lng ${longitude.toFixed(6)}`);
+      onLocationSelected(latitude, longitude);
     }
   });
   return null;
@@ -444,8 +447,8 @@ export function POIForm({
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 <MapClickHandler onLocationSelected={(lat, lng) => {
-                  setFormLatitude(lat.toFixed(7));
-                  setFormLongitude(lng.toFixed(7));
+                  setFormLatitude(lat.toFixed(6));
+                  setFormLongitude(lng.toFixed(6));
                 }} />
                 <ChangeMapCenter center={mapCenter} />
                 <Marker position={mapCenter} icon={customIcon} draggable={true} eventHandlers={markerEvents} />

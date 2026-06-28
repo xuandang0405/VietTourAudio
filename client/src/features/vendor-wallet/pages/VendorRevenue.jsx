@@ -4,7 +4,7 @@ import { Crown, Download, Loader2, QrCode, Upload, WalletCards } from 'lucide-re
 import axios from 'axios';
 import { downloadBlob, formatCurrency, formatDateTime } from '../../../admin/utils/formatters';
 import { useVendorRevenue } from '../../../vendor/api/vendorQueries';
-import { mockPaySubscription, requestPremiumUpgrade, submitWalletTopUp } from '../../../vendor/api/vendorApi';
+import { paySubscriptionFromWallet, requestPremiumUpgrade, submitWalletTopUp } from '../../../vendor/api/vendorApi';
 
 export function VendorRevenue() {
   const { t } = useTranslation();
@@ -99,7 +99,7 @@ export function VendorRevenue() {
           <p className="text-sm font-bold text-slate-500">{t('wallet.monthly_rent')}</p>
           <p className="mt-2 text-lg font-black text-slate-900">{t('wallet.next_billing')}: {summary.nextBillingDate ? new Date(summary.nextBillingDate).toLocaleDateString() : '-'}</p>
           <p className="mt-1 text-xs font-bold text-slate-500">{t('common.status')}: {summary.subscriptionStatus ?? '-'}</p>
-          <button type="button" disabled={Boolean(busy)} onClick={() => runAction('rent', mockPaySubscription, 'wallet.rent_paid')} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-black text-white hover:bg-teal-700 disabled:opacity-50">
+          <button type="button" disabled={Boolean(busy)} onClick={() => runAction('rent', paySubscriptionFromWallet, 'wallet.rent_paid')} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-black text-white hover:bg-teal-700 disabled:opacity-50">
             {busy === 'rent' && <Loader2 size={15} className="animate-spin" />}{t('wallet.pay_rent')}
           </button>
         </div>

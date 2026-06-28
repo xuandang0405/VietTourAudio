@@ -27,7 +27,7 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
     {
       id = vendor.Id.ToString(), businessName = vendor.TradeName, vendorCode = vendor.VendorCode,
       ownerEmail = vendor.ContactEmail, verificationStatus = vendor.Status,
-      assignedTourId = vendor.AssignedTourId?.ToString()
+      assignedTourId = vendor.FestivalZoneId?.ToString()
     }));
   }
 
@@ -392,11 +392,29 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
       poi.UpdatedAt = DateTime.UtcNow;
     }
     await db.SaveChangesAsync();
+    await DatabaseSql.ExecuteAsync(db, """
+      UPDATE stalls
+      SET pending_name=@name,pending_description=@description,
+          pending_latitude=@latitude,pending_longitude=@longitude,
+          pending_cover_image_url=COALESCE(@image,pending_cover_image_url),
+          approval_status='PENDING',updated_at=NOW()
+      WHERE id=@stallId AND vendor_id=@vendorId
+      """, new Dictionary<string, object?>
+    {
+      ["@name"] = request.Name.Trim(),
+      ["@description"] = request.Description,
+      ["@latitude"] = latitude,
+      ["@longitude"] = longitude,
+      ["@image"] = storedName,
+      ["@stallId"] = stallId,
+      ["@vendorId"] = VendorId
+    });
 
     if (storedName is not null)
     {
       var config = (IConfiguration)HttpContext.RequestServices.GetService(typeof(IConfiguration))!;
-      var publicBaseUrl = (config["Storage:PublicBaseUrl"] ?? "http://localhost:45200/uploads").TrimEnd('/');
+      var publicBaseUrl = (config["Storage:PublicBaseUrl"]
+        ?? $"{Request.Scheme}://{Request.Host}/uploads").TrimEnd('/');
       var publicUrl = $"{publicBaseUrl}/vendor/{storedName}";
       var relativePath = $"/uploads/vendor/{storedName}";
 
@@ -458,6 +476,21 @@ public sealed class VendorController(AppDbContext db, IWebHostEnvironment enviro
     {
       System.Console.WriteLine($"Stall translation failure: {ex.Message}");
     }
+
+    await hubContext.Clients.All.SendAsync("VendorStallUpdateSubmitted", new
+    {
+      stallId = stallId.ToString(),
+      vendorId = VendorId.ToString(),
+      approvalStatus = "PENDING",
+      submittedAt = DateTime.UtcNow
+    });
+    await hubContext.Clients.All.SendAsync("ReceiveNotification", new
+    {
+      type = "STALL_UPDATE_PENDING",
+      title = "Yêu cầu cập nhật sạp mới",
+      message = $"Vendor #{VendorId} vừa gửi sạp #{stallId} để duyệt.",
+      stallId = stallId.ToString()
+    });
 
     return Ok(ApiResponseFactory.Ok(new { submitted = true, approvalStatus = "PENDING", pendingImageUrl = storedName is null ? null : $"/uploads/vendor/{storedName}" }));
   }

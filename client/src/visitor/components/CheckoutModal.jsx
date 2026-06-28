@@ -3,7 +3,7 @@ import { CheckCircle2, Copy, Crown, X, Loader2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { HubConnectionBuilder } from '@microsoft/signalr';
+import { subscribeRealtime } from '../../services/realtimeClient';
 import { useTranslation } from 'react-i18next';
 import { appConfig } from '../../config/appConfig';
 import { getVisitorSessionId } from '../../utils/visitorSession';
@@ -85,12 +85,6 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
     if (!open || proofStatus !== 'PENDING' || !activeTransactionId) return undefined;
 
     let disposed = false;
-    const backendRoot = import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '');
-    const connection = new HubConnectionBuilder()
-      .withUrl(`${backendRoot}/hub/notifications`)
-      .withAutomaticReconnect()
-      .build();
-
     const handlePaymentUpdate = (targetId, currentStatus) => {
       if (String(targetId).toLowerCase() !== activeTransactionId.toLowerCase()) return;
       if (currentStatus === 'APPROVED') triggerPremiumSuccessSequence();
@@ -99,10 +93,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
         toast.error(tRoot('payment.rejected_toast'));
       }
     };
-    connection.on('ReceivePaymentUpdate', handlePaymentUpdate);
-    connection.start().catch((error) => {
-      if (!disposed) console.warn('Payment SignalR unavailable; polling remains active.', error);
-    });
+    const unsubscribe = subscribeRealtime('ReceivePaymentUpdate', handlePaymentUpdate);
 
     const pollStatus = async () => {
       try {
@@ -125,8 +116,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
     return () => {
       disposed = true;
       window.clearInterval(pollingTimer);
-      connection.off('ReceivePaymentUpdate', handlePaymentUpdate);
-      void connection.stop();
+      unsubscribe();
     };
   }, [activeTransactionId, open, proofStatus, tRoot, triggerPremiumSuccessSequence]);
 

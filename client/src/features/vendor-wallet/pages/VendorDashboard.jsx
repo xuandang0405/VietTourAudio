@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency, formatDate } from '../../../admin/utils/formatters';
 import { useVendorDashboard, useVendorStall, useVendorStallQr } from '../../../vendor/api/vendorQueries';
-import { useVendorPortalStore } from '../stores/vendorPortalStore';
-import { mockPaySubscription } from '../../../vendor/api/vendorApi';
+import { paySubscriptionFromWallet } from '../../../vendor/api/vendorApi';
 import { QRCodeCanvas } from 'qrcode.react';
 import { appConfig } from '../../../config/appConfig';
 
@@ -17,7 +16,6 @@ export function VendorDashboard() {
     nextBillingDate: data?.vendor?.nextBillingDate ?? '',
     paymentStatus: data?.vendor?.paymentStatus ?? 'unpaid'
   };
-  const mockStats = useVendorPortalStore((state) => state.stats);
   const [isPayingSubscription, setIsPayingSubscription] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
   const [copiedQr, setCopiedQr] = useState(false);
@@ -35,11 +33,11 @@ export function VendorDashboard() {
     visits: poi.visits
   }));
 
-  async function handleMockPay() {
+  async function handleSubscriptionPayment() {
     setPaySuccess(false);
     setIsPayingSubscription(true);
     try {
-      await mockPaySubscription();
+      await paySubscriptionFromWallet();
       setPaySuccess(true);
       setTimeout(() => setPaySuccess(false), 3000);
       await refetch();
@@ -90,7 +88,7 @@ export function VendorDashboard() {
             )}
             <button
               type="button"
-              onClick={handleMockPay}
+              onClick={handleSubscriptionPayment}
               disabled={isPayingSubscription || subscription.paymentStatus === 'paid'}
               className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-teal-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
             >
@@ -102,7 +100,7 @@ export function VendorDashboard() {
               ) : subscription.paymentStatus === 'paid' ? (
                 `✓ ${t('stall.paid')}`
               ) : (
-                t('stall.pay_mock')
+                t('wallet.pay_rent')
               )}
             </button>
           </div>
@@ -207,13 +205,13 @@ export function VendorDashboard() {
         <KPICard
           icon={<MapPin />}
           label={t('stall.visitors_today')}
-          value={String(data?.metrics?.totalVisits ?? mockStats.todayVisitors)}
-          trend={t('stall.total', { count: data?.metrics?.totalUniqueVisitors ?? mockStats.totalVisitors })}
+          value={String(data?.metrics?.totalVisits ?? 0)}
+          trend={t('stall.total', { count: data?.metrics?.totalUniqueVisitors ?? 0 })}
         />
         <KPICard
           icon={<Headphones />}
           label={t('stall.audio_today')}
-          value={String(data?.metrics?.totalAudioPlays ?? mockStats.todayAudioPlays)}
+          value={String(data?.metrics?.totalAudioPlays ?? 0)}
           trend={t('stall.premium_conversions', { count: data?.metrics?.totalPremiumConversions ?? 0 })}
           color="text-teal-600"
           bg="bg-teal-50"
@@ -221,15 +219,15 @@ export function VendorDashboard() {
         <KPICard
           icon={<QrCode />}
           label={t('stall.qr_today')}
-          value={String(data?.metrics?.totalQrScans ?? mockStats.todayQrScans)}
-          trend={t('stall.total', { count: mockStats.totalQrScans })}
+          value={String(data?.metrics?.totalQrScans ?? 0)}
+          trend={t('stall.total', { count: data?.metrics?.totalQrScans ?? 0 })}
           color="text-orange-600"
           bg="bg-orange-50"
         />
         <KPICard
           icon={<TrendingUp />}
           label={t('stall.revenue')}
-          value={formatCurrency(data?.metrics?.totalRevenue ?? mockStats.todayRevenue)}
+          value={formatCurrency(data?.metrics?.totalRevenue ?? 0)}
           trend={data?.vendor?.subscriptionPlan ?? subscription.planName}
           color="text-green-600"
           bg="bg-green-50"

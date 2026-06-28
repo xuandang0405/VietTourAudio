@@ -2,7 +2,7 @@ import { ChevronRight, Crown, Headphones } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import heroTravel from '../../../assets/img/hero-travel.png';
-import { destinationPreviews, localizeDestination, localizePoi, visitorPois } from '../../../data/visitorPois';
+import { localizeDestination, localizePoi } from '../../../data/visitorPois';
 import { useTranslation } from 'react-i18next';
 import { poiService } from '../services/poiService';
 import { stallService } from '../../vendor-wallet/services/stallService';
@@ -19,13 +19,12 @@ export function ListPage({ onUpgrade }) {
   const [searchParams] = useSearchParams();
   const zoneQuery = searchParams.get('zone');
 
-  const [databasePois, setDatabasePois] = useState(null);
-  const [databaseDestinations, setDatabaseDestinations] = useState(null);
+  const [databasePois, setDatabasePois] = useState([]);
+  const [databaseDestinations, setDatabaseDestinations] = useState([]);
+  const [dataError, setDataError] = useState('');
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
   const isPremium = usePremiumStore((state) => state.isPremium);
   const position = useLocationStore((state) => state.position);
-  const isFakeMode = useLocationStore((state) => state.isFakeMode);
-  const simulateNearPoi = useLocationStore((state) => state.simulateNearPoi);
 
   useEffect(() => {
     const lockedZone = localStorage.getItem('locked_zone');
@@ -40,7 +39,10 @@ export function ListPage({ onUpgrade }) {
     poiService.getAll().then((response) => {
       if (!active) return;
       const apiPois = response.data?.data ?? [];
-      if (apiPois.length === 0) return;
+      if (apiPois.length === 0) {
+        setDatabasePois([]);
+        return;
+      }
       setDatabasePois(apiPois.map((apiPoi) => {
         const description = apiPoi.description ?? '';
         return {
@@ -66,7 +68,7 @@ export function ListPage({ onUpgrade }) {
         };
       }));
     }).catch(() => {
-      // Keep bundled POIs available when the API is offline.
+      if (active) setDataError(t('no_server_data', { defaultValue: 'Chưa có dữ liệu thực tế từ máy chủ.' }));
     });
 
     stallService.getAll().then((response) => {
@@ -82,7 +84,7 @@ export function ListPage({ onUpgrade }) {
         image: heroTravel
       })));
     }).catch(() => {
-      // Keep bundled destination previews available when the API is offline.
+      if (active) setDataError(t('no_server_data', { defaultValue: 'Chưa có dữ liệu thực tế từ máy chủ.' }));
     });
 
     return () => {
@@ -90,13 +92,8 @@ export function ListPage({ onUpgrade }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (!isFakeMode || !databasePois?.length) return;
-    simulateNearPoi(databasePois[0]);
-  }, [databasePois, isFakeMode, simulateNearPoi]);
-
   const pois = useMemo(() => {
-    const sourcePois = databasePois ?? visitorPois;
+    const sourcePois = databasePois;
     const activePois = sourcePois.filter((poi) => (poi.status ?? 'ACTIVE') === 'ACTIVE' && (poi.approvalStatus ?? 'APPROVED') === 'APPROVED');
     const localizedPois = activePois.map((poi) => localizePoi(poi, currentLanguage));
     const filteredPois = zoneQuery
@@ -116,7 +113,7 @@ export function ListPage({ onUpgrade }) {
       }));
   }, [currentLanguage, databasePois, position, zoneQuery]);
   const destinations = useMemo(
-    () => (databaseDestinations ?? destinationPreviews)
+    () => databaseDestinations
       .map((destination) => localizeDestination(destination, currentLanguage)),
     [currentLanguage, databaseDestinations]
   );
@@ -130,6 +127,11 @@ export function ListPage({ onUpgrade }) {
           <p className="text-xs font-bold uppercase text-oceanCyan">{t('inArea')}</p>
           <h1 className="mt-1 font-display text-3xl font-bold leading-tight text-textCrisp">{t('stallsAndDestinations')}</h1>
         </header>
+        {(dataError || pois.length === 0) && (
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-white/80 p-6 text-center text-sm font-semibold text-slate-600">
+            {dataError || t('no_server_data', { defaultValue: 'Chưa có dữ liệu thực tế từ máy chủ.' })}
+          </div>
+        )}
 
         <div className="grid gap-4 pc:grid-cols-2">
           {pois.map((poi) => {

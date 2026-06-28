@@ -10,6 +10,7 @@ import { visitorTrackingService } from '../services/visitorTrackingService';
 import { enrichPoisWithDistance, getDistanceMeters } from '../../../utils/geo';
 import { localizePoi } from '../../../data/visitorPois';
 import { resolveBackendMediaUrl } from '../../../utils/mediaUrl';
+import { subscribeRealtime } from '../../../services/realtimeClient';
 
 /**
  * [UC08] View Nearby POI & Audio Playback - Custom Hook.
@@ -22,6 +23,7 @@ export function useGeofenceAudio({ onToast }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedPoiId, setSelectedPoiId] = useState(searchParams.get('poi'));
   const [pois, setPois] = useState([]);
+  const [realtimeRevision, setRealtimeRevision] = useState(0);
   const [selectedStall, setSelectedStall] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [routingCoordinates, setRoutingCoordinates] = useState([]);
@@ -34,9 +36,6 @@ export function useGeofenceAudio({ onToast }) {
   const position = useLocationStore((state) => state.position);
   const permissionStatus = useLocationStore((state) => state.permissionStatus);
   const requestLocation = useLocationStore((state) => state.requestLocation);
-  const useDemoLocation = useLocationStore((state) => state.useDemoLocation);
-  const simulateNearPoi = useLocationStore((state) => state.simulateNearPoi);
-  const isFakeMode = useLocationStore((state) => state.isFakeMode);
 
   const navigationTargetPoi = useLocationStore((state) => state.navigationTargetPoi);
 
@@ -155,6 +154,15 @@ export function useGeofenceAudio({ onToast }) {
   }, [searchParams, setSearchParams]);
 
   // Resolve the scanned zone and load its relational POIs from the live API.
+  useEffect(
+    () => subscribeRealtime('StallStatusUpdated', (_stallId, status) => {
+      if (String(status).toUpperCase() === 'APPROVED') {
+        setRealtimeRevision((revision) => revision + 1);
+      }
+    }),
+    []
+  );
+
   useEffect(() => {
     let active = true;
     const queryParams = new URLSearchParams(window.location.search);
@@ -247,20 +255,7 @@ export function useGeofenceAudio({ onToast }) {
     return () => {
       active = false;
     };
-  }, [searchParams, i18n.language]);
-
-  // Handle simulation mode GPS tracking safely in a controlled side effect
-  useEffect(() => {
-    if (isFakeMode && pois.length > 0) {
-      const demoTarget = pois.find((poi) => poi.id === selectedPoiId) ?? pois[0];
-      if (demoTarget) {
-        simulateNearPoi({
-          latitude: Number(demoTarget.latitude),
-          longitude: Number(demoTarget.longitude),
-        });
-      }
-    }
-  }, [isFakeMode, pois, selectedPoiId, simulateNearPoi]);
+  }, [searchParams, i18n.language, realtimeRevision]);
 
   const zoneCenter = useMemo(() => {
     const zoneCode = searchParams.get('zone');
@@ -382,12 +377,7 @@ export function useGeofenceAudio({ onToast }) {
       }
       return;
     }
-    useDemoLocation();
-    onToast?.(t('demoGpsEnabled'));
-    const setIsCameraLocked = useLocationStore.getState().setIsCameraLocked;
-    if (typeof setIsCameraLocked === 'function') {
-      setIsCameraLocked(true);
-    }
+    onToast?.(t('gps_failed', { defaultValue: 'Không thể lấy vị trí GPS từ thiết bị.' }));
   }
 
   // Helper to parse both structured routing payloads and raw OSRM payloads safely
@@ -538,7 +528,6 @@ export function useGeofenceAudio({ onToast }) {
     setSearchQuery,
     position,
     permissionStatus,
-    isFakeMode,
     handleSelectPoi,
     handleClosePoi,
     handleLocate,

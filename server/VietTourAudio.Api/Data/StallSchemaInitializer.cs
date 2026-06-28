@@ -6,6 +6,67 @@ public static class StallSchemaInitializer
 {
   public static async Task InitializeAsync(AppDbContext db)
   {
+    var conn = db.Database.GetDbConnection();
+    var wasClosed = conn.State == System.Data.ConnectionState.Closed;
+    if (wasClosed) await conn.OpenAsync();
+    try
+    {
+      using var cmd = conn.CreateCommand();
+
+      // 1. Drop foreign key constraint fk_tours_vendor
+      cmd.CommandText = "SELECT COUNT(*) FROM information_schema.table_constraints WHERE table_schema = DATABASE() AND table_name = 'tours' AND constraint_name = 'fk_tours_vendor' AND constraint_type = 'FOREIGN KEY'";
+      var fkCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+      if (fkCount > 0)
+      {
+        cmd.CommandText = "ALTER TABLE tours DROP FOREIGN KEY fk_tours_vendor";
+        await cmd.ExecuteNonQueryAsync();
+      }
+
+      // 2. Drop unique index uq_tours_vendor_slug
+      cmd.CommandText = "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'tours' AND index_name = 'uq_tours_vendor_slug'";
+      var uqIndexCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+      if (uqIndexCount > 0)
+      {
+        cmd.CommandText = "ALTER TABLE tours DROP INDEX uq_tours_vendor_slug";
+        await cmd.ExecuteNonQueryAsync();
+      }
+
+      // 3. Drop unique index uq_tours_vendor_id_slug
+      cmd.CommandText = "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'tours' AND index_name = 'uq_tours_vendor_id_slug'";
+      var indexCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+      if (indexCount > 0)
+      {
+        cmd.CommandText = "ALTER TABLE tours DROP INDEX uq_tours_vendor_id_slug";
+        await cmd.ExecuteNonQueryAsync();
+      }
+
+      // 4. Drop index idx_tours_vendor_id
+      cmd.CommandText = "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'tours' AND index_name = 'idx_tours_vendor_id'";
+      var idxVendorCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+      if (idxVendorCount > 0)
+      {
+        cmd.CommandText = "ALTER TABLE tours DROP INDEX idx_tours_vendor_id";
+        await cmd.ExecuteNonQueryAsync();
+      }
+
+      // 5. Drop column vendor_id
+      cmd.CommandText = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'tours' AND column_name = 'vendor_id'";
+      var columnCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+      if (columnCount > 0)
+      {
+        cmd.CommandText = "ALTER TABLE tours DROP COLUMN vendor_id";
+        await cmd.ExecuteNonQueryAsync();
+      }
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"[StallSchemaInitializer] Schema check failed: {ex.Message}");
+    }
+    finally
+    {
+      if (wasClosed) await conn.CloseAsync();
+    }
+
     await db.Database.ExecuteSqlRawAsync("""
       ALTER TABLE pois
         ADD COLUMN IF NOT EXISTS vendor_id BIGINT UNSIGNED NULL AFTER stall_id
@@ -124,13 +185,13 @@ public static class StallSchemaInitializer
       INSERT INTO zones
         (tour_id,stall_id,name,slug,description,latitude,longitude,
          activation_radius,status,approval_status)
-      SELECT COALESCE(v.assigned_tour_id,(SELECT id FROM tours WHERE status!='ARCHIVED' ORDER BY id LIMIT 1)),
+      SELECT COALESCE((SELECT id FROM tours WHERE id = v.assigned_tour_id),(SELECT id FROM tours WHERE status!='ARCHIVED' ORDER BY id LIMIT 1)),
         s.id,s.name,CONCAT(s.slug,'-poi'),s.description,s.latitude,s.longitude,
         s.activation_radius,'ACTIVE','PENDING'
       FROM stalls s
       JOIN vendors v ON v.id=s.vendor_id
       WHERE NOT EXISTS (SELECT 1 FROM zones z WHERE z.stall_id=s.id)
-        AND COALESCE(v.assigned_tour_id,(SELECT id FROM tours WHERE status!='ARCHIVED' ORDER BY id LIMIT 1)) IS NOT NULL
+        AND COALESCE((SELECT id FROM tours WHERE id = v.assigned_tour_id),(SELECT id FROM tours WHERE status!='ARCHIVED' ORDER BY id LIMIT 1)) IS NOT NULL
       """);
   }
 }

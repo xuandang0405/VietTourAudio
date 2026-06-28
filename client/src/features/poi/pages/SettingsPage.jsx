@@ -17,7 +17,6 @@ export function SettingsPage({ onUpgrade, onToast }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const isPremium = usePremiumStore((state) => state.isPremium);
   const expiresAt = usePremiumStore((state) => state.expiresAt);
-  const deactivatePremium = usePremiumStore((state) => state.deactivatePremium);
   const clearLocation = useLocationStore((state) => state.clearLocation);
   const permissionStatus = useLocationStore((state) => state.permissionStatus);
   const localizedGpsStatus = t(`gps_${permissionStatus}`);
@@ -48,11 +47,11 @@ export function SettingsPage({ onUpgrade, onToast }) {
                 </p>
               </div>
             </div>
-            <button type="button" onClick={isPremium ? deactivatePremium : onUpgrade} className={isPremium
-              ? 'mt-4 w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600 transition duration-150 ease-out hover:bg-slate-100 active:scale-[0.98] pc:max-w-xs'
-              : 'mt-4 w-full rounded-full bg-gradient-to-r from-teal-400 via-blue-500 to-purple-500 px-4 py-3 text-sm font-bold text-white shadow-[0_4px_15px_rgba(168,85,247,0.4)] transition duration-150 ease-out hover:brightness-110 active:scale-[0.98] pc:max-w-xs'}>
-              {isPremium ? t('disablePremiumDemo') : t('unlockPremium24h')}
-            </button>
+            {!isPremium && (
+              <button type="button" onClick={onUpgrade} className="mt-4 w-full rounded-full bg-gradient-to-r from-teal-400 via-blue-500 to-purple-500 px-4 py-3 text-sm font-bold text-white shadow-[0_4px_15px_rgba(168,85,247,0.4)] transition duration-150 ease-out hover:brightness-110 active:scale-[0.98] pc:max-w-xs">
+                {t('unlockPremium24h')}
+              </button>
+            )}
           </article>
 
           <article className="p-4 bg-white/90 backdrop-blur-md rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">

@@ -1,11 +1,9 @@
 import { create } from 'zustand';
-import { mapCenter } from '../../../data/visitorPois';
 
 export const useLocationStore = create((set, get) => ({
   permissionStatus: 'idle',
   position: null,
   lastError: '',
-  isFakeMode: false,
   watchId: null,
   isCameraLocked: true,
 
@@ -50,7 +48,6 @@ export const useLocationStore = create((set, get) => ({
       const successCallback = (currentPosition) => {
         set({
           permissionStatus: 'granted',
-          isFakeMode: false,
           position: {
             lat: currentPosition.coords.latitude,
             lng: currentPosition.coords.longitude,
@@ -64,12 +61,12 @@ export const useLocationStore = create((set, get) => ({
       const fallbackCallback = (fallbackError) => {
         console.warn('GPS fallback warning:', fallbackError);
         set({
-          permissionStatus: 'granted',
-          isFakeMode: true,
+          permissionStatus: 'denied',
           lastError: 'Thời gian chờ GPS hết hạn. Đã kích hoạt vị trí mô phỏng khu vực.',
-          position: { lat: mapCenter.lat, lng: mapCenter.lng, accuracy: 8 }
+          position: null,
+          lastError: 'Không thể lấy vị trí GPS từ thiết bị.'
         });
-        resolve(true);
+        resolve(false);
       };
 
       const errorCallback = (error) => {
@@ -103,8 +100,8 @@ export const useLocationStore = create((set, get) => ({
   },
 
   startWatching: () => {
-    const { watchId, isFakeMode } = get();
-    if (watchId || isFakeMode || typeof navigator === 'undefined' || !navigator.geolocation) return;
+    const { watchId } = get();
+    if (watchId || typeof navigator === 'undefined' || !navigator.geolocation) return;
 
     const getHaversineDistance = (lat1, lon1, lat2, lon2) => {
       const R = 6371000; // Radius of the earth in m
@@ -187,35 +184,12 @@ export const useLocationStore = create((set, get) => ({
     }
   },
 
-  useDemoLocation: () => {
-    get().stopWatching();
-    set({
-      permissionStatus: 'granted',
-      isFakeMode: true,
-      lastError: '',
-      position: { lat: mapCenter.lat, lng: mapCenter.lng, accuracy: 8 }
-    });
-  },
-
-  simulateNearPoi: (poi) => {
-    if (!poi) return;
-
-    get().stopWatching();
-    set({
-      permissionStatus: 'granted',
-      isFakeMode: true,
-      lastError: '',
-      position: { lat: poi.latitude + 0.00002, lng: poi.longitude + 0.00002, accuracy: 4 }
-    });
-  },
-
   clearLocation: () => {
     get().stopWatching();
     set({
       permissionStatus: 'idle',
       position: null,
-      lastError: '',
-      isFakeMode: false
+      lastError: ''
     });
   },
 

@@ -19,7 +19,6 @@ import { AdminVendorAccounts } from './features/vendor-wallet/pages/AdminVendorA
 import { AdminVendorDetail } from './features/vendor-wallet/pages/AdminVendorDetail';
 import { AdminVendorsPage } from './features/vendor-wallet/pages/AdminVendorsPage';
 import { ZoneManagement } from './features/geofence-audio/pages/ZoneManagement';
-import { PREMIUM_ACTIVATION_CODE } from './data/visitorPois';
 import { useTranslation } from 'react-i18next';
 import { usePremiumStore } from './features/vendor-wallet/stores/premiumStore';
 import { VendorGuard } from './features/auth/components/VendorGuard';
@@ -44,8 +43,8 @@ import { ZonePage } from './features/poi/pages/ZonePage';
 import { AdminPaymentSettings } from './features/payment/AdminPaymentSettings';
 import { UserPremiumUpgrade } from './features/payment/UserPremiumUpgrade';
 import { VendorBilling } from './features/payment/VendorBilling';
-import { HubConnectionBuilder } from '@microsoft/signalr';
 import { appConfig } from './config/appConfig';
+import { startRealtimeClient } from './services/realtimeClient';
 
 function AppRoutes() {
   const { t } = useTranslation('translation', { keyPrefix: 'landing' });
@@ -57,29 +56,18 @@ function AppRoutes() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
-  const presenceRef = useRef(null);
 
   // Global SignalR presence connection — registers this tab as an active user
   useEffect(() => {
-    const backendUrl = appConfig.apiBaseUrl.replace(/\/api\/?$/, '');
-    const hubUrl = `${backendUrl}/hub/notifications`;
-
-    const connection = new HubConnectionBuilder()
-      .withUrl(hubUrl)
-      .withAutomaticReconnect()
-      .build();
-
-    connection.start()
+    startRealtimeClient()
       .then(() => console.log('[Presence] SignalR connected — user counted'))
       .catch((err) => console.error('[Presence] SignalR error:', err));
 
-    presenceRef.current = connection;
+    return undefined;
 
-    return () => {
-      connection.stop()
+    /* shared connection remains alive for the app lifetime
         .then(() => console.log('[Presence] SignalR disconnected — user removed'))
-        .catch(() => {});
-    };
+        .catch(() => {}); */
   }, []);
 
   const showToast = useCallback((message) => {
@@ -114,22 +102,8 @@ function AppRoutes() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const activationCode = params.get('activate');
-
-    if (activationCode !== PREMIUM_ACTIVATION_CODE) return;
-
-    activatePremium('demo-url');
-    params.delete('activate');
-    showToast(t('premiumActivated'));
-    setShowConfetti(true);
-    window.setTimeout(() => setShowConfetti(false), 1500);
-    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
-  }, [activatePremium, location.pathname, location.search, navigate, showToast]);
-
   function handlePaymentSuccess() {
-    activatePremium('demo-payment');
+    activatePremium('checkout-payment');
     setCheckoutOpen(false);
     showToast(t('paymentSuccess'));
     setShowConfetti(true);

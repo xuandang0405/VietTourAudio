@@ -1,202 +1,126 @@
 -- =============================================================================
--- VietTourAudio — Production Seed Data (Hà Tôn Quyền Sủi Cảo walking tour ONLY)
--- All coordinates strictly within HCMC (Hà Tôn Quyền area: Lat ~10.7601x, Lng ~106.6575x)
+-- VietTourAudio DEVELOPMENT/TEST SEED
+-- Dialect: MySQL 8.0+ / MariaDB
 -- =============================================================================
 
 USE viettuoraudio;
-
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 TRUNCATE TABLE payment_transactions;
 TRUNCATE TABLE admin_payment_configs;
-TRUNCATE TABLE unlocked_tours;
-TRUNCATE TABLE revenue_daily;
-TRUNCATE TABLE analytics_daily_stall;
-TRUNCATE TABLE commission_earnings;
-TRUNCATE TABLE wallet_transactions;
-TRUNCATE TABLE top_up_requests;
-TRUNCATE TABLE vendor_wallets;
-TRUNCATE TABLE payments;
-TRUNCATE TABLE play_history;
-TRUNCATE TABLE visit_events;
-TRUNCATE TABLE qr_scan_events;
-TRUNCATE TABLE visitor_sessions;
-TRUNCATE TABLE qr_codes;
-TRUNCATE TABLE media_files;
-TRUNCATE TABLE poi_contents;
 TRUNCATE TABLE poi_products;
-TRUNCATE TABLE favorites;
+TRUNCATE TABLE poi_contents;
 TRUNCATE TABLE tour_pois;
-TRUNCATE TABLE tours;
 TRUNCATE TABLE pois;
 TRUNCATE TABLE zones;
 TRUNCATE TABLE stalls;
+TRUNCATE TABLE vendors;
+TRUNCATE TABLE tours;
+TRUNCATE TABLE vendor_wallets;
 TRUNCATE TABLE vendor_subscriptions;
 TRUNCATE TABLE vendor_portal_users;
-TRUNCATE TABLE vendors;
 TRUNCATE TABLE subscription_plans;
-TRUNCATE TABLE system_tickets;
-TRUNCATE TABLE audit_logs;
 TRUNCATE TABLE refresh_tokens;
 TRUNCATE TABLE users;
-TRUNCATE TABLE app_settings;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
+-- 1. Insert Users (Admin123 hash value)
+INSERT INTO users (id, email, pass_hash, full_name, role, status) VALUES
+(1, 'superadmin@viettouraudio.vn', '$2b$10$aAWkIkwtjeGwFmzbMI6bNuwS6cuTh1J8.JVP0TY.du7PuXvf7JP.y', 'Super Admin Test', 'SUPER_ADMIN', 'ACTIVE'),
+(2, 'admin@viettouraudio.vn', '$2b$10$aAWkIkwtjeGwFmzbMI6bNuwS6cuTh1J8.JVP0TY.du7PuXvf7JP.y', 'Admin Test', 'ADMIN', 'ACTIVE'),
+(3, 'moderator@viettouraudio.vn', '$2b$10$aAWkIkwtjeGwFmzbMI6bNuwS6cuTh1J8.JVP0TY.du7PuXvf7JP.y', 'Moderator Test', 'MODERATOR', 'ACTIVE');
+
+-- 2. Insert Subscription Plans
+INSERT INTO subscription_plans
+  (id, code, name, price, billing_cycle, max_stalls, max_pois_per_stall, max_media_files, allow_premium_content, priority_support, is_active)
+VALUES
+(1, 'STANDARD_MONTHLY', 'Standard', 199000, 'MONTHLY', 1, 10, 100, 0, 0, 1),
+(2, 'PREMIUM_MONTHLY', 'Premium', 599000, 'MONTHLY', 3, 30, 300, 1, 1, 1);
+
+-- 3. Insert Tours (FestivalZones apex parent container - no vendor_id column)
+INSERT INTO tours
+  (id, name, slug, description, latitude, longitude, status, sort_order, is_premium, price)
+VALUES
+(1, 'Sủi Cảo Hà Tôn Quyền - Khu Standard', 'sui-cao-ha-ton-quyens-standard', 'Khu ẩm thực sủi cảo truyền thống khu vực Standard.', 10.759560, 106.657800, 'PUBLISHED', 1, 0, 0),
+(2, 'Sủi Cảo Hà Tôn Quyền - Khu Premium', 'sui-cao-ha-ton-quyens-premium', 'Trải nghiệm âm thanh thuyết minh ẩm thực đặc sắc Khu Premium.', 10.759320, 106.657450, 'PUBLISHED', 2, 1, 30000);
+
+-- 4. Insert Vendors (Linked directly to tours)
+INSERT INTO vendors
+  (id, legal_name, trade_name, slug, vendor_code, assigned_tour_id, contact_name, contact_email, phone, address, status, approved_by_user_id, approved_at)
+VALUES
+(1, 'Sủi Cảo Ngọc Ý', 'Sủi Cảo Ngọc Ý', 'sui-cao-ngoc-y', 'VND-NGOC-Y', 1, 'Nguyễn Như Ý', 'nhuy@gmail.com', '0908123456', '187 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 'APPROVED', 1, NOW()),
+(2, 'Sủi Cảo Thiên Thiên', 'Sủi Cảo Thiên Thiên', 'sui-cao-thien-thien', 'VND-THIEN-THIEN', 2, 'Trần Thiên Thiên', 'thienthien@gmail.com', '0909987654', '197 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 'APPROVED', 1, NOW());
+
+-- 5. Insert Vendor Portal Users (Vendor123 hash value)
+INSERT INTO vendor_portal_users (id, vendor_id, email, pass_hash, full_name, status) VALUES
+(1, 1, 'nhuy@gmail.com', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Vendor Ngọc Ý', 'ACTIVE'),
+(2, 2, 'thienthien@gmail.com', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Vendor Thiên Thiên', 'ACTIVE');
+
+-- 6. Insert Vendor Subscriptions (Expiry Date capped to 30 days)
+INSERT INTO vendor_subscriptions
+  (id, vendor_id, plan_id, status, period_start, period_end, next_billing_date, payment_status, price_snapshot)
+VALUES
+(1, 1, 1, 'ACTIVE', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 30 DAY), DATE_ADD(CURDATE(), INTERVAL 30 DAY), 'paid', 199000),
+(2, 2, 2, 'ACTIVE', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 30 DAY), DATE_ADD(CURDATE(), INTERVAL 30 DAY), 'paid', 599000);
+
+-- 7. Insert Vendor Wallets
+INSERT INTO vendor_wallets
+  (id, vendor_id, balance, total_top_up, total_spent, total_commission)
+VALUES
+(1, 1, 1000000, 1000000, 0, 0),
+(2, 2, 3000000, 3000000, 0, 0);
+
+-- 8. Insert Stalls (References vendors and real location coordinates)
+INSERT INTO stalls
+  (id, vendor_id, name, slug, description, address, latitude, longitude, activation_radius, status, is_featured, is_premium, is_premium_priority, premium_activation_date, premium_expiry_date, priority_score, zone_code, approval_status)
+VALUES
+(1, 1, 'Sủi Cảo Ngọc Ý', 'sui-cao-ngoc-y-primary', 'Sủi cảo gia truyền Ngọc Ý, phục vụ lâu năm tại phố ẩm thực.', '187 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 10.759560, 106.657800, 10, 'APPROVED', 1, 0, 1, NULL, NULL, 100, 'STALL-NGOC-Y', 'APPROVED'),
+(2, 2, 'Sủi Cảo Thiên Thiên', 'sui-cao-thien-thien-primary', 'Thương hiệu sủi cảo Thiên Thiên nổi tiếng nhất khu vực.', '197 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 10.759320, 106.657450, 10, 'APPROVED', 1, 1, 1, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 100, 'STALL-THIEN-THIEN', 'APPROVED'),
+(3, 2, 'Sủi Cảo 162 Chờ Duyệt', 'sui-cao-162-primary', 'Dữ liệu dùng kiểm thử Admin duyệt realtime.', '162 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 10.759150, 106.657250, 3, 'PENDING', 0, 1, 0, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 0, 'STALL-162-PENDING', 'PENDING');
+
+-- 9. Insert Zones (The after_zone_insert database trigger automatically spawns identical records in the pois table)
+INSERT INTO zones
+  (id, tour_id, stall_id, vendor_id, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order, approval_status)
+VALUES
+(1, 1, 1, 1, 2, 'Sủi Cảo Ngọc Ý', 'sui-cao-ngoc-y-poi', 'Nội dung thuyết minh thật lấy từ database cho sạp Ngọc Ý.', 10.759560, 106.657800, 10, 0, 'ACTIVE', 1, 'APPROVED'),
+(2, 2, 2, 2, 2, 'Sủi Cảo Thiên Thiên', 'sui-cao-thien-thien-poi', 'Nội dung thuyết minh Premium của sạp Thiên Thiên, kiểm thử phạm vi kích hoạt GPS.', 10.759320, 106.657450, 10, 1, 'ACTIVE', 1, 'APPROVED'),
+(3, 2, 3, 2, 2, 'Sủi Cảo 162 Chờ Duyệt', 'sui-cao-162-poi', 'POI sạp phụ của nhà cung cấp đang chờ Admin phê duyệt.', 10.759150, 106.657250, 3, 0, 'ACTIVE', 2, 'PENDING');
+
+-- 10. Insert Tour POI junctions
+INSERT INTO tour_pois (tour_id, poi_id, sort_order) VALUES
+(1, 1, 1),
+(2, 2, 1),
+(2, 3, 2);
+
+-- 11. Insert Localized Audio Contents
+INSERT INTO poi_contents
+  (poi_id, lang, title, short_text, tts_script, audio_url, voice_profile, approval_status)
+VALUES
+(1, 'vi', 'Sủi Cảo Ngọc Ý - Thuyết minh', 'Thuyết minh Ngọc Ý', 'Chào mừng quý khách đến với Sủi Cảo Ngọc Ý. Hãy thưởng thức hương vị sủi cảo truyền thống đặc trưng.', NULL, 'BROWSER_TTS', 'approved'),
+(2, 'vi', 'Sủi Cảo Thiên Thiên - Thuyết minh Premium', 'Thuyết minh Thiên Thiên', 'Chào mừng quý khách đến với Sủi Cảo Thiên Thiên. Đây là nội dung hướng dẫn ẩm thực cao cấp dành cho bạn.', NULL, 'BROWSER_TTS', 'approved'),
+(3, 'vi', 'Sủi Cảo 162 - Nội dung chờ duyệt', 'Nội dung chờ duyệt', 'Nội dung thuyết minh của sạp 162 đang chờ ban quản trị phê duyệt chất lượng.', NULL, 'BROWSER_TTS', 'pending');
+
+-- 12. Insert Products
+INSERT INTO poi_products (poi_id, name, price) VALUES
+(1, 'Sủi cảo chưng thịt thập cẩm', 65000),
+(1, 'Sủi cảo chiên giòn rụm', 70000),
+(2, 'Sủi cảo tôm mực thượng hạng', 85000),
+(2, 'Sủi cảo khô sốt Hồng Kông', 90000);
+
+-- 13. Insert Admin Payment Configs
 INSERT INTO admin_payment_configs
   (gateway_type, account_name, account_number, qr_code_url, transfer_memo_pattern, is_active)
 VALUES
-  ('MOMO', 'VietTourAudio MoMo', '', NULL, 'VTA [Type] [Id]', 1),
-  ('BANK', 'VietTourAudio', '', NULL, 'VTA [Type] [Id]', 1),
-  ('VISA', 'VietTourAudio Card Gateway', 'VISA', NULL, 'VTA VISA [Id]', 1);
+('MOMO', 'VietTourAudio Admin', '0900000000', NULL, 'VTA [Type] [Id]', 1),
+('BANK', 'VietTourAudio Admin', '000000000001', NULL, 'VTA [Type] [Id]', 1),
+('VISA', 'VietTourAudio Admin', 'VISA-MOCK', NULL, 'VTA VISA [Id]', 1);
 
-INSERT INTO payment_transactions (id, sender_id, sender_type, payment_method, transaction_type, amount, transfer_memo, proof_attachment_url, status, created_at, updated_at) VALUES
-('b271db8c-1e24-4f8e-a226-8051df52b9b7', '1', 'VENDOR', 'BANK', 'STALL_RENEWAL', 599000.00, 'VTA VENDOR 1 RENEW', NULL, 'APPROVED', NOW(), NOW()),
-('d96a7d5b-21d3-4638-b7fb-9457fb73cf21', '2', 'VENDOR', 'MOMO', 'STALL_RENEWAL', 599000.00, 'VTA VENDOR 2 RENEW', NULL, 'APPROVED', NOW(), NOW()),
-('a59e9a4e-1a41-4775-9277-2f3bf4b5d4f1', 'visitor_demo_1', 'VISITOR', 'VISA', 'PREMIUM_UPGRADE', 30000.00, 'VTA PREMIUM visitor_demo_1', NULL, 'APPROVED', NOW(), NOW());
-
--- =============================================================================
--- USERS — Password for all admin users: Admin123
--- Hash: $2b$10$aAWkIkwtjeGwFmzbMI6bNuwS6cuTh1J8.JVP0TY.du7PuXvf7JP.y
--- =============================================================================
-
-INSERT INTO users (id, email, pass_hash, full_name, role, status) VALUES
-(1, 'superadmin@viettouraudio.vn', '$2b$10$aAWkIkwtjeGwFmzbMI6bNuwS6cuTh1J8.JVP0TY.du7PuXvf7JP.y', 'Super Admin Demo', 'SUPER_ADMIN', 'ACTIVE'),
-(2, 'admin@viettouraudio.vn', '$2b$10$aAWkIkwtjeGwFmzbMI6bNuwS6cuTh1J8.JVP0TY.du7PuXvf7JP.y', 'Admin Demo', 'ADMIN', 'ACTIVE'),
-(3, 'moderator@viettouraudio.vn', '$2b$10$aAWkIkwtjeGwFmzbMI6bNuwS6cuTh1J8.JVP0TY.du7PuXvf7JP.y', 'Moderator Demo', 'MODERATOR', 'ACTIVE'),
-(4, 'finance@viettouraudio.vn', '$2b$10$aAWkIkwtjeGwFmzbMI6bNuwS6cuTh1J8.JVP0TY.du7PuXvf7JP.y', 'Finance Demo', 'FINANCE', 'ACTIVE');
-
--- =============================================================================
--- SUBSCRIPTION PLANS
--- =============================================================================
-
-INSERT INTO subscription_plans (id, code, name, price, max_stalls, max_pois_per_stall, max_media_files, allow_premium_content, priority_support) VALUES
-(1, 'BASIC_MONTHLY', 'Basic Monthly', 299000.00, 2, 20, 100, 0, 0),
-(2, 'PREMIUM_MONTHLY', 'Premium Monthly', 599000.00, 10, 80, 500, 1, 1);
-
--- =============================================================================
--- VENDORS — Authentic Hà Tôn Quyền vendors
--- =============================================================================
-
-INSERT INTO vendors (id, legal_name, trade_name, slug, vendor_code, assigned_tour_id, contact_name, contact_email, phone, address, status, approved_by_user_id, approved_at) VALUES
-(1, 'Công ty TNHH Sủi Cảo Thiên Thiên', 'Sủi Cảo Thiên Thiên', 'sui-cao-thien-thien', 'VND-HTQ01', 1, 'Lâm Thiên', 'thienthien@gmail.com', '02838561111', '197 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 'APPROVED', 2, '2026-06-01 09:00:00'),
-(2, 'Hộ Kinh Doanh Sủi Cảo Ngọc Ý', 'Sủi Cảo Ngọc Ý', 'sui-cao-ngoc-y', 'VND-HTQ02', 1, 'Trương Ngọc Ý', 'ngocy@viettuoraudio.vn', '02839556666', '187 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 'APPROVED', 2, '2026-06-01 09:10:00'),
-(3, 'Hộ Kinh Doanh Sủi Cảo Như Ý', 'Sủi Cảo Như Ý', 'sui-cao-nhu-y', 'VND-HTQ03', 1, 'Lý Như Ý', 'nhuy@gmail.com', '02839558888', '185 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 'APPROVED', 2, '2026-06-01 09:20:00');
-
--- =============================================================================
--- VENDOR PORTAL USERS — Password: Vendor123
--- Hash: $2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i
--- =============================================================================
-
-INSERT INTO vendor_portal_users (id, vendor_id, email, pass_hash, full_name, status) VALUES
-(1, 1, 'thienthien@gmail.com', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Lâm Thiên', 'ACTIVE'),
-(2, 2, 'ngocy@viettuoraudio.vn', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Trương Ngọc Ý', 'ACTIVE'),
-(3, 3, 'nhuy@gmail.com', '$2b$10$afK1gYIdqdoDOuXchqHNAOCdHGB5gxOyUwnJipKLMcbAqVlfA4F3i', 'Lý Như Ý', 'ACTIVE');
-
--- =============================================================================
--- VENDOR SUBSCRIPTIONS & WALLETS
--- =============================================================================
-
-INSERT INTO vendor_subscriptions (id, vendor_id, plan_id, status, period_start, period_end, trial_end, next_billing_date, payment_status, price_snapshot) VALUES
-(1, 1, 2, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, '2026-06-30', 'paid', 599000.00),
-(2, 2, 2, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, '2026-06-30', 'paid', 599000.00),
-(3, 3, 2, 'ACTIVE', '2026-06-01', '2026-06-30', NULL, '2026-06-30', 'paid', 599000.00);
-
-INSERT INTO vendor_wallets
-  (id, vendor_id, balance, total_top_up, total_spent, total_commission, created_at, updated_at)
+-- 14. Insert Payment Transactions
+INSERT INTO payment_transactions
+  (id, sender_id, sender_type, payment_method, transaction_type, amount, transfer_memo, proof_attachment_url, status, created_at, updated_at)
 VALUES
-(1, 1, 2500000.00, 3000000.00, 500000.00, 0.00, NOW(), NOW()),
-(2, 2, 1800000.00, 2000000.00, 200000.00, 0.00, NOW(), NOW()),
-(3, 3, 3200000.00, 4000000.00, 800000.00, 0.00, NOW(), NOW());
+('11111111-1111-1111-1111-111111111111', '2', 'VENDOR', 'BANK', 'VENDOR_PREMIUM', 599000, 'VTA VENDOR TEST 0001', NULL, 'PENDING', NOW(6), NOW(6));
 
--- =============================================================================
--- TOURS — Food walking tour on Hà Tôn Quyền Street
--- =============================================================================
-
-INSERT INTO tours (id, vendor_id, name, slug, description, latitude, longitude, status, sort_order, is_premium) VALUES
-(1, 1, 'Tour Ẩm Thực Phố Sủi Cảo Hà Tôn Quyền - Quận 11', 'sui-cao-ha-ton-quyen', 'Hành trình khám phá con phố sủi cảo người Hoa sầm uất bậc nhất Sài Gòn tại Quận 11.', 10.7601660, 106.6575190, 'PUBLISHED', 1, 1);
-
--- =============================================================================
--- STALLS — Physical location details on the street map
--- =============================================================================
-
-INSERT INTO stalls (id, vendor_id, name, slug, description, address, latitude, longitude, activation_radius, status, opening_hours, is_featured, is_premium, is_premium_priority, premium_activation_date, premium_expiry_date, priority_score, zone_code) VALUES
-(1, 1, 'Sủi Cảo Thiên Thiên', 'sui-cao-thien-thien-primary', 'Quán sủi cảo lâu đời với không gian rộng rãi, nổi tiếng với nước lèo thanh ngọt nấu từ xương và mực khô.', '197 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 10.7600860, 106.6576820, 10, 'APPROVED', '{"daily":"14:00-01:30"}', 1, 1, 1, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 100, 'STALL-01'),
-(2, 2, 'Sủi Cảo Ngọc Ý', 'sui-cao-ngoc-y-primary', 'Được lòng thực khách nhờ sủi cảo to tròn, vỏ mỏng dai mịn ôm trọn nhân tôm thịt tươi ngon giòn sần sật.', '187 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 10.7602350, 106.6574710, 10, 'APPROVED', '{"daily":"13:00-01:00"}', 1, 1, 1, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 100, 'STALL-02'),
-(3, 3, 'Sủi Cảo Như Ý', 'sui-cao-nhu-y-primary', 'Nơi bán sủi cảo chiên giòn rụm chấm nước sốt xí muội cực phẩm và món sủi cảo chưng cách thủy nhân hẹ thơm lừng.', '185 Hà Tôn Quyền, Phường 4, Quận 11, TP.HCM', 10.7601950, 106.6575000, 10, 'APPROVED', '{"daily":"14:00-01:00"}', 1, 1, 1, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 100, 'STALL-03');
-
--- =============================================================================
--- ZONES (Sub-areas for tour structure) — Backfilled matching Pois
--- =============================================================================
-
-INSERT INTO zones (id, tour_id, stall_id, vendor_id, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order, approval_status) VALUES
-(1, 1, 1, 1, 2, 'Sủi Cảo Thiên Thiên', 'sui-cao-thien-thien-poi', 'Quán sủi cảo lâu đời với không gian rộng rãi, nổi tiếng với nước lèo thanh ngọt nấu từ xương và mực khô.', 10.7600860, 106.6576820, 10, 1, 'ACTIVE', 1, 'APPROVED'),
-(2, 1, 2, 2, 2, 'Sủi Cảo Ngọc Ý', 'sui-cao-ngoc-y-poi', 'Được lòng thực khách nhờ sủi cảo to tròn, vỏ mỏng dai mịn ôm trọn nhân tôm thịt tươi ngon giòn sần sật.', 10.7602350, 106.6574710, 10, 1, 'ACTIVE', 2, 'APPROVED'),
-(3, 1, 3, 3, 2, 'Sủi Cảo Như Ý', 'sui-cao-nhu-y-poi', 'Nơi bán sủi cảo chiên giòn rụm chấm nước sốt xí muội cực phẩm và món sủi cảo chưng cách thủy nhân hẹ thơm lừng.', 10.7601950, 106.6575000, 10, 1, 'ACTIVE', 3, 'APPROVED');
-
--- =============================================================================
--- POIs (Unified with zones)
--- =============================================================================
-
-INSERT IGNORE INTO pois (id, stall_id, vendor_id, zone_code, free_listens_allowed, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status, sort_order, approval_status) VALUES
-(1, 1, 1, 'STALL-01', 2, 'Sủi Cảo Thiên Thiên', 'sui-cao-thien-thien-poi', 'Quán sủi cảo lâu đời với không gian rộng rãi, nổi tiếng với nước lèo thanh ngọt nấu từ xương và mực khô.', 10.7600860, 106.6576820, 10, 1, 'ACTIVE', 1, 'APPROVED'),
-(2, 2, 2, 'STALL-02', 2, 'Sủi Cảo Ngọc Ý', 'sui-cao-ngoc-y-poi', 'Được lòng thực khách nhờ sủi cảo to tròn, vỏ mỏng dai mịn ôm trọn nhân tôm thịt tươi ngon giòn sần sật.', 10.7602350, 106.6574710, 10, 1, 'ACTIVE', 2, 'APPROVED'),
-(3, 3, 3, 'STALL-03', 2, 'Sủi Cảo Như Ý', 'sui-cao-nhu-y-poi', 'Nơi bán sủi cảo chiên giòn rụm chấm nước sốt xí muội cực phẩm và món sủi cảo chưng cách thủy nhân hẹ thơm lừng.', 10.7601950, 106.6575000, 10, 1, 'ACTIVE', 3, 'APPROVED');
-
--- =============================================================================
--- TOUR ↔ POI LINK
--- =============================================================================
-
-INSERT INTO tour_pois (tour_id, poi_id, sort_order) VALUES
-(1, 1, 1),
-(1, 2, 2),
-(1, 3, 3);
-
--- =============================================================================
--- POI CONTENTS — Rich bilingual & multilingual auto translation strings for TTS
--- =============================================================================
-
-INSERT INTO poi_contents (id, poi_id, lang, title, tts_script, voice_profile, approval_status) VALUES
--- Sủi Cảo Thiên Thiên
-(1, 1, 'vi', 'Sủi Cảo Thiên Thiên', 'Chào mừng bạn đến với sủi cảo Thiên Thiên, một trong những quán ăn lâu đời và nổi tiếng nhất tại phố ẩm thực Hà Tôn Quyền. Món sủi cảo ở đây nổi tiếng với nhân tôm thịt tươi giòn sần sật ôm trọn trong vỏ bánh mỏng mịn. Nước dùng được hầm kỹ từ xương ống heo cùng mực khô nướng đem lại hậu vị thanh mát ngọt đậm đà khó quên.', 'NORMAL', 'APPROVED'),
-(2, 1, 'en', 'Thien Thien Dumplings', 'Welcome to Thien Thien Dumplings, one of the oldest and most legendary eateries on Ha Ton Quyen Food Street. Our dumplings are famous for their thin, smooth wraps holding fresh, crunchy shrimp and pork filling. The broth is simmered with pork bones and grilled dried squid, delivering a uniquely sweet, savory, and unforgettable aftertaste.', 'NORMAL', 'APPROVED'),
-(3, 1, 'zh', '天天水饺', '欢迎光临天天水饺，这是哈尊权美食街上最古老且最具传奇色彩的餐厅之一。我们的水饺以皮薄滑嫩、内馅鲜美弹牙的鲜虾猪肉馅而闻名。汤底由猪骨和烤干鱿鱼熬制而成，带来独特的鲜甜回味，令人难忘。', 'NORMAL', 'APPROVED'),
-(4, 1, 'ja', 'ティエンティエン水餃子', 'ハトンクエン・フードストリートで最も歴史があり、有名なレストランの一つであるティエンティエン水餃子へようこそ。ここの餃子は、薄く滑らかな皮の中に、新鮮でプリプリしたエビと豚肉 of 餡がぎっしり詰まっていることで有名です。スープは豚骨と焼きスルメをじっくり煮込んで作られており、独特の甘みとコクのある後味が楽しめます。', 'NORMAL', 'APPROVED'),
-(5, 1, 'ko', '티엔티엔 물만두', '하톤꾸옌 음식 거리에서 가장 오래되고 전설적인 맛집 중 하나인 티엔티엔 물만두에 오신 것을 환영합니다. 저희 만두는 얇고 부드러운 만두피 속에 신선하고 탱글탱글한 새우와 돼지고기 소가 가득 차 있는 것으로 유명합니다. 육수는 돼지뼈와 구운 마른 오징어를 함께 우려내어 잊을 수 없는 깊고 달콤한 감칠맛을 선사합니다.', 'NORMAL', 'APPROVED'),
-
--- Sủi Cảo Ngọc Ý
-(6, 2, 'vi', 'Sủi Cảo Ngọc Ý', 'Sủi cảo Ngọc Ý là điểm dừng chân lý tưởng dành cho tín đồ yêu thích sủi cảo truyền thống Trung Hoa. Với công thức chế biến gia truyền qua nhiều thế hệ, từng viên sủi cảo tròn mập mạp đều tăm tắp, nhân bên trong đầy đặn đậm vị. Nước súp hầm mực khô đặc trưng giúp làm dậy mùi thơm ngào ngạt ăn kèm cải ngọt giòn mát.', 'NORMAL', 'APPROVED'),
-(7, 2, 'en', 'Ngoc Y Dumplings', 'Ngoc Y Dumplings is the perfect stop for lovers of traditional Chinese dumplings. Using a legacy recipe passed down through generations, each dumpling is plump, perfectly wrapped, and bursting with seasoned filling. The signature dried squid broth raises the rich aroma, served alongside crunchy sweet cabbage.', 'NORMAL', 'APPROVED'),
-(8, 2, 'zh', '玉意水饺', '玉意水饺是喜爱传统中式水饺的食客的理想去处。采用代代相传的秘方，每一颗水饺都圆润饱满、皮薄馅大、调味恰到好处。招牌干鱿鱼汤头香气四溢，搭配爽口的甜白菜，更是美味加倍。', 'NORMAL', 'APPROVED'),
-
--- Sủi Cảo Như Ý
-(9, 3, 'vi', 'Sủi Cảo Như Ý', 'Sủi cảo Như Ý mang đến sự đổi mới độc đáo với món sủi cảo chiên giòn rụm vàng ươm, khi cắn vào vỏ ngoài giòn tan bên trong nóng hổi mọng nước. Quán ăn nổi tiếng với các phần súp thập cẩm ăn kèm da heo phồng, mực ngâm tro và các loại rau thanh mát mang đậm nét ẩm thực của người Hoa Chợ Lớn.', 'NORMAL', 'APPROVED'),
-(10, 3, 'en', 'Nhu Y Dumplings', 'Nhu Y Dumplings offers a unique twist with golden, crispy fried dumplings that are crunchy on the outside and juicy on the inside. We are famous for our combination soups featuring pork skin, ash-soaked squid, and fresh greens, reflecting the authentic culinary traditions of Cholon Chinese-Vietnamese culture.', 'NORMAL', 'APPROVED'),
-(11, 3, 'zh', '如意水饺', '如意水饺以金黄酥脆的炸水饺带来独特的风味，外酥里嫩，一口咬下汁水四溢。店内以招牌什锦汤闻名，汤里配 có 炸猪皮、灰浸鱿鱼和新鲜蔬菜，展现了堤岸华人独特的饮食传统。', 'NORMAL', 'APPROVED');
-
--- =============================================================================
--- POI PRODUCTS — Menu items with prices in VND
--- =============================================================================
-
-INSERT INTO poi_products (id, poi_id, name, price) VALUES
--- Sủi Cảo Thiên Thiên (poi_id: 1)
-(1, 1, 'Sủi cảo nước thập cẩm', 65000.00),
-(2, 1, 'Sủi cảo tôm mực', 70000.00),
-(3, 1, 'Sủi cảo chiên giòn', 68000.00),
-(4, 1, 'Mì sủi cảo xá xíu', 75000.00),
-(5, 1, 'Hồng trà chanh đá', 25000.00),
-
--- Sủi Cảo Ngọc Ý (poi_id: 2)
-(6, 2, 'Sủi cảo tôm thịt heo', 60000.00),
-(7, 2, 'Hủ tiếu sủi cảo xương', 65000.00),
-(8, 2, 'Sủi cảo hấp cải thảo', 58000.00),
-(9, 2, 'Mì khô sốt dầu hào sủi cảo', 70000.00),
-(10, 2, 'Nước sâm bí đao hạt chia', 20000.00),
-
--- Sủi Cảo Như Ý (poi_id: 3)
-(11, 3, 'Súp sủi cảo da heo mực tro', 70000.00),
-(12, 3, 'Sủi cảo chiên sốt xí muội', 68000.00),
-(13, 3, 'Mì hoành thánh sủi cảo chiên', 75000.00),
-(14, 3, 'Bánh xếp chưng cách thủy', 60000.00),
-(15, 3, 'Sữa đậu nành lá dứa', 15000.00);
+SET FOREIGN_KEY_CHECKS = 1;

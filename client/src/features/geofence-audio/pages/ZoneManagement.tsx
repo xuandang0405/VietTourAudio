@@ -82,6 +82,7 @@ export function ZoneManagement() {
 
   // Zone Form State
   const [formName, setFormName] = useState('');
+  const [formVendorId, setFormVendorId] = useState('');
   const [formZoneCode, setFormZoneCode] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formCoverImageUrl, setFormCoverImageUrl] = useState('');
@@ -328,8 +329,11 @@ export function ZoneManagement() {
     useMapEvents({
       click(e) {
         const { lat, lng } = e.latlng;
-        setCenterLatitude(lat.toFixed(6));
-        setCenterLongitude(lng.toFixed(6));
+        const preciseLatitude = Number.parseFloat(lat.toFixed(6));
+        const preciseLongitude = Number.parseFloat(lng.toFixed(6));
+        console.log(`📌 Map Pinpoint Selected: Lat ${preciseLatitude.toFixed(6)}, Lng ${preciseLongitude.toFixed(6)}`);
+        setCenterLatitude(preciseLatitude.toFixed(6));
+        setCenterLongitude(preciseLongitude.toFixed(6));
       },
     });
     const latNum = Number(centerLatitude);
@@ -366,6 +370,7 @@ export function ZoneManagement() {
   const openAddModal = () => {
     setError('');
     setFormName('');
+    setFormVendorId(String(vendorsList[0]?.id ?? ''));
     setFormZoneCode('');
     setFormDescription('');
     setFormCoverImageUrl('');
@@ -382,6 +387,7 @@ export function ZoneManagement() {
   const openEditModal = (zone: any) => {
     setError('');
     setFormName(zone.name ?? '');
+    setFormVendorId(String(zone.vendorId ?? ''));
     setFormZoneCode(zone.slug ?? '');
     setFormDescription(zone.description ?? '');
     setFormCoverImageUrl(zone.coverImageUrl ?? '');
@@ -403,9 +409,20 @@ export function ZoneManagement() {
     setModal({ type: 'edit', zone });
   };
 
-  const openDeleteModal = (zone: any) => {
-    setError('');
-    setModal({ type: 'delete', zone });
+  const handleConfirmDeleteZone = async (zoneId: string) => {
+    if (!window.confirm("Cảnh báo: Xóa khu vực này sẽ gỡ bỏ toàn bộ sạp hàng Vendor trực thuộc! Bạn có chắc chắn muốn xóa?")) return;
+
+    try {
+      const response = await adminApiClient.delete(`/admin/zones/${zoneId}`);
+      if (response.data?.success || response.status === 200) {
+        toast.success("Xóa khu vực khỏi hệ thống thành công!");
+        setSelectedZoneId(null);
+        refreshData();
+      }
+    } catch (error: any) {
+      console.error("Zone deletion aborted fault trace:", error);
+      toast.error(`Không thể xóa khu vực: ${error.response?.data?.message || "Lỗi kết nối 500."}`);
+    }
   };
 
   const openAddPoiModal = (tourId: string) => {
@@ -482,23 +499,22 @@ export function ZoneManagement() {
         }
         const lat = formLatitude.trim() ? Number(formLatitude) : null;
         const lng = formLongitude.trim() ? Number(formLongitude) : null;
-        if (lat !== null && (isNaN(lat) || lat < -90 || lat > 90)) {
+        if (lat === null || isNaN(lat) || lat < -90 || lat > 90) {
           setError(t('zone.error_lat_invalid', { defaultValue: 'Vĩ độ không hợp lệ (-90 đến 90)' }));
           return;
         }
-        if (lng !== null && (isNaN(lng) || lng < -180 || lng > 180)) {
+        if (lng === null || isNaN(lng) || lng < -180 || lng > 180) {
           setError(t('zone.error_lng_invalid', { defaultValue: 'Kinh độ không hợp lệ (-180 đến 180)' }));
           return;
         }
         const formData = new FormData();
-        formData.append("vendorId", "1");
         formData.append("name", formName.trim());
         if (formZoneCode.trim()) formData.append("slug", formZoneCode.trim());
         if (formDescription.trim()) formData.append("description", formDescription.trim());
         formData.append("status", formStatus);
         formData.append("isPremium", String(formIsPremium));
-        if (lat !== null) formData.append("latitude", String(lat));
-        if (lng !== null) formData.append("longitude", String(lng));
+        formData.append("latitude", lat.toFixed(6));
+        formData.append("longitude", lng.toFixed(6));
 
         if (coverImageMode === 'upload') {
           if (selectedFile) {
@@ -733,7 +749,13 @@ export function ZoneManagement() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => openDeleteModal(selectedTourDetail)}
+                        onClick={() => {
+                          if (!selectedTourDetail?.id) {
+                            console.error("Aborting dispatch: Selected zone database item is missing a valid ID field.");
+                            return;
+                          }
+                          handleConfirmDeleteZone(selectedTourDetail.id);
+                        }}
                         className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-700 hover:bg-red-50"
                       >
                         <Trash2 size={16} />
@@ -1043,18 +1065,7 @@ export function ZoneManagement() {
         </div>
       </AdminModal>
 
-      {/* Delete Zone Confirmation Modal */}
-      <AdminModal
-        open={modal?.type === 'delete'}
-        title={t('zone.delete_title', { defaultValue: 'Xác nhận xóa Khu vực' })}
-        description="Hành động này sẽ XÓA VĨNH VIỄN khu vực này trong cơ sở dữ liệu. Chỉ cho phép xóa khi không còn điểm thuyết minh (POI) nào đang hoạt động. Bạn có chắc chắn muốn tiếp tục?"
-        confirmLabel={t('common.delete')}
-        tone="danger"
-        onClose={() => setModal(null)}
-        onConfirm={handleConfirm}
-      >
-        {error && <p className="text-xs font-bold text-red-600 pb-2">{error}</p>}
-      </AdminModal>
+
 
       {/* Add / Edit POI Modal */}
        <AdminModal

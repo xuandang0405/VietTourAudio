@@ -10,7 +10,9 @@ namespace VietTourAudio.Api.Controllers;
 [ApiController]
 [Route("api/admin/content")]
 [Authorize(Roles = "SUPER_ADMIN,ADMIN,MODERATOR")]
-public sealed class AdminContentCompatibilityController(AppDbContext db) : ControllerBase
+public sealed class AdminContentCompatibilityController(
+  AppDbContext db,
+  IHubContext<VietTourAudio.Api.Hubs.NotificationHub> hubContext) : ControllerBase
 {
   [HttpGet("queue")]
   public async Task<IActionResult> Queue([FromQuery] string status = "PENDING")
@@ -113,7 +115,6 @@ public sealed class AdminContentCompatibilityController(AppDbContext db) : Contr
         }
         try
         {
-          var hubContext = (Microsoft.AspNetCore.SignalR.IHubContext<VietTourAudio.Api.Hubs.NotificationHub>)HttpContext.RequestServices.GetService(typeof(Microsoft.AspNetCore.SignalR.IHubContext<VietTourAudio.Api.Hubs.NotificationHub>))!;
           await hubContext.Clients.All.SendAsync("StallStatusUpdated", numericId.ToString(), "APPROVED");
         }
         catch {}
@@ -189,7 +190,6 @@ public sealed class AdminContentCompatibilityController(AppDbContext db) : Contr
       // Send SignalR notification
       try
       {
-        var hubContext = (Microsoft.AspNetCore.SignalR.IHubContext<VietTourAudio.Api.Hubs.NotificationHub>)HttpContext.RequestServices.GetService(typeof(Microsoft.AspNetCore.SignalR.IHubContext<VietTourAudio.Api.Hubs.NotificationHub>))!;
         await hubContext.Clients.All.SendAsync("StallStatusUpdated", numericId.ToString(), status);
       }
       catch {}

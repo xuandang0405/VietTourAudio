@@ -31,14 +31,14 @@ public sealed class VendorProfile : IEntity
   public string VendorCode { get; set; } = "";
   public string ContactEmail { get; set; } = "";
   public string Status { get; set; } = "PENDING";
-  public ulong? AssignedTourId { get; set; }
+  public ulong? FestivalZoneId { get; set; }
+  public FestivalZone? FestivalZone { get; set; }
   public Wallet? Wallet { get; set; }
 }
 
 public sealed class FestivalZone : IEntity
 {
   public ulong Id { get; set; }
-  public ulong VendorId { get; set; }
   public string Name { get; set; } = "";
   public string Slug { get; set; } = "";
   public string? Description { get; set; }
@@ -48,6 +48,7 @@ public sealed class FestivalZone : IEntity
   public string Status { get; set; } = "DRAFT";
   public int SortOrder { get; set; }
   public ICollection<Poi> Pois { get; set; } = [];
+  public ICollection<VendorProfile> Vendors { get; set; } = [];
 }
 
 public sealed class Poi : IEntity
@@ -62,6 +63,7 @@ public sealed class Poi : IEntity
   public decimal Latitude { get; set; }
   public decimal Longitude { get; set; }
   public int ActivationRadius { get; set; }
+  public bool IsPremiumContent { get; set; }
   public string? CoverUrl { get; set; }
   public string Status { get; set; } = "ACTIVE";
   public ApprovalStatus ApprovalStatus { get; set; }

@@ -106,21 +106,38 @@ public sealed class AdminPoiController(
     var description = body.TryGetProperty("description", out var descriptionValue) && descriptionValue.ValueKind != JsonValueKind.Null
       ? descriptionValue.GetString() : null;
     var premium = body.TryGetProperty("isPremiumContent", out var premiumValue) && premiumValue.GetBoolean();
-    
-    var connection = await DatabaseSql.OpenConnectionAsync(db);
-    await using var command = connection.CreateCommand();
-    command.CommandText = """
-      INSERT INTO zones(tour_id,stall_id,name,slug,description,latitude,longitude,activation_radius,
-        is_premium_content,status,approval_status)
-      VALUES(@tour,@stall,@name,@slug,@description,@lat,@lng,@radius,@premium,@status,'APPROVED')
-      """;
-    command.AddParameter("@tour", tourId); command.AddParameter("@stall", stallId); command.AddParameter("@name", name);
-    command.AddParameter("@slug", slug); command.AddParameter("@description", description); command.AddParameter("@lat", latitude);
-    command.AddParameter("@lng", longitude); command.AddParameter("@radius", radius);
-    command.AddParameter("@premium", premium); command.AddParameter("@status", status);
-    await command.ExecuteNonQueryAsync();
-    
-    var poiId = await DatabaseSql.LastInsertIdAsync(connection);
+
+    if (latitude is < -90 or > 90 || longitude is < -180 or > 180)
+      return BadRequest(ApiResponseFactory.Fail("poi.invalid_coordinates"));
+    if (!await db.FestivalZones.AsNoTracking().AnyAsync(tour => tour.Id == tourId))
+      return BadRequest(ApiResponseFactory.Fail("zone.not_found"));
+    var stallRows = await DatabaseSql.QueryRowsAsync(db,
+      "SELECT vendor_id vendorId FROM stalls WHERE id=@id LIMIT 1",
+      new Dictionary<string, object?> { ["@id"] = stallId });
+    if (stallRows.Count == 0) return BadRequest(ApiResponseFactory.Fail("stall.not_found"));
+    if (await db.Pois.AsNoTracking().AnyAsync(poi => poi.StallId == stallId && poi.Slug == slug))
+      return Conflict(ApiResponseFactory.Fail("poi.slug_exists"));
+
+    var entity = new Poi
+    {
+      TourId = tourId,
+      StallId = stallId,
+      VendorId = Convert.ToUInt64(stallRows[0]["vendorId"]),
+      Name = name,
+      Slug = slug,
+      Description = description,
+      Latitude = latitude,
+      Longitude = longitude,
+      ActivationRadius = radius,
+      IsPremiumContent = premium,
+      Status = status,
+      ApprovalStatus = ApprovalStatus.APPROVED,
+      CreatedAt = DateTime.UtcNow,
+      UpdatedAt = DateTime.UtcNow
+    };
+    db.Pois.Add(entity);
+    await db.SaveChangesAsync();
+    var poiId = entity.Id;
 
     var translationsList = ParseTranslations(body);
     await SavePoiTranslationsAsync(poiId, name, description ?? "", translationsList);

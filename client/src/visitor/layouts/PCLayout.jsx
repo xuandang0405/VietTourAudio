@@ -3,7 +3,6 @@ import { useEffect, useState, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import logo from '../../assets/logo/logo.png';
-import { DevGpsPanel } from '../../features/geofence-audio/components/DevGpsPanel';
 import { LeafletMap } from '../../features/poi/components/LeafletMap';
 import { PoiBottomSheet } from '../../features/poi/components/PoiBottomSheet';
 import { useLanguageStore, languages } from '../../stores/languageStore';
@@ -163,7 +162,6 @@ export function PCLayout({
   enrichedPois = [],
   position,
   permissionStatus,
-  isFakeMode,
   handleSelectPoi,
   handleClosePoi,
   handleLocate,
@@ -411,7 +409,6 @@ export function PCLayout({
           zoneCenter={zoneCenter}
         />
         
-        {(isFakeMode || searchParams.get('debug') === 'gps') && <DevGpsPanel pois={enrichedPois} onToast={onToast} />}
 
         {navigationTargetPoi && !selectedPoi && (
           <div className="absolute top-4 right-4 z-[1000] pointer-events-auto animate-fade-in">

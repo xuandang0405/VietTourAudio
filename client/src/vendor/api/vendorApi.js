@@ -193,7 +193,7 @@ export const submitContent = submitVendorContent;
 
 // --- Subscription ---
 
-export async function mockPaySubscription() {
+export async function paySubscriptionFromWallet() {
   return unwrap(await vendorApiClient.post('/pay-subscription'));
 }
 

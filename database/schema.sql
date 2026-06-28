@@ -35,13 +35,13 @@ DROP TABLE IF EXISTS poi_products;
 DROP TABLE IF EXISTS favorites;
 DROP TABLE IF EXISTS unlocked_tours;
 DROP TABLE IF EXISTS tour_pois;
-DROP TABLE IF EXISTS tours;
 DROP TABLE IF EXISTS pois;
 DROP TABLE IF EXISTS zones;
 DROP TABLE IF EXISTS stalls;
 DROP TABLE IF EXISTS vendor_subscriptions;
 DROP TABLE IF EXISTS vendor_portal_users;
 DROP TABLE IF EXISTS vendors;
+DROP TABLE IF EXISTS tours;
 DROP TABLE IF EXISTS subscription_plans;
 DROP TABLE IF EXISTS system_tickets;
 DROP TABLE IF EXISTS admin_notifications;
@@ -49,6 +49,9 @@ DROP TABLE IF EXISTS audit_logs;
 DROP TABLE IF EXISTS refresh_tokens;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS app_settings;
+DROP TABLE IF EXISTS payment_requests;
+
+SET FOREIGN_KEY_CHECKS = 1;
 
 -- =============================================================================
 -- 1. ADMIN / PLATFORM USERS
@@ -155,7 +158,32 @@ CREATE TABLE subscription_plans (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
--- 4. VENDORS
+-- 4. TOURS (Festival / Area groupings - APEX PARENT CONTAINER)
+-- =============================================================================
+
+CREATE TABLE tours (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) NOT NULL,
+  description TEXT NULL,
+  cover_image_url VARCHAR(500) NULL,
+  latitude DECIMAL(10,7) NULL,
+  longitude DECIMAL(10,7) NULL,
+  status ENUM('DRAFT', 'PUBLISHED', 'ARCHIVED') NOT NULL DEFAULT 'DRAFT',
+  sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+  is_premium TINYINT(1) NOT NULL DEFAULT 0,
+  is_premium_priority TINYINT(1) NOT NULL DEFAULT 0,
+  price DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_tours_slug (slug),
+  KEY idx_tours_status (status),
+  KEY idx_tours_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- 5. VENDORS (Linked to tours)
 -- =============================================================================
 
 CREATE TABLE vendors (
@@ -185,7 +213,10 @@ CREATE TABLE vendors (
   KEY idx_vendors_created_at (created_at),
   CONSTRAINT fk_vendors_approved_by
     FOREIGN KEY (approved_by_user_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE SET NULL
+    ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT fk_vendors_tour
+    FOREIGN KEY (assigned_tour_id) REFERENCES tours(id)
+    ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE vendor_portal_users (
@@ -251,36 +282,6 @@ CREATE TABLE vendor_subscriptions (
   CONSTRAINT fk_vendor_subscriptions_plan
     FOREIGN KEY (plan_id) REFERENCES subscription_plans(id)
     ON UPDATE CASCADE ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =============================================================================
--- 5. TOURS (Festival / Area groupings)
--- =============================================================================
-
-CREATE TABLE tours (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  vendor_id BIGINT UNSIGNED NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  slug VARCHAR(255) NOT NULL,
-  description TEXT NULL,
-  cover_image_url VARCHAR(500) NULL,
-  latitude DECIMAL(10,7) NULL,
-  longitude DECIMAL(10,7) NULL,
-  status ENUM('DRAFT', 'PUBLISHED', 'ARCHIVED') NOT NULL DEFAULT 'DRAFT',
-  sort_order INT UNSIGNED NOT NULL DEFAULT 0,
-  is_premium TINYINT(1) NOT NULL DEFAULT 0,
-  is_premium_priority TINYINT(1) NOT NULL DEFAULT 0,
-  price DECIMAL(14,2) NOT NULL DEFAULT 0.00,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_tours_vendor_slug (vendor_id, slug),
-  KEY idx_tours_vendor_id (vendor_id),
-  KEY idx_tours_status (status),
-  KEY idx_tours_created_at (created_at),
-  CONSTRAINT fk_tours_vendor
-    FOREIGN KEY (vendor_id) REFERENCES vendors(id)
-    ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
@@ -934,7 +935,7 @@ CREATE TABLE revenue_daily (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
--- 21. UNLOCKED TOURS (Guest unlocked premium tours)
+-- 21. UNLOCKED TOURS & PAYMENT REQUESTS
 -- =============================================================================
 
 CREATE TABLE payment_requests (
@@ -950,8 +951,17 @@ CREATE TABLE payment_requests (
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE unlocked_tours (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  guest_id VARCHAR(100) NOT NULL,
+  tour_id INT NOT NULL,
+  transaction_reference VARCHAR(100) NULL,
+  unlocked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_guest_tour (guest_id, tour_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- =============================================================================
--- 24. UNIFIED CHECKOUT / ADMIN PAYMENT GATEWAYS
+-- 22. ADMIN PAYMENT CONFIGS & PAYMENT TRANSACTIONS
 -- =============================================================================
 
 CREATE TABLE admin_payment_configs (
@@ -986,50 +996,8 @@ CREATE TABLE payment_transactions (
   KEY idx_payment_transactions_method (payment_method)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE unlocked_tours (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  guest_id VARCHAR(100) NOT NULL,
-  tour_id INT NOT NULL,
-  transaction_reference VARCHAR(100) NULL,
-  unlocked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_guest_tour (guest_id, tour_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- =============================================================================
--- 22. APP SETTINGS (Key-Value configuration store)
--- =============================================================================
--- 23. ADMIN PAYMENT CONFIGS & PAYMENT TRANSACTIONS
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS admin_payment_configs (
-  id INT NOT NULL AUTO_INCREMENT,
-  gateway_type VARCHAR(20) NOT NULL,
-  account_name VARCHAR(255) NOT NULL,
-  account_number VARCHAR(120) NOT NULL,
-  qr_code_url VARCHAR(600) NULL,
-  transfer_memo_pattern VARCHAR(255) NOT NULL DEFAULT 'VTA [Type] [Id]',
-  is_active TINYINT(1) NOT NULL DEFAULT 1,
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_admin_payment_configs_gateway (gateway_type)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS payment_transactions (
-  id CHAR(36) NOT NULL,
-  sender_id VARCHAR(160) NOT NULL,
-  sender_type VARCHAR(20) NOT NULL,
-  payment_method VARCHAR(20) NOT NULL,
-  transaction_type VARCHAR(40) NOT NULL,
-  amount DECIMAL(14,2) NOT NULL,
-  transfer_memo VARCHAR(255) NOT NULL,
-  proof_attachment_url VARCHAR(600) NULL,
-  status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-  created_at DATETIME(6) NOT NULL,
-  updated_at DATETIME(6) NOT NULL,
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_payment_transactions_transfer_memo (transfer_memo),
-  KEY idx_payment_transactions_status_created (status, created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
+-- 23. APP SETTINGS (Key-Value configuration store)
 -- =============================================================================
 
 CREATE TABLE app_settings (

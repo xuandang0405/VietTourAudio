@@ -24,10 +24,11 @@ import {
   useApprovePoi,
   useRejectPoi
 } from '../../../admin/api/adminQueries';
+import { appConfig } from '../../../config/appConfig';
 
 function toPublicImageUrl(value) {
   if (!value || value.startsWith('blob:') || value.startsWith('data:') || /^https?:\/\//.test(value)) return value;
-  return `http://localhost:45200${value.startsWith('/') ? value : `/${value}`}`;
+  return `${new URL(appConfig.apiBaseUrl).origin}${value.startsWith('/') ? value : `/${value}`}`;
 }
 
 export function AdminPois() {

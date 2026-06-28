@@ -3,7 +3,6 @@ import { Crosshair, QrCode, SatelliteDish, Search, Heart, Navigation, X } from '
 import { AudioPlayerSheet } from '../../components/AudioPlayerSheet';
 import { useTranslation } from 'react-i18next';
 import { BottomNav } from '../components/BottomNav';
-import { DevGpsPanel } from '../../features/geofence-audio/components/DevGpsPanel';
 import { LeafletMap } from '../../features/poi/components/LeafletMap';
 import { PoiBottomSheet } from '../../features/poi/components/PoiBottomSheet';
 import { TopBar } from '../components/TopBar';
@@ -21,7 +20,6 @@ export function MobileLayout({
   setSearchQuery,
   position,
   permissionStatus,
-  isFakeMode,
   handleSelectPoi,
   handleLocate,
   handleClosePoi,
@@ -114,12 +112,6 @@ export function MobileLayout({
               </button>
             )}
           </div>
-
-          {(isFakeMode || searchParams.get('debug') === 'gps') && (
-            <div className="pointer-events-auto absolute left-0 top-[60px]">
-              <DevGpsPanel pois={enrichedPois} onToast={onToast} />
-            </div>
-          )}
 
           {!position && (
             <article className="pointer-events-auto shadow-xl rounded-2xl bg-white/95 backdrop-blur-md absolute left-0 right-0 top-[120px] z-35 p-4 text-center border border-slate-100">

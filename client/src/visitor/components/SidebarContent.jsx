@@ -13,7 +13,6 @@ export function SidebarContent({
   onUpgrade,
   handleLocate,
   permissionStatus,
-  isFakeMode,
   enrichedPois = [],
   selectedPoi,
   handleSelectPoi
@@ -93,7 +92,7 @@ export function SidebarContent({
           </div>
           <div className="flex items-center justify-between rounded-xl border border-glassBorder bg-white/5 p-3">
             <span className="text-xs font-semibold text-textSeafoam">
-              {isFakeMode ? t('demo_mode_active') : (gpsLabels[permissionStatus] ?? t('gps_idle'))}
+              {gpsLabels[permissionStatus] ?? t('gps_idle')}
             </span>
             <button
               type="button"

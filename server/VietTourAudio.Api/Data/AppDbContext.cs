@@ -47,16 +47,16 @@ public class AppDbContext : DbContext
       entity.Property(x => x.VendorCode).HasColumnName("vendor_code");
       entity.Property(x => x.ContactEmail).HasColumnName("contact_email");
       entity.Property(x => x.Status).HasColumnName("status");
-      entity.Property(x => x.AssignedTourId).HasColumnName("assigned_tour_id");
+      entity.Property(x => x.FestivalZoneId).HasColumnName("assigned_tour_id");
       entity.HasIndex(x => x.VendorCode).IsUnique();
       entity.HasOne(x => x.Wallet).WithOne(x => x.Vendor).HasForeignKey<Wallet>(x => x.VendorId).OnDelete(DeleteBehavior.Cascade);
+      entity.HasOne(x => x.FestivalZone).WithMany(x => x.Vendors).HasForeignKey(x => x.FestivalZoneId).OnDelete(DeleteBehavior.Cascade);
     });
     modelBuilder.Entity<FestivalZone>(entity =>
     {
       entity.ToTable("tours");
       entity.HasKey(x => x.Id);
       entity.Property(x => x.Id).HasColumnName("id");
-      entity.Property(x => x.VendorId).HasColumnName("vendor_id");
       entity.Property(x => x.Name).HasColumnName("name");
       entity.Property(x => x.Slug).HasColumnName("slug");
       entity.Property(x => x.Description).HasColumnName("description");
@@ -65,7 +65,7 @@ public class AppDbContext : DbContext
       entity.Property(x => x.Longitude).HasColumnName("longitude");
       entity.Property(x => x.Status).HasColumnName("status");
       entity.Property(x => x.SortOrder).HasColumnName("sort_order");
-      entity.HasIndex(x => new { x.VendorId, x.Slug }).IsUnique();
+      entity.HasIndex(x => x.Slug).IsUnique();
     });
     modelBuilder.Entity<Poi>(entity =>
     {
@@ -81,6 +81,7 @@ public class AppDbContext : DbContext
       entity.Property(x => x.Latitude).HasColumnName("latitude");
       entity.Property(x => x.Longitude).HasColumnName("longitude");
       entity.Property(x => x.ActivationRadius).HasColumnName("activation_radius");
+      entity.Property(x => x.IsPremiumContent).HasColumnName("is_premium_content");
       entity.Property(x => x.CoverUrl).HasColumnName("cover_url");
       entity.Property(x => x.Status).HasColumnName("status");
       entity.Property(x => x.ApprovalStatus).HasColumnName("approval_status").HasConversion<string>();

@@ -6,7 +6,7 @@ import L from 'leaflet';
 import { useVendorMyStalls } from '../../../vendor/api/vendorQueries';
 import { createVendorStall, submitVendorStallUpdate, vendorApiClient, fetchPoiProducts, createPoiProduct, updatePoiProduct, deletePoiProduct } from '../../../vendor/api/vendorApi';
 import { appConfig } from '../../../config/appConfig';
-import { HubConnectionBuilder } from '@microsoft/signalr';
+import { subscribeRealtime } from '../../../services/realtimeClient';
 
 const stallIcon = new L.DivIcon({
   className: 'vta-stall-marker',
@@ -116,10 +116,6 @@ export function VendorStall() {
 
   useEffect(() => {
     if (!stall?.id) return undefined;
-    const connection = new HubConnectionBuilder()
-      .withUrl(`${new URL(appConfig.vendorApiBaseUrl).origin}/hub/notifications`)
-      .withAutomaticReconnect()
-      .build();
     const onStatusUpdated = (stallId, status) => {
       if (String(stallId) !== String(stall.id)) return;
       setMessage({
@@ -130,12 +126,7 @@ export function VendorStall() {
       });
       refetch();
     };
-    connection.on('StallStatusUpdated', onStatusUpdated);
-    connection.start().catch(() => {});
-    return () => {
-      connection.off('StallStatusUpdated', onStatusUpdated);
-      connection.stop().catch(() => {});
-    };
+    return subscribeRealtime('StallStatusUpdated', onStatusUpdated);
   }, [refetch, stall?.id, t]);
 
   const position = useMemo(() => [form.latitude, form.longitude], [form.latitude, form.longitude]);

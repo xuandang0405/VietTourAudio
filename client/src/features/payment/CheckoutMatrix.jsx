@@ -4,8 +4,7 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { resolveBackendMediaUrl } from '../../utils/mediaUrl';
 import { paymentApi } from './paymentApi';
-import { HubConnectionBuilder } from '@microsoft/signalr';
-import { appConfig } from '../../config/appConfig';
+import { subscribeRealtime } from '../../services/realtimeClient';
 
 const methods = [
   { id: 'MOMO', icon: Smartphone, key: 'payment.momo' },
@@ -76,12 +75,6 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
     }
 
     let disposed = false;
-    const backendRoot = appConfig.apiBaseUrl.replace(/\/api\/?$/, '');
-    const connection = new HubConnectionBuilder()
-      .withUrl(`${backendRoot}/hub/notifications`)
-      .withAutomaticReconnect()
-      .build();
-
     const handlePaymentUpdate = (targetId, currentStatus) => {
       if (String(targetId).toLowerCase() !== activeTransactionId.toLowerCase()) return;
       if (String(currentStatus).toUpperCase() === 'APPROVED') {
@@ -95,10 +88,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
       }
     };
 
-    connection.on('ReceivePaymentUpdate', handlePaymentUpdate);
-    connection.start().catch((error) => {
-      if (!disposed) console.warn('Vendor payment SignalR unavailable; polling remains active.', error);
-    });
+    const unsubscribe = subscribeRealtime('ReceivePaymentUpdate', handlePaymentUpdate);
 
     const pollStatus = async () => {
       try {
@@ -116,8 +106,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
     return () => {
       disposed = true;
       window.clearInterval(vendorPollTimer);
-      connection.off('ReceivePaymentUpdate', handlePaymentUpdate);
-      void connection.stop();
+      unsubscribe();
     };
   }, [activeTransactionId, senderType, t, triggerVendorSuccessCelebration, viewMode]);
 

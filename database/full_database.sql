@@ -4,8 +4,8 @@
 --   mysql -u root -p < database/full_database.sql
 --
 -- This is the single canonical bootstrap entry point. It creates every table,
--- foreign key, index, trigger and then imports the complete baseline seed.
+-- foreign key, index and trigger. Business data is intentionally empty and
+-- must be created through the real Admin/Vendor/User APIs.
 -- =============================================================================
 
 SOURCE database/schema.sql;
-SOURCE database/seed.sql;
