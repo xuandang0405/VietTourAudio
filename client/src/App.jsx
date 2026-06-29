@@ -25,7 +25,8 @@ import { VendorGuard } from './features/auth/components/VendorGuard';
 import { VendorLayout } from './vendor/components/VendorLayout';
 import { VendorDashboard } from './features/vendor-wallet/pages/VendorDashboard';
 import { VendorLoginPage } from './features/auth/pages/VendorLoginPage';
-import { VendorRevenue } from './features/vendor-wallet/pages/VendorRevenue';
+import { VendorChangePasswordPage } from './features/auth/pages/VendorChangePasswordPage';
+import { VendorFinance } from './pages/vendor/VendorFinance';
 import { VendorStall } from './features/vendor-wallet/pages/VendorStall';
 
 import { AppErrorBoundary } from './visitor/components/AppErrorBoundary';
@@ -42,7 +43,7 @@ import { SettingsPage } from './features/poi/pages/SettingsPage';
 import { ZonePage } from './features/poi/pages/ZonePage';
 import { AdminPaymentSettings } from './features/payment/AdminPaymentSettings';
 import { UserPremiumUpgrade } from './features/payment/UserPremiumUpgrade';
-import { VendorBilling } from './features/payment/VendorBilling';
+
 import { appConfig } from './config/appConfig';
 import { startRealtimeClient } from './services/realtimeClient';
 import { premiumAccessApi } from './features/payment/premiumAccessApi';
@@ -130,13 +131,15 @@ function AppRoutes() {
 
           <Route path="/vendor/login" element={<VendorLoginPage />} />
           <Route element={<VendorGuard />}>
+            <Route path="/vendor/change-password" element={<VendorChangePasswordPage />} />
             <Route path="/vendor" element={<VendorLayout />}>
               <Route index element={<VendorDashboard />} />
               <Route path="stall" element={<VendorStall />} />
 
               <Route path="pois" element={<Navigate to="/vendor/stall" replace />} />
-              <Route path="revenue" element={<VendorRevenue />} />
-              <Route path="billing" element={<VendorBilling />} />
+              <Route path="revenue" element={<VendorFinance />} />
+              <Route path="billing" element={<VendorFinance />} />
+              <Route path="finance" element={<VendorFinance />} />
             </Route>
           </Route>
 

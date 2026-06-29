@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using VietTourAudio.Api.Data;
+using VietTourAudio.Api.Domain;
 using VietTourAudio.Api.DTOs;
 using VietTourAudio.Api.Interfaces;
 
@@ -324,8 +327,13 @@ public sealed class DatabasePoiContentService : IPoiContentService
 public sealed class DatabaseTrackingService : IQrTrackingService, IAnalyticsService
 {
   private readonly AppDbContext _db;
+  private readonly IHttpContextAccessor _httpContextAccessor;
 
-  public DatabaseTrackingService(AppDbContext db) => _db = db;
+  public DatabaseTrackingService(AppDbContext db, IHttpContextAccessor httpContextAccessor)
+  {
+    _db = db;
+    _httpContextAccessor = httpContextAccessor;
+  }
 
   public async Task<QrCodeResponseDto> CreateQrCodeAsync(QrCodeRequestDto request)
   {
@@ -373,14 +381,57 @@ public sealed class DatabaseTrackingService : IQrTrackingService, IAnalyticsServ
     return Task.FromResult<object>(new { request.QrCodeId, request.SessionId, Accepted = true, ScannedAt = DateTime.UtcNow });
   }
 
-  public Task<object> TrackVisitAsync(VisitEventRequestDto request)
+  public async Task<object> TrackVisitAsync(VisitEventRequestDto request)
   {
-    return Task.FromResult<object>(new { request.StallId, request.PoiId, request.SessionId, Accepted = true, VisitedAt = DateTime.UtcNow });
+    var poiId = string.IsNullOrWhiteSpace(request.PoiId) ? request.StallId : request.PoiId;
+    var sessionId = NormalizeSession(request.SessionId);
+    var poi = await _db.Pois.AsNoTracking()
+      .Where(candidate => candidate.Id == poiId)
+      .Select(candidate => new { candidate.Id, candidate.VendorId })
+      .SingleOrDefaultAsync();
+    if (poi is null) throw new KeyNotFoundException("poi.not_found");
+
+    var visitedAt = DateTime.UtcNow;
+    var visit = new VisitEvent
+    {
+      PoiId = poi.Id,
+      VendorId = poi.VendorId,
+      UserId = AuthenticatedUserId(),
+      SessionId = sessionId,
+      Latitude = request.Latitude,
+      Longitude = request.Longitude,
+      DistanceMeters = request.DistanceMeters,
+      Source = "GPS",
+      VisitedAt = visitedAt
+    };
+    _db.VisitEvents.Add(visit);
+    await _db.SaveChangesAsync();
+    return new { request.StallId, PoiId = poi.Id, SessionId = sessionId, Accepted = true, VisitedAt = visitedAt };
   }
 
-  public Task<object> TrackAudioPlayAsync(AudioPlayRequestDto request)
+  public async Task<object> TrackAudioPlayAsync(AudioPlayRequestDto request)
   {
-    return Task.FromResult<object>(new { request.PoiId, request.LanguageCode, request.SessionId, Accepted = true, PlayedAt = DateTime.UtcNow });
+    var sessionId = NormalizeSession(request.SessionId);
+    var poi = await _db.Pois.AsNoTracking()
+      .Where(candidate => candidate.Id == request.PoiId)
+      .Select(candidate => new { candidate.Id, candidate.VendorId })
+      .SingleOrDefaultAsync();
+    if (poi is null) throw new KeyNotFoundException("poi.not_found");
+
+    var playedAt = DateTime.UtcNow;
+    _db.AudioPlayEvents.Add(new AudioPlayEvent
+    {
+      PoiId = poi.Id,
+      VendorId = poi.VendorId,
+      UserId = AuthenticatedUserId(),
+      SessionId = sessionId,
+      LanguageCode = NormalizeLanguage(request.LanguageCode),
+      Source = "MANUAL",
+      PlayedAt = playedAt
+    });
+    await _db.SaveChangesAsync();
+    return new { PoiId = poi.Id, LanguageCode = NormalizeLanguage(request.LanguageCode),
+      SessionId = sessionId, Accepted = true, PlayedAt = playedAt };
   }
 
   public async Task<AnalyticsSummaryDto> GetSummaryAsync()
@@ -388,11 +439,31 @@ public sealed class DatabaseTrackingService : IQrTrackingService, IAnalyticsServ
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
     var stalls = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM Pois WHERE vendor_id IS NOT NULL");
     var pois = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM Pois WHERE status = 'ACTIVE'");
+    var startUtc = DateTime.UtcNow.Date;
     var scans = 0;
-    var visits = 0;
-    var plays = 0;
+    var visits = await _db.VisitEvents.CountAsync(item => item.VisitedAt >= startUtc);
+    var plays = await _db.AudioPlayEvents.CountAsync(item => item.PlayedAt >= startUtc);
     var revenue = await ScalarDecimalAsync(connection, "SELECT COALESCE(SUM(amount), 0) FROM payment_transactions WHERE status = 'APPROVED'");
     return new AnalyticsSummaryDto(stalls, pois, scans, visits, plays, revenue);
+  }
+
+  private string? AuthenticatedUserId() =>
+    _httpContextAccessor.HttpContext?.User.Identity?.IsAuthenticated == true
+      ? _httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+      : null;
+
+  private static string NormalizeSession(string sessionId)
+  {
+    var value = sessionId?.Trim();
+    if (string.IsNullOrWhiteSpace(value) || value.Length is < 8 or > 160)
+      throw new ArgumentException("analytics.invalid_session");
+    return value;
+  }
+
+  private static string NormalizeLanguage(string? languageCode)
+  {
+    var value = languageCode?.Trim().ToLowerInvariant();
+    return value is "vi" or "en" or "ja" or "ko" or "zh" ? value : "vi";
   }
 
   private static async Task<int> ScalarIntAsync(DbConnection connection, string sql)

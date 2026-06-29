@@ -161,12 +161,6 @@ export function PoiBottomSheet({
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">{poi.category}</span>
-                <span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">{poi.duration}</span>
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">{t('landing.rating', { score: `${poi.rating}/5` })}</span>
-              </div>
-
               <section className="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
                 <h3 className="font-display font-bold text-slate-900">{t('landing.freeText')}</h3>
                 <p className="mt-2 max-h-36 overflow-y-auto pr-1 text-sm leading-7 text-slate-600 hide-scrollbar">{localizedContent.description}</p>

@@ -8,6 +8,7 @@ import { AdminDataTable } from '../../../admin/components/AdminDataTable';
 import { AdminBadge } from '../../../admin/components/AdminBadge';
 import { useHourlyActiveUsers, useDashboardAnalytics } from '../../../admin/api/adminQueries';
 import { formatCurrency } from '../../../admin/utils/formatters';
+import { subscribeRealtime } from '../../../services/realtimeClient';
 
 export function AdminAnalytics() {
   const { t } = useTranslation();
@@ -196,6 +197,18 @@ function TrafficChart({ t }) {
   const { data, isLoading } = useHourlyActiveUsers();
   const chartData = data?.points?.length ? data.points : [];
   const activeUsersNow = Number(data?.activeUsersNow ?? 0);
+  const [presence, setPresence] = useState({ totalActive: activeUsersNow, byZone: {} });
+
+  useEffect(() => {
+    setPresence((current) => ({ ...current, totalActive: activeUsersNow }));
+  }, [activeUsersNow]);
+
+  useEffect(() => subscribeRealtime('PresenceUpdated', (snapshot) => {
+    setPresence({
+      totalActive: Number(snapshot?.totalActive ?? 0),
+      byZone: snapshot?.byZone ?? {}
+    });
+  }), []);
 
   useEffect(() => {
     const element = wrapperRef.current;
@@ -220,7 +233,20 @@ function TrafficChart({ t }) {
     <div ref={wrapperRef} className="relative h-[320px] min-w-0 lg:h-[420px]">
       <div className="absolute right-2 top-1 z-10 rounded-xl border border-slate-200 bg-white/90 px-3 py-2 text-right shadow-sm">
         <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">{t('dashboard.active_users_now')}</p>
-        <p className="text-xl font-black text-slate-950">{activeUsersNow}</p>
+        <p className="text-xl font-black text-slate-950">{presence.totalActive}</p>
+      </div>
+      <div className="absolute bottom-2 left-2 z-10 max-w-[70%] rounded-xl border border-slate-200 bg-white/95 p-2 shadow-sm">
+        <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500">Theo khu vực</p>
+        <div className="flex flex-wrap gap-1.5">
+          {Object.entries(presence.byZone).map(([zone, count]) => (
+            <span key={zone} className="rounded-lg bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-700">
+              {zone}: {count}
+            </span>
+          ))}
+          {Object.keys(presence.byZone).length === 0 && (
+            <span className="text-[11px] font-semibold text-slate-400">Chưa có khách trong khu vực</span>
+          )}
+        </div>
       </div>
       {size.width > 0 && size.height > 0 && (
         <AreaChart width={size.width} height={size.height} data={chartData} margin={{ left: -14, right: 10, top: 8, bottom: 0 }}>

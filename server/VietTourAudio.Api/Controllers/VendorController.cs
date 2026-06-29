@@ -28,9 +28,82 @@ public sealed class VendorController(
   IWebHostEnvironment environment,
   Microsoft.AspNetCore.SignalR.IHubContext<VietTourAudio.Api.Hubs.NotificationHub> hubContext,
   System.Net.Http.IHttpClientFactory clients,
-  VietTourAudio.Api.Services.PoiTranslationService translationService) : ControllerBase
+  VietTourAudio.Api.Services.PoiTranslationService translationService,
+  ILogger<VendorController> logger) : ControllerBase
 {
   private string VendorId => User.FindFirstValue("vendor_id") ?? throw new UnauthorizedAccessException();
+
+  [HttpPost("change-password")]
+  public async Task<IActionResult> ChangePassword([FromBody] VendorChangePasswordRequest request)
+  {
+    if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 10)
+      return BadRequest(ApiResponseFactory.Fail("Mật khẩu mới phải có ít nhất 10 ký tự."));
+
+    var accountId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+      ?? throw new UnauthorizedAccessException();
+    var rows = await DatabaseSql.QueryRowsAsync(db, """
+      SELECT pass_hash FROM vendor_portal_users
+      WHERE id=@accountId AND vendor_id=@vendorId LIMIT 1
+      """, new Dictionary<string, object?>
+    {
+      ["@accountId"] = accountId,
+      ["@vendorId"] = VendorId
+    });
+    if (rows.Count == 0) return NotFound(ApiResponseFactory.Fail("vendor.account_not_found"));
+    if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, Convert.ToString(rows[0]["pass_hash"])))
+      return BadRequest(ApiResponseFactory.Fail("Mật khẩu tạm hiện tại không chính xác."));
+
+    await DatabaseSql.ExecuteAsync(db, """
+      UPDATE vendor_portal_users
+      SET pass_hash=@hash,must_change_password=0,password_reset_at=NULL,updated_at=@updatedAt
+      WHERE id=@accountId AND vendor_id=@vendorId
+      """, new Dictionary<string, object?>
+    {
+      ["@hash"] = BCrypt.Net.BCrypt.HashPassword(request.NewPassword, 12),
+      ["@updatedAt"] = DateTime.UtcNow,
+      ["@accountId"] = accountId,
+      ["@vendorId"] = VendorId
+    });
+    return Ok(ApiResponseFactory.Ok(new { changed = true, mustChangePassword = false }));
+  }
+
+  [HttpPost("tickets")]
+  public async Task<IActionResult> CreateSupportTicket([FromBody] VendorTicketRequest request)
+  {
+    if (string.IsNullOrWhiteSpace(request.Subject) || string.IsNullOrWhiteSpace(request.Message))
+      return BadRequest(ApiResponseFactory.Fail("ticket.required_fields"));
+    var accountId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+      ?? throw new UnauthorizedAccessException();
+    var email = User.FindFirstValue(ClaimTypes.Email) ?? "";
+    var ticket = new SystemTicket
+    {
+      UserId = accountId,
+      SenderType = "VENDOR",
+      SenderEmail = email,
+      Subject = request.Subject.Trim(),
+      Message = request.Message.Trim(),
+      Status = TicketStatus.PENDING,
+      CreatedAt = DateTime.UtcNow,
+      UpdatedAt = DateTime.UtcNow
+    };
+    db.SystemTickets.Add(ticket);
+    await db.SaveChangesAsync();
+    try
+    {
+      await hubContext.Clients.Group(VietTourAudio.Api.Hubs.NotificationHub.AdminPresenceGroup)
+        .SendAsync("ReceiveNotification", new
+        {
+          type = "TICKET_NEW",
+          title = "Hỗ trợ Vendor",
+          message = $"Ticket mới từ {email}: {ticket.Subject}"
+        });
+    }
+    catch (Exception notificationError)
+    {
+      Console.WriteLine($"SignalR ticket notification failed: {notificationError.Message}");
+    }
+    return Ok(ApiResponseFactory.Ok(new { id = ticket.Id, status = ticket.Status.ToString() }));
+  }
 
   [HttpGet("profile")]
   public async Task<IActionResult> Profile()
@@ -73,22 +146,57 @@ public sealed class VendorController(
   {
     var vendor = await db.Vendors.AsNoTracking().SingleAsync(x => x.Id == VendorId);
     var wallet = await db.Wallets.AsNoTracking().SingleAsync(x => x.VendorId == VendorId);
-    var stallId = await PrimaryStallIdAsync();
     var totalPois = await db.Pois.CountAsync(x => x.VendorId == VendorId);
-    
+    var totalVisits = await db.VisitEvents.CountAsync(x => x.VendorId == VendorId);
+    var totalAudioPlays = await db.AudioPlayEvents.CountAsync(x => x.VendorId == VendorId);
+    var totalUniqueVisitors = await db.VisitEvents.Where(x => x.VendorId == VendorId)
+      .Select(x => x.SessionId).Distinct().CountAsync();
+
     var metrics = new Dictionary<string, object?>
     {
       ["totalQrScans"] = "0",
-      ["totalVisits"] = "0",
-      ["totalAudioPlays"] = "0",
-      ["totalUniqueVisitors"] = "0",
+      ["totalVisits"] = totalVisits,
+      ["totalAudioPlays"] = totalAudioPlays,
+      ["totalUniqueVisitors"] = totalUniqueVisitors,
       ["totalPremiumConversions"] = "0",
       ["totalRevenue"] = "0",
       ["totalPois"] = totalPois
     };
 
-    var daily = new List<object>();
-    var topPois = new List<object>();
+    var since = DateTime.UtcNow.Date.AddDays(-13);
+    var visitsByDay = await db.VisitEvents.AsNoTracking()
+      .Where(x => x.VendorId == VendorId && x.VisitedAt >= since)
+      .GroupBy(x => x.VisitedAt.Date)
+      .Select(group => new { Date = group.Key, Count = group.Count() })
+      .ToDictionaryAsync(x => x.Date, x => x.Count);
+    var playsByDay = await db.AudioPlayEvents.AsNoTracking()
+      .Where(x => x.VendorId == VendorId && x.PlayedAt >= since)
+      .GroupBy(x => x.PlayedAt.Date)
+      .Select(group => new { Date = group.Key, Count = group.Count() })
+      .ToDictionaryAsync(x => x.Date, x => x.Count);
+    var daily = Enumerable.Range(0, 14).Select(offset =>
+    {
+      var date = since.AddDays(offset);
+      return new
+      {
+        date,
+        visitors = visitsByDay.GetValueOrDefault(date),
+        audioPlays = playsByDay.GetValueOrDefault(date),
+        revenue = 0m
+      };
+    }).ToArray();
+
+    var visitCounts = await db.VisitEvents.AsNoTracking().Where(x => x.VendorId == VendorId)
+      .GroupBy(x => x.PoiId).Select(group => new { PoiId = group.Key, Count = group.Count() })
+      .ToDictionaryAsync(x => x.PoiId, x => x.Count);
+    var playCounts = await db.AudioPlayEvents.AsNoTracking().Where(x => x.VendorId == VendorId)
+      .GroupBy(x => x.PoiId).Select(group => new { PoiId = group.Key, Count = group.Count() })
+      .ToDictionaryAsync(x => x.PoiId, x => x.Count);
+    var topPois = (await db.Pois.AsNoTracking().Where(x => x.VendorId == VendorId)
+      .Select(x => new { x.Id, name = x.StallName }).ToListAsync())
+      .Select(x => new { x.Id, x.name, visits = visitCounts.GetValueOrDefault(x.Id),
+        audioPlays = playCounts.GetValueOrDefault(x.Id) })
+      .OrderByDescending(x => x.audioPlays).ThenByDescending(x => x.visits).Take(10).ToArray();
     
     return Ok(ApiResponseFactory.Ok(new
     {
@@ -98,6 +206,83 @@ public sealed class VendorController(
       daily,
       topPois
     }));
+  }
+
+  [HttpGet("revenue")]
+  public async Task<IActionResult> GetVendorRevenue()
+  {
+    try
+    {
+      var vendor = await db.Vendors.AsNoTracking()
+        .SingleOrDefaultAsync(x => x.Id == VendorId);
+      if (vendor is null)
+        return NotFound(ApiResponseFactory.Fail("vendor.not_found"));
+
+      var wallet = await db.Wallets.AsNoTracking()
+        .SingleOrDefaultAsync(x => x.VendorId == VendorId);
+      var transactions = wallet is null
+        ? []
+        : await db.WalletTransactions.AsNoTracking()
+          .Where(x => x.VendorId == VendorId)
+          .OrderByDescending(x => x.CreatedAt)
+          .Take(200)
+          .Select(x => new
+          {
+            id = x.Id,
+            type = x.TransactionType,
+            category = x.TransactionCategory,
+            direction = x.Direction,
+            x.Amount,
+            x.BalanceBefore,
+            x.BalanceAfter,
+            x.Description,
+            x.CreatedAt
+          })
+          .ToListAsync();
+
+      var topUps = await DatabaseSql.QueryRowsAsync(db, """
+        SELECT id,amount,provider,status,proof_url proofUrl,note,created_at createdAt,reviewed_at reviewedAt
+        FROM top_up_requests
+        WHERE vendor_id=@vendorId
+        ORDER BY created_at DESC
+        LIMIT 100
+        """, new Dictionary<string, object?> { ["@vendorId"] = VendorId });
+
+      var data = new
+      {
+        summary = new
+        {
+          balance = wallet?.Balance ?? 0m,
+          totalTopUp = wallet?.TotalTopUp ?? 0m,
+          totalSpent = wallet?.TotalSpent ?? 0m,
+          subscriptionStatus = "ACTIVE",
+          nextBillingDate = vendor.PremiumExpiryDate,
+          isPremium = vendor.IsPremium,
+          premiumPrice = 599000m
+        },
+        stats = new
+        {
+          totalRevenue = 0m,
+          todayRevenue = 0m,
+          totalOrders = 0,
+          pendingOrders = 0
+        },
+        transactions,
+        topUps
+      };
+
+      return Ok(ApiResponseFactory.Ok(data, "Lấy dữ liệu doanh thu thành công."));
+    }
+    catch (Exception exception)
+    {
+      logger.LogError(exception, "Revenue retrieval failed for Vendor {VendorId}.", VendorId);
+      return StatusCode(StatusCodes.Status500InternalServerError, new
+      {
+        success = false,
+        errorCode = "REVENUE_RETRIEVAL_FAILED",
+        message = "Lỗi máy chủ khi truy xuất doanh thu."
+      });
+    }
   }
 
   [HttpGet("pois")]
@@ -448,7 +633,11 @@ public sealed class VendorController(
     var vendor = await db.Vendors.SingleOrDefaultAsync(v => v.Id == VendorId);
     if (vendor == null) return NotFound(ApiResponseFactory.Fail("vendor.not_found"));
 
-    var poi = await db.Pois.FirstOrDefaultAsync(p => p.VendorId == VendorId);
+    var poi = string.IsNullOrWhiteSpace(request.PoiId)
+      ? await db.Pois.FirstOrDefaultAsync(p => p.VendorId == VendorId)
+      : await db.Pois.FirstOrDefaultAsync(p => p.Id == request.PoiId && p.VendorId == VendorId);
+    if (!string.IsNullOrWhiteSpace(request.PoiId) && poi is null)
+      return NotFound(ApiResponseFactory.Fail("poi.not_found"));
     var webRoot = environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot");
     if (poi == null)
     {
@@ -503,6 +692,51 @@ public sealed class VendorController(
       submitted = true,
       approvalStatus = "PENDING",
       coverUrl = poi.PendingCoverUrl ?? poi.CoverUrl
+    }));
+  }
+
+  [HttpPost("stalls")]
+  public async Task<IActionResult> CreateStall([FromBody] VendorStallCreateRequest request)
+  {
+    if (string.IsNullOrWhiteSpace(request.Name))
+      return BadRequest(ApiResponseFactory.Fail("stall.name_required"));
+    if (request.Latitude is < -90 or > 90 || request.Longitude is < -180 or > 180)
+      return BadRequest(ApiResponseFactory.Fail("stall.invalid_coordinates"));
+
+    await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+    await DatabaseSql.QueryRowsAsync(db, "SELECT id FROM Vendors WHERE id=@vendorId FOR UPDATE",
+      new Dictionary<string, object?> { ["@vendorId"] = VendorId });
+    var vendor = await db.Vendors.SingleOrDefaultAsync(x => x.Id == VendorId);
+    if (vendor is null) return NotFound(ApiResponseFactory.Fail("vendor.not_found"));
+    var currentCount = await db.Pois.CountAsync(x => x.VendorId == VendorId);
+    if (currentCount >= 3)
+      return Conflict(ApiResponseFactory.Fail("Mỗi Vendor chỉ được quản lý tối đa 3 POI."));
+
+    var poi = new Poi
+    {
+      Id = Guid.NewGuid().ToString("N"),
+      FestivalZoneId = vendor.FestivalZoneId,
+      VendorId = VendorId,
+      StallName = request.Name.Trim(),
+      Slug = $"stall-{Guid.NewGuid():N}",
+      Description = request.Description?.Trim(),
+      Latitude = (double)request.Latitude,
+      Longitude = (double)request.Longitude,
+      TriggerRadius = vendor.IsPremium ? 10 : 3,
+      ApprovalStatus = "PENDING",
+      Status = "ACTIVE",
+      CreatedAt = DateTime.UtcNow,
+      UpdatedAt = DateTime.UtcNow
+    };
+    db.Pois.Add(poi);
+    await db.SaveChangesAsync();
+    await transaction.CommitAsync();
+    return Ok(ApiResponseFactory.Ok(new
+    {
+      id = poi.Id,
+      stallCount = currentCount + 1,
+      maxStalls = 3,
+      approvalStatus = poi.ApprovalStatus
     }));
   }
 
@@ -579,8 +813,42 @@ public sealed class VendorController(
   }
 
   [HttpPost("pay-subscription")]
-  public async Task<IActionResult> PaySubscription() =>
-    Ok(ApiResponseFactory.Ok(await DebitWalletAsync("WEBAPP_MONTHLY_RENT")));
+  [HttpPost("stalls/pay-subscription")]
+  public async Task<IActionResult> PaySubscription()
+  {
+    try
+    {
+      var result = await DebitWalletAsync("WEBAPP_MONTHLY_RENT");
+      return Ok(new
+      {
+        success = true,
+        message = "Thanh toán gói gia hạn sạp hàng thành công!",
+        data = result
+      });
+    }
+    catch (InvalidOperationException exception) when (exception.Message == "wallet.insufficient_balance")
+    {
+      logger.LogWarning(
+        "[WALLET BOUNDARY ENFORCED] Vendor {VendorId} attempted a subscription purchase with insufficient balance.",
+        VendorId);
+      return StatusCode(StatusCodes.Status402PaymentRequired, new
+      {
+        success = false,
+        errorCode = "INSUFFICIENT_BALANCE",
+        message = "Số dư tài khoản trong ví không đủ. Vui lòng nạp thêm tiền để thực hiện giao dịch này!"
+      });
+    }
+    catch (Exception exception)
+    {
+      logger.LogError(exception, "Subscription payment failed safely for Vendor {VendorId}.", VendorId);
+      return StatusCode(StatusCodes.Status500InternalServerError, new
+      {
+        success = false,
+        errorCode = "PAYMENT_PROCESSING_FAILED",
+        message = "Hệ thống thanh toán đang bận. Vui lòng thử lại sau."
+      });
+    }
+  }
 
   [HttpPost("premium/request")]
   public async Task<IActionResult> Premium() =>
@@ -590,18 +858,37 @@ public sealed class VendorController(
   [RequestSizeLimit(5 * 1024 * 1024 + 32_768)]
   public async Task<IActionResult> TopUp([FromForm] TopUpRequest request)
   {
+    if (request.Amount <= 0)
+      return BadRequest(ApiResponseFactory.Fail("topup.invalid_amount"));
+
+    await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+    await DatabaseSql.QueryRowsAsync(db,
+      "SELECT id FROM Vendors WHERE id=@vendorId FOR UPDATE",
+      new Dictionary<string, object?> { ["@vendorId"] = VendorId });
+    var pending = await DatabaseSql.QueryRowsAsync(db, """
+      SELECT id FROM top_up_requests
+      WHERE vendor_id=@vendorId AND status='PENDING'
+      ORDER BY created_at DESC LIMIT 1
+      """, new Dictionary<string, object?> { ["@vendorId"] = VendorId });
+    if (pending.Count > 0)
+      return Conflict(ApiResponseFactory.Fail(
+        "Hệ thống đang xử lý giao dịch nạp tiền trước đó. Vui lòng chờ Admin xác minh."));
+
     var fileName = await StoreFileAsync(request.Proof, ["image/png", "image/jpeg", "image/webp"], [".png", ".jpg", ".jpeg", ".webp"], "vendor");
     var wallet = await db.Wallets.SingleAsync(x => x.VendorId == VendorId);
-    var connection = await DatabaseSql.OpenConnectionAsync(db);
-    await using var command = connection.CreateCommand();
-    command.CommandText = """
+    await DatabaseSql.ExecuteAsync(db, """
       INSERT INTO top_up_requests(id, vendor_id,wallet_id,provider,status,amount,proof_url,note)
       VALUES(@id, @vendorId,@walletId,'BANK_QR','PENDING',@amount,@fileName,@note)
-      """;
-    command.AddParameter("@id", Guid.NewGuid().ToString("N"));
-    command.AddParameter("@vendorId", VendorId); command.AddParameter("@walletId", wallet.Id);
-    command.AddParameter("@amount", request.Amount); command.AddParameter("@fileName", $"/uploads/vendor/{fileName}"); command.AddParameter("@note", request.Note);
-    await command.ExecuteNonQueryAsync();
+      """, new Dictionary<string, object?>
+      {
+        ["@id"] = Guid.NewGuid().ToString("N"),
+        ["@vendorId"] = VendorId,
+        ["@walletId"] = wallet.Id,
+        ["@amount"] = request.Amount,
+        ["@fileName"] = $"/uploads/vendor/{fileName}",
+        ["@note"] = request.Note
+      });
+    await transaction.CommitAsync();
 
     try
     {
@@ -623,10 +910,17 @@ public sealed class VendorController(
   private async Task<object> DebitWalletAsync(string category)
   {
     await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
-    var wallet = await db.Wallets.SingleAsync(x => x.VendorId == VendorId);
+    var wallet = await db.Wallets
+      .FromSqlInterpolated($"SELECT * FROM vendor_wallets WHERE vendor_id={VendorId} FOR UPDATE")
+      .SingleAsync();
     decimal fee = category == "PREMIUM_UPGRADE" ? 599000m : 199000m;
-    
-    if (wallet.Balance < fee) throw new InvalidOperationException("wallet.insufficient_balance");
+
+    Console.WriteLine(
+      $"[WALLET DEBIT EVALUATION]: Vendor: {VendorId} | Current Balance: {wallet.Balance} | Required Cost: {fee}");
+    if (wallet.Balance < fee)
+    {
+      throw new InvalidOperationException("wallet.insufficient_balance");
+    }
     var before = wallet.Balance; wallet.Balance -= fee; wallet.TotalSpent += fee;
     db.WalletTransactions.Add(new WalletTransaction
     {
@@ -646,8 +940,7 @@ public sealed class VendorController(
     var saved = await db.SaveChangesAsync();
     if (saved == 0)
     {
-      await transaction.RollbackAsync();
-      return StatusCode(500, ApiResponseFactory.Fail("wallet.transaction_not_saved"));
+      throw new InvalidOperationException("wallet.transaction_not_saved");
     }
     await transaction.CommitAsync();
     return new { paid = true, category, amount = fee, balanceAfter = wallet.Balance };
@@ -681,7 +974,8 @@ public sealed record VendorStallRequest(
   string Latitude,
   string Longitude,
   string? CoverUrl,
-  IFormFile? Image);
+  IFormFile? Image,
+  string? PoiId = null);
 public sealed record VendorStallCreateRequest(string Name, string? Description, decimal Latitude, decimal Longitude);
 public sealed record ProductRequest(
   string Name,
@@ -693,6 +987,8 @@ public sealed record ProductRequest(
 public sealed record TopUpRequest(decimal Amount, string? Note, IFormFile Proof);
 public sealed record VendorContentRequest(string TtsScript, string Language = "vi");
 public sealed record LocationRequest(decimal Latitude, decimal Longitude);
+public sealed record VendorChangePasswordRequest(string CurrentPassword, string NewPassword);
+public sealed record VendorTicketRequest(string Subject, string Message);
 public sealed record PoiUpdateRequest(string? PoiId, string? Name, string? Description, decimal? Latitude, decimal? Longitude);
 public sealed record UnifiedStallUpdateDto(
   string Id,

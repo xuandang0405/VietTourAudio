@@ -16,7 +16,9 @@ namespace VietTourAudio.Api.Controllers;
 [ApiController]
 [Route("api/admin/analytics")]
 [Authorize(Roles = "SUPER_ADMIN,ADMIN,MODERATOR,FINANCE")]
-public sealed class AdminAnalyticsCompatibilityController(AppDbContext db) : ControllerBase
+public sealed class AdminAnalyticsCompatibilityController(
+  AppDbContext db,
+  VietTourAudio.Api.Services.IPresenceTracker presence) : ControllerBase
 {
   [HttpGet("hourly-active-users")]
   public async Task<IActionResult> Hourly()
@@ -24,7 +26,14 @@ public sealed class AdminAnalyticsCompatibilityController(AppDbContext db) : Con
     var currentHour = DateTime.Now.Hour;
     var points = Enumerable.Range(0, currentHour + 1).Select(hour => new
       { hour = $"{hour:00}:00", activeUsers = 0 }).ToArray();
-    return Ok(ApiResponseFactory.Ok(new { points, activeUsersNow = 0, updatedAt = DateTime.UtcNow }));
+    var snapshot = presence.Snapshot();
+    return Ok(ApiResponseFactory.Ok(new
+    {
+      points,
+      activeUsersNow = snapshot.TotalActive,
+      byZone = snapshot.ByZone,
+      updatedAt = snapshot.UpdatedAtUtc
+    }));
   }
 
   [HttpGet("dashboard")]
@@ -34,6 +43,8 @@ public sealed class AdminAnalyticsCompatibilityController(AppDbContext db) : Con
     var activePois = await db.Pois.CountAsync(x => x.Status == "ACTIVE" && x.ApprovalStatus == "APPROVED");
     var totalRevenue = await db.PaymentTransactions.Where(x => x.Status == "APPROVED").SumAsync(x => x.Amount);
 
+    var totalVisits = await db.VisitEvents.CountAsync();
+    var totalPlays = await db.AudioPlayEvents.CountAsync();
     var kpis = new
     {
       totalVendors = totalVendors,
@@ -41,7 +52,9 @@ public sealed class AdminAnalyticsCompatibilityController(AppDbContext db) : Con
       pendingVendors = 0,
       activePois = activePois,
       totalRevenue = totalRevenue,
-      totalScans = 0
+      totalScans = 0,
+      totalVisits,
+      totalAudioPlays = totalPlays
     };
 
     var zones = await db.FestivalZones.Include(z => z.Pois).AsNoTracking().ToListAsync();
@@ -55,6 +68,12 @@ public sealed class AdminAnalyticsCompatibilityController(AppDbContext db) : Con
       poiCount = t.Pois.Count
     }).ToList();
 
+    var visitCounts = await db.VisitEvents.AsNoTracking().GroupBy(x => x.PoiId)
+      .Select(group => new { PoiId = group.Key, Count = group.Count() })
+      .ToDictionaryAsync(x => x.PoiId, x => x.Count);
+    var playCounts = await db.AudioPlayEvents.AsNoTracking().GroupBy(x => x.PoiId)
+      .Select(group => new { PoiId = group.Key, Count = group.Count() })
+      .ToDictionaryAsync(x => x.PoiId, x => x.Count);
     var pois = await db.Pois.Include(x => x.FestivalZone).Include(x => x.Vendor).AsNoTracking().ToListAsync();
     var poiStats = pois.Select(z => new
     {
@@ -65,8 +84,8 @@ public sealed class AdminAnalyticsCompatibilityController(AppDbContext db) : Con
       tourName = z.FestivalZone?.Name ?? "",
       tourSlug = z.FestivalZone?.Slug ?? "",
       stallName = z.StallName,
-      playCount = 0,
-      visitCount = 0
+      playCount = playCounts.GetValueOrDefault(z.Id),
+      visitCount = visitCounts.GetValueOrDefault(z.Id)
     }).ToList();
 
     return Ok(ApiResponseFactory.Ok(new { kpis, tourStats, poiStats }));

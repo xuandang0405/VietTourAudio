@@ -166,6 +166,7 @@ builder.Services.AddScoped<IGeofenceService, GeofenceService>();
 builder.Services.AddScoped<PaymentEntitlementService>();
 builder.Services.AddScoped<VietTourAudio.Api.Services.PoiTranslationService>();
 builder.Services.AddSingleton<PrototypeAnalyticsState>();
+builder.Services.AddSingleton<VietTourAudio.Api.Services.IPresenceTracker, VietTourAudio.Api.Services.PresenceTracker>();
 
 builder.Services.AddSignalR();
 
@@ -230,6 +231,19 @@ builder.Services
   .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
   .AddJwtBearer(options =>
   {
+    options.Events = new JwtBearerEvents
+    {
+      OnMessageReceived = context =>
+      {
+        var accessToken = context.Request.Query["access_token"];
+        if (!string.IsNullOrEmpty(accessToken) &&
+            context.HttpContext.Request.Path.StartsWithSegments("/hub/notifications"))
+        {
+          context.Token = accessToken;
+        }
+        return Task.CompletedTask;
+      }
+    };
     options.TokenValidationParameters = new TokenValidationParameters
     {
       ValidateIssuer = true,
@@ -251,6 +265,7 @@ using (var schemaScope = app.Services.CreateScope())
   var schemaDb = schemaScope.ServiceProvider.GetRequiredService<AppDbContext>();
   await PaymentSchemaInitializer.InitializeAsync(schemaDb);
   await StallSchemaInitializer.InitializeAsync(schemaDb);
+  await OperationalSchemaInitializer.InitializeAsync(schemaDb);
 }
 
 var uploadsPath = Path.GetFullPath(Path.Combine(
@@ -288,6 +303,7 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseCors("AllowReactClients");
 app.UseAuthentication();
+app.UseMiddleware<VietTourAudio.Api.Middlewares.VendorPasswordChangeMiddleware>();
 app.UseAuthorization();
 app.UseMiddleware<PremiumExpiryMiddleware>();
 app.MapHub<VietTourAudio.Api.Hubs.NotificationHub>("/hub/notifications");

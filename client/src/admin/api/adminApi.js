@@ -117,6 +117,10 @@ export async function updateVendor(id, vendorData) {
   return unwrap(await adminApiClient.put(`/admin/vendors/${id}`, vendorData));
 }
 
+export async function resetVendorPassword(id) {
+  return unwrap(await adminApiClient.post(`/admin/vendors/${id}/reset-password`));
+}
+
 export async function approveVendor(id) {
   return unwrap(await adminApiClient.post(`/admin/vendors/${id}/approve`));
 }

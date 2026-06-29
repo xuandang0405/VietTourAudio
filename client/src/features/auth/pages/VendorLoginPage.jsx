@@ -33,7 +33,7 @@ export function VendorLoginPage() {
       }
       
       setSession(session);
-      navigate(from, { replace: true });
+      navigate(session.user?.mustChangePassword ? '/vendor/change-password' : from, { replace: true });
     } catch (err) {
       const response = err?.response;
       if (response) {
@@ -134,4 +134,4 @@ export function VendorLoginPage() {
       </div>
     </main>
   );
-}
+}

@@ -158,12 +158,40 @@ public sealed class WalletTransaction : IEntity
 public sealed class SystemTicket : IEntity
 {
   public string Id { get; set; } = Guid.NewGuid().ToString("N");
+  public string? UserId { get; set; }
+  public string SenderType { get; set; } = "GUEST";
   public string SenderEmail { get; set; } = "";
   public string Subject { get; set; } = "";
   public string Message { get; set; } = "";
   public TicketStatus Status { get; set; }
   public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
   public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class VisitEvent : IEntity
+{
+  public string Id { get; set; } = Guid.NewGuid().ToString("N");
+  public string PoiId { get; set; } = "";
+  public string? VendorId { get; set; }
+  public string? UserId { get; set; }
+  public string SessionId { get; set; } = "";
+  public decimal? Latitude { get; set; }
+  public decimal? Longitude { get; set; }
+  public decimal? DistanceMeters { get; set; }
+  public string Source { get; set; } = "GPS";
+  public DateTime VisitedAt { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class AudioPlayEvent : IEntity
+{
+  public string Id { get; set; } = Guid.NewGuid().ToString("N");
+  public string PoiId { get; set; } = "";
+  public string? VendorId { get; set; }
+  public string? UserId { get; set; }
+  public string SessionId { get; set; } = "";
+  public string LanguageCode { get; set; } = "vi";
+  public string Source { get; set; } = "MANUAL";
+  public DateTime PlayedAt { get; set; } = DateTime.UtcNow;
 }
 
 public sealed class AdminPaymentConfig

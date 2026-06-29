@@ -11,11 +11,32 @@ public abstract class CompatibilityAuthController(IAuthService auth) : Controlle
   protected IAuthService Auth { get; } = auth;
   protected async Task<IActionResult> LoginCore(LoginRequestDto request, string requiredRole)
   {
-    var result = await Auth.LoginAsync(request);
-    if (requiredRole == "VENDOR" && result.User.Role != "VENDOR") return Forbid();
-    if (requiredRole == "ADMIN" && !new[] { "SUPER_ADMIN", "ADMIN", "ZONE_ADMIN", "MODERATOR", "FINANCE" }.Contains(result.User.Role)) return Forbid();
-    return Ok(ApiResponseFactory.Ok(new { token = result.AccessToken, accessToken = result.AccessToken,
-      refreshToken = result.RefreshToken, user = result.User }));
+    try
+    {
+      var result = await Auth.LoginAsync(request);
+      if (requiredRole == "VENDOR" && result.User.Role != "VENDOR") return Forbid();
+      if (requiredRole == "ADMIN" && !new[] { "SUPER_ADMIN", "ADMIN", "ZONE_ADMIN", "MODERATOR", "FINANCE" }.Contains(result.User.Role)) return Forbid();
+      return Ok(ApiResponseFactory.Ok(new { token = result.AccessToken, accessToken = result.AccessToken,
+        refreshToken = result.RefreshToken, user = result.User }));
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+      Console.ForegroundColor = ConsoleColor.Yellow;
+      Console.WriteLine($"[AUTH FAILED]: Invalid login attempt for email: {request.Email}");
+      Console.ResetColor();
+
+      return Unauthorized(new { 
+        success = false, 
+        errorCode = "INVALID_CREDENTIALS", 
+        error = "Tài khoản hoặc mật khẩu không chính xác.",
+        message = "Tài khoản hoặc mật khẩu không chính xác." 
+      });
+    }
+    catch (System.Exception ex)
+    {
+      Console.WriteLine($"[AUTH ERROR]: {ex.Message}");
+      return StatusCode(500, new { success = false, message = "Lỗi máy chủ nội bộ. Vui lòng thử lại sau." });
+    }
   }
 
   protected async Task<IActionResult> RefreshCore(RefreshRequest request, string requiredRole)

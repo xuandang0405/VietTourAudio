@@ -488,7 +488,8 @@ public sealed class GuestController(
   [HttpPost("tickets")]
   public async Task<IActionResult> Ticket([FromBody] TicketRequest request)
   {
-    var ticket = new SystemTicket { SenderEmail = request.Email.Trim(), Subject = request.Subject.Trim(),
+    var ticket = new SystemTicket { UserId = null, SenderType = "GUEST",
+      SenderEmail = request.Email.Trim(), Subject = request.Subject.Trim(),
       Message = request.Message.Trim(), Status = TicketStatus.PENDING, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
     db.SystemTickets.Add(ticket); await db.SaveChangesAsync();
 

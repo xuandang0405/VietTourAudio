@@ -1,4 +1,4 @@
-import { ArrowLeft, Ban, CheckCircle2, FileText, PauseCircle, Copy } from 'lucide-react';
+import { ArrowLeft, Ban, CheckCircle2, FileText, PauseCircle, Copy, KeyRound } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useVendor, useVendorAction, useResetStallQr, useToggleStallPremium, useGrantMultiPremium, useSetPremiumPriority, useAdminCreateStallForVendor } from '../../../admin/api/adminQueries';
@@ -9,6 +9,7 @@ import { useAdminAuthStore } from '../../../admin/store/adminAuthStore';
 import { formatCurrency, formatDate, formatDateTime } from '../../../admin/utils/formatters';
 import { QRCodeCanvas } from 'qrcode.react';
 import { appConfig } from '../../../config/appConfig';
+import { resetVendorPassword } from '../../../admin/api/adminApi';
 
 export function AdminVendorDetail() {
   const { id } = useParams();
@@ -27,6 +28,7 @@ export function AdminVendorDetail() {
   const resetQrMutation = useResetStallQr();
   const togglePremiumMutation = useToggleStallPremium();
   const [copiedStallCode, setCopiedStallCode] = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState('');
 
   // Admin overrides state & mutations
   const [showAddStallModal, setShowAddStallModal] = useState(false);
@@ -54,6 +56,16 @@ export function AdminVendorDetail() {
       alert("Đã cấp Premium thành công cho tất cả các sạp!");
     } catch (err) {
       alert(err.response?.data?.error ?? "Không thể cấp Premium.");
+    }
+  }
+
+  async function handleResetVendorPassword() {
+    if (!window.confirm('Tạo mật khẩu tạm mới cho Vendor này? Mật khẩu cũ sẽ hết hiệu lực ngay.')) return;
+    try {
+      const result = await resetVendorPassword(vendor.id);
+      setTemporaryPassword(result.temporaryPassword);
+    } catch (err) {
+      setActionError(err.response?.data?.message ?? 'Không thể đặt lại mật khẩu Vendor.');
     }
   }
 
@@ -327,8 +339,27 @@ export function AdminVendorDetail() {
               <ActionButton icon={CheckCircle2} label="Duyệt vendor" tone="success" onClick={() => setModal('approve')} />
               <ActionButton icon={Ban} label="Từ chối hồ sơ" tone="danger" onClick={() => { setReason(''); setModal('reject'); }} />
               <ActionButton icon={PauseCircle} label="Tạm dừng vendor" onClick={() => { setReason(''); setModal('suspend'); }} />
+              <ActionButton icon={KeyRound} label="Đặt lại mật khẩu" onClick={handleResetVendorPassword} />
               {isSuperAdmin && <ActionButton icon={FileText} label="Force cancel" tone="danger" onClick={() => { setReason(''); setModal('force-cancel'); }} />}
             </div>
+            {temporaryPassword && (
+              <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3">
+                <p className="text-xs font-black uppercase text-amber-800">Mật khẩu tạm — chỉ hiển thị lần này</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <code className="min-w-0 flex-1 break-all rounded-lg bg-white px-3 py-2 font-black text-slate-900">
+                    {temporaryPassword}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText(temporaryPassword)}
+                    className="rounded-lg border border-amber-300 bg-white p-2 text-amber-800"
+                    title="Sao chép mật khẩu tạm"
+                  >
+                    <Copy size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
           </article>
         </aside>
       </section>

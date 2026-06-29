@@ -15,7 +15,7 @@ public sealed class SystemTicketController(AppDbContext db) : ControllerBase
   [HttpGet]
   public async Task<IActionResult> List() =>
     Ok(ApiResponseFactory.Ok(await db.SystemTickets.AsNoTracking().OrderByDescending(x => x.CreatedAt)
-      .Select(x => new { id = x.Id, email = x.SenderEmail, x.Subject, x.Message,
+      .Select(x => new { id = x.Id, x.UserId, x.SenderType, senderEmail = x.SenderEmail, email = x.SenderEmail, x.Subject, x.Message,
         status = x.Status.ToString(), x.CreatedAt, x.UpdatedAt }).ToListAsync()));
 
   [HttpPatch("{id}/resolve")]

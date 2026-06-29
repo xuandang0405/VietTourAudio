@@ -1,8 +1,14 @@
 import { HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { appConfig } from '../config/appConfig';
 
+let accessToken = '';
+let desiredZone = '';
+let wantsAdminDashboard = false;
+
 const connection = new HubConnectionBuilder()
-  .withUrl(`${appConfig.apiBaseUrl.replace(/\/api\/?$/, '')}/hub/notifications`)
+  .withUrl(`${appConfig.apiBaseUrl.replace(/\/api\/?$/, '')}/hub/notifications`, {
+    accessTokenFactory: () => accessToken
+  })
   .withAutomaticReconnect()
   .build();
 
@@ -24,4 +30,58 @@ export function subscribeRealtime(eventName, handler) {
     console.warn(`Realtime event ${eventName} is temporarily unavailable.`, error);
   });
   return () => connection.off(eventName, handler);
+}
+
+async function restoreRealtimeContext() {
+  if (wantsAdminDashboard) await connection.invoke('JoinAdminDashboard');
+  if (desiredZone) await connection.invoke('JoinZone', desiredZone);
+}
+
+connection.onreconnected(() => {
+  void restoreRealtimeContext().catch((error) => {
+    console.warn('Could not restore realtime presence context.', error);
+  });
+});
+
+export async function setRealtimeAccessToken(nextToken = '') {
+  if (accessToken === nextToken) return startRealtimeClient();
+  accessToken = nextToken;
+  if (connection.state !== HubConnectionState.Disconnected) {
+    await connection.stop();
+  }
+  const activeConnection = await startRealtimeClient();
+  await restoreRealtimeContext();
+  return activeConnection;
+}
+
+export async function joinAdminPresence(accessTokenValue = '') {
+  wantsAdminDashboard = true;
+  if (accessTokenValue !== accessToken) {
+    await setRealtimeAccessToken(accessTokenValue);
+  } else {
+    await startRealtimeClient();
+  }
+  await connection.invoke('JoinAdminDashboard');
+}
+
+export async function leaveAdminPresence() {
+  wantsAdminDashboard = false;
+}
+
+export async function setPresenceZone(zoneId) {
+  desiredZone = String(zoneId ?? '').trim();
+  await startRealtimeClient();
+  if (desiredZone) {
+    await connection.invoke('JoinZone', desiredZone);
+  } else {
+    await connection.invoke('LeaveZone');
+  }
+}
+
+export function clearPresenceZone() {
+  desiredZone = '';
+  if (connection.state === HubConnectionState.Connected) {
+    return connection.invoke('LeaveZone');
+  }
+  return Promise.resolve();
 }

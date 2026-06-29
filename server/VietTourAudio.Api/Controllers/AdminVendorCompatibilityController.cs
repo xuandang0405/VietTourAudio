@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -208,6 +209,32 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
   [HttpPost("{id}/suspend")] public Task<IActionResult> Suspend(string id, [FromBody] ReasonRequest request) => SetStatus(id, "SUSPENDED", request.Reason);
   [HttpPost("{id}/force-cancel")] public Task<IActionResult> Cancel(string id, [FromBody] ReasonRequest request) => SetStatus(id, "SUSPENDED", request.Reason);
   [HttpPost("{id}/unsuspend")] public Task<IActionResult> Unsuspend(string id) => SetStatus(id, "APPROVED", null);
+  [HttpPost("{id}/reset-password")]
+  public async Task<IActionResult> ResetPassword(string id)
+  {
+    const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+    var temporaryPassword = new string(Enumerable.Range(0, 14)
+      .Select(_ => alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)]).ToArray());
+    var affected = await DatabaseSql.ExecuteAsync(db, """
+      UPDATE vendor_portal_users
+      SET pass_hash=@hash,must_change_password=1,password_reset_at=@resetAt,updated_at=@resetAt
+      WHERE vendor_id=@vendorId
+      """, new Dictionary<string, object?>
+    {
+      ["@hash"] = BCrypt.Net.BCrypt.HashPassword(temporaryPassword, 12),
+      ["@resetAt"] = DateTime.UtcNow,
+      ["@vendorId"] = id
+    });
+    if (affected == 0) return NotFound(ApiResponseFactory.Fail("vendor.account_not_found"));
+
+    return Ok(ApiResponseFactory.Ok(new
+    {
+      temporaryPassword,
+      mustChangePassword = true,
+      message = "Mật khẩu tạm chỉ được hiển thị trong phản hồi này."
+    }));
+  }
+
   [HttpPut("{id}/status")]
   public Task<IActionResult> Status(string id, [FromBody] VendorStatusRequest request) => SetStatus(id, request.Status, request.Reason);
 

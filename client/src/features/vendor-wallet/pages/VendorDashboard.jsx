@@ -1,15 +1,19 @@
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { CreditCard, Headphones, Loader2, MapPin, QrCode, TrendingUp, Copy, CheckCircle2, Download } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import { formatCurrency, formatDate } from '../../../admin/utils/formatters';
 import { useVendorDashboard, useVendorStall, useVendorStallQr } from '../../../vendor/api/vendorQueries';
 import { paySubscriptionFromWallet } from '../../../vendor/api/vendorApi';
 import { QRCodeCanvas } from 'qrcode.react';
 import { appConfig } from '../../../config/appConfig';
+import { InsufficientBalanceModal } from '../components/InsufficientBalanceModal';
 
 export function VendorDashboard() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { data, isLoading, error, refetch } = useVendorDashboard();
   const subscription = {
     planName: data?.vendor?.subscriptionPlan ?? '',
@@ -19,6 +23,7 @@ export function VendorDashboard() {
   const [isPayingSubscription, setIsPayingSubscription] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
   const [copiedQr, setCopiedQr] = useState(false);
+  const [balanceError, setBalanceError] = useState('');
   const { data: qrData } = useVendorStallQr();
 
   const dailyData = (data?.daily ?? []).map((row) => ({
@@ -38,9 +43,19 @@ export function VendorDashboard() {
     setIsPayingSubscription(true);
     try {
       await paySubscriptionFromWallet();
+      toast.success('Thanh toán gia hạn thành công!');
       setPaySuccess(true);
       setTimeout(() => setPaySuccess(false), 3000);
       await refetch();
+    } catch (requestError) {
+      const payload = requestError.response?.data;
+      console.warn('[PAYMENT EXCEPTION CAUGHT]:', payload);
+      if (payload?.errorCode === 'INSUFFICIENT_BALANCE') {
+        setBalanceError(payload.message || 'Ví của bạn không đủ tiền!');
+        toast.error(payload.message || 'Ví của bạn không đủ tiền!');
+      } else {
+        toast.error(payload?.message || 'Hệ thống thanh toán bận, vui lòng thử lại sau.');
+      }
     } finally {
       setIsPayingSubscription(false);
     }
@@ -56,6 +71,15 @@ export function VendorDashboard() {
 
   return (
     <div className="max-w-6xl mx-auto">
+      <InsufficientBalanceModal
+        open={Boolean(balanceError)}
+        message={balanceError}
+        onClose={() => setBalanceError('')}
+        onTopUp={() => {
+          setBalanceError('');
+          navigate('/vendor/finance');
+        }}
+      />
       {/* Subscription Banner */}
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

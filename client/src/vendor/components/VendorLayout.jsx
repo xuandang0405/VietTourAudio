@@ -74,13 +74,9 @@ export function VendorLayout() {
             <MapPinned size={20} />
             {t('sidebar.stall_poi_management', { defaultValue: 'Quản lý sạp hàng (POI)' })}
           </NavLink>
-          <NavLink to="/vendor/revenue" className={navLinkClass}>
+          <NavLink to="/vendor/finance" className={navLinkClass}>
             <DollarSign size={20} />
-            {t('vendor.wallet_title', { defaultValue: 'Ví tiền và Thanh toán' })}
-          </NavLink>
-          <NavLink to="/vendor/billing" className={navLinkClass}>
-            <CreditCard size={20} />
-            {t('payment.vendor_billing_title')}
+            {t('vendor.wallet_title', { defaultValue: 'Tài chính & Ví tiền' })}
           </NavLink>
         </nav>
         

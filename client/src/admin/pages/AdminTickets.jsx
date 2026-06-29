@@ -49,7 +49,12 @@ export function AdminTickets() {
     {
       key: 'senderEmail',
       label: t('admin.tickets.table.email', { defaultValue: 'Người gửi' }),
-      render: (row) => <span className="font-bold text-slate-900">{row.senderEmail}</span>,
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-900">{row.senderEmail ?? row.email}</span>
+          <p className="text-[10px] font-black uppercase text-slate-400">{row.senderType ?? 'GUEST'}</p>
+        </div>
+      ),
     },
     {
       key: 'subject',

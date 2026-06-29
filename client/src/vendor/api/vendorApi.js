@@ -76,6 +76,10 @@ vendorApiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     if (error.response?.status === 403) {
+      if (error.response?.data?.errors === 'PASSWORD_CHANGE_REQUIRED') {
+        window.location.href = '/vendor/change-password';
+        return Promise.reject(error);
+      }
       useVendorAuthStore.getState().clearSession();
       window.location.href = '/vendor/login';
       return Promise.reject(error);
@@ -121,6 +125,12 @@ export async function fetchVendorMe() {
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
     })
   );
+}
+
+export async function changeVendorPassword(currentPassword, newPassword) {
+  await vendorApiClient.post('/change-password', { currentPassword, newPassword });
+  const { refreshToken } = useVendorAuthStore.getState();
+  return unwrap(await axios.post(getAuthUrl('/refresh'), { refreshToken }));
 }
 
 // --- Dashboard ---

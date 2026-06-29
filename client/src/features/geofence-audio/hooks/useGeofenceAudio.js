@@ -10,7 +10,7 @@ import { visitorTrackingService } from '../services/visitorTrackingService';
 import { enrichPoisWithDistance, getDistanceMeters } from '../../../utils/geo';
 import { localizePoi } from '../../../data/visitorPois';
 import { resolveBackendMediaUrl } from '../../../utils/mediaUrl';
-import { subscribeRealtime } from '../../../services/realtimeClient';
+import { clearPresenceZone, setPresenceZone, subscribeRealtime } from '../../../services/realtimeClient';
 
 /**
  * [UC08] View Nearby POI & Audio Playback - Custom Hook.
@@ -21,10 +21,21 @@ export function useGeofenceAudio({ onToast }) {
   const { t, i18n } = useTranslation('translation', { keyPrefix: 'landing' });
   const { t: tRoot } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const presenceZone = searchParams.get('zone') ?? localStorage.getItem('locked_zone') ?? '';
   const [selectedPoiId, setSelectedPoiId] = useState(searchParams.get('poi'));
   const [pois, setPois] = useState([]);
   const [realtimeRevision, setRealtimeRevision] = useState(0);
   const [selectedStall, setSelectedStall] = useState(null);
+
+  useEffect(() => {
+    if (!presenceZone) return undefined;
+    void setPresenceZone(presenceZone).catch((error) => {
+      console.warn('Zone presence registration failed.', error);
+    });
+    return () => {
+      void clearPresenceZone();
+    };
+  }, [presenceZone]);
   const [searchQuery, setSearchQuery] = useState('');
   const [routingCoordinates, setRoutingCoordinates] = useState([]);
   const [routingInfo, setRoutingInfo] = useState(null);

@@ -27,8 +27,8 @@ export function AdminRevenue() {
 
   // Subscribe to real-time active user count via SignalR
   useEffect(() => {
-    const unsubscribeUsers = subscribeRealtime('UpdateActiveUsersCount', (liveCount) => {
-      setActiveOnlineUsers(liveCount);
+    const unsubscribeUsers = subscribeRealtime('PresenceUpdated', (snapshot) => {
+      setActiveOnlineUsers(Number(snapshot?.totalActive ?? 0));
     });
 
     // Also auto-refresh financial stats when a payment is verified by admin

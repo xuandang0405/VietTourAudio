@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
 import { useVendorMyStalls } from '../../../vendor/api/vendorQueries';
-import { createVendorStall, submitVendorStallUpdate, vendorApiClient, fetchPoiProducts, createPoiProduct, updatePoiProduct, deletePoiProduct } from '../../../vendor/api/vendorApi';
+import { createVendorStall, submitVendorStallUpdate, fetchPoiProducts, createPoiProduct, updatePoiProduct, deletePoiProduct } from '../../../vendor/api/vendorApi';
 import { appConfig } from '../../../config/appConfig';
 import { subscribeRealtime } from '../../../services/realtimeClient';
 
@@ -41,7 +41,9 @@ function toPublicImageUrl(value) {
 export function VendorStall() {
   const { t } = useTranslation();
   const { data: stallsData, isLoading, error, refetch } = useVendorMyStalls();
-  const stall = stallsData?.[0];
+  const stalls = stallsData ?? [];
+  const [selectedStallId, setSelectedStallId] = useState('');
+  const stall = stalls.find((item) => String(item.id) === String(selectedStallId)) ?? stalls[0];
   const markerRef = useRef(null);
 
   // Unified form state
@@ -73,6 +75,14 @@ export function VendorStall() {
   const [editProdPrice, setEditProdPrice] = useState('');
 
   useEffect(() => {
+    if (!selectedStallId && stalls[0]?.id) {
+      setSelectedStallId(String(stalls[0].id));
+    } else if (selectedStallId && !stalls.some((item) => String(item.id) === String(selectedStallId))) {
+      setSelectedStallId(String(stalls[0]?.id ?? ''));
+    }
+  }, [selectedStallId, stalls]);
+
+  useEffect(() => {
     if (stall?.id) {
       setLoadingProducts(true);
       fetchPoiProducts(stall.id)
@@ -86,22 +96,20 @@ export function VendorStall() {
     ? Math.ceil((new Date(stall.premiumExpiryDate) - new Date()) / (1000 * 60 * 60 * 24))
     : 0;
 
-  async function loadTranslations() {
-    try {
-      const res = await vendorApiClient.get('/content');
-      const data = res.data?.data?.contents ?? [];
-      const transMap = {};
-      data.forEach(item => {
-        transMap[item.language] = {
-          title: item.title,
-          ttsScript: item.ttsScript,
-          approvalStatus: item.approvalStatus
-        };
-      });
-      setTranslations(transMap);
-    } catch (err) {
-      console.error("Failed to load translations:", err);
-    }
+  function loadTranslations(source = stall) {
+    if (!source) return;
+    const value = (pendingKey, publishedKey) => source[pendingKey] ?? source[publishedKey] ?? '';
+    setTranslations({
+      vi: {
+        title: value('pendingName', 'name'),
+        ttsScript: value('pendingDescription', 'description'),
+        approvalStatus: source.approvalStatus
+      },
+      en: { title: value('pendingNameEn', 'stallNameEn'), ttsScript: value('pendingDescriptionEn', 'descriptionEn'), approvalStatus: source.approvalStatus },
+      ja: { title: value('pendingNameJa', 'stallNameJa'), ttsScript: value('pendingDescriptionJa', 'descriptionJa'), approvalStatus: source.approvalStatus },
+      ko: { title: value('pendingNameKo', 'stallNameKo'), ttsScript: value('pendingDescriptionKo', 'descriptionKo'), approvalStatus: source.approvalStatus },
+      zh: { title: value('pendingNameZh', 'stallNameZh'), ttsScript: value('pendingDescriptionZh', 'descriptionZh'), approvalStatus: source.approvalStatus }
+    });
   }
 
   useEffect(() => {
@@ -120,7 +128,7 @@ export function VendorStall() {
       coverUrl
     });
     setPreviewImage(toPublicImageUrl(coverUrl));
-    loadTranslations();
+    loadTranslations(stall);
   }, [stall]);
 
   useEffect(() => () => {
@@ -191,6 +199,7 @@ export function VendorStall() {
     payload.append('description', form.description.trim());
     payload.append('latitude', String(form.latitude));
     payload.append('longitude', String(form.longitude));
+    if (stall?.id) payload.append('poiId', String(stall.id));
     if (form.coverUrl) payload.append('coverUrl', form.coverUrl);
     if (imageFile) payload.append('image', imageFile);
     try {
@@ -199,7 +208,7 @@ export function VendorStall() {
       setMessage({ type: 'success', text: 'Đã gửi yêu cầu cập nhật lên Admin phê duyệt và kích hoạt dịch tự động đa ngôn ngữ!' });
       await refetch();
       // Reload translations after auto-translate pipeline completes
-      await loadTranslations();
+      loadTranslations();
     } catch (requestError) {
       setMessage({ type: 'error', text: requestError.response?.data?.error ?? t('stall.error_save') });
     } finally {
@@ -208,7 +217,7 @@ export function VendorStall() {
   }
 
   async function handleAddSecondaryStall() {
-    if (!stall?.isPremium || stallsData.length >= 3) return;
+    if (stalls.length >= 3) return;
     const name = window.prompt(
       t('stall.secondary_name_prompt', { defaultValue: 'Nhập tên sạp phụ mới:' })
     )?.trim();
@@ -313,30 +322,43 @@ export function VendorStall() {
           <p className="mt-1 text-slate-500">Cập nhật hồ sơ sạp hàng, vị trí GPS, cover image và bài giới thiệu audio đa ngôn ngữ.</p>
         </div>
 
-        {stall.isPremium ? (
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
+          {stall.isPremium && (
             <div className="text-right hidden sm:block">
               <p className="text-xs font-black text-amber-600">Đặc quyền Premium</p>
               <p className="text-[11px] font-bold text-slate-400">Thời hạn còn {daysRemaining} ngày</p>
             </div>
-            <button
-              type="button"
-              disabled={stallsData.length >= 3}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-teal-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-teal-700 active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={handleAddSecondaryStall}
-            >
-              <Plus size={16} />
-              {stallsData.length >= 3
-                ? t('stall.limit_reached', { defaultValue: 'Đã đạt giới hạn 3 sạp' })
-                : t('stall.add_secondary', { defaultValue: 'Thêm sạp phụ (+)' })}
-            </button>
-          </div>
-        ) : (
-          <div className="bg-slate-100 rounded-xl px-4 py-2 border border-slate-200 text-xs text-slate-500 font-bold max-w-xs">
-            💡 Nâng cấp gói Premium để mở khóa 3 sạp và chế độ định vị 10m.
-          </div>
-        )}
+          )}
+          <button
+            type="button"
+            disabled={stalls.length >= 3}
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-teal-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-teal-700 active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={handleAddSecondaryStall}
+          >
+            <Plus size={16} />
+            {stalls.length >= 3
+              ? t('stall.limit_reached', { defaultValue: 'Đã đạt giới hạn 3 POI' })
+              : t('stall.add_secondary', { defaultValue: 'Thêm POI (+)' })}
+          </button>
+        </div>
       </header>
+
+      {stalls.length > 1 && (
+        <div className="mb-5 flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-3">
+          {stalls.map((item, index) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setSelectedStallId(String(item.id))}
+              className={String(item.id) === String(stall.id)
+                ? 'rounded-xl bg-teal-600 px-4 py-2 text-sm font-black text-white'
+                : 'rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200'}
+            >
+              {item.pendingName ?? item.name ?? `POI ${index + 1}`}
+            </button>
+          ))}
+        </div>
+      )}
 
       {stall.approvalStatus === 'PENDING' ? (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">

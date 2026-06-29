@@ -1,36 +1,60 @@
-using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
+using VietTourAudio.Api.Services;
 
 namespace VietTourAudio.Api.Hubs;
 
-public sealed class NotificationHub : Hub
+public sealed class NotificationHub(IPresenceTracker presence, ILogger<NotificationHub> logger) : Hub
 {
-  // Thread-safe active connections counter memory cache
-  private static int _activeUserCount;
-  private static readonly ConcurrentDictionary<string, string> ConnectedClients = new();
+  public const string AdminPresenceGroup = "admin-presence";
 
-  /// <summary>Exposes the live counter so controllers can read it without injecting the hub.</summary>
-  public static int ActiveUserCount => Volatile.Read(ref _activeUserCount);
-
-  public override async Task OnConnectedAsync()
+  public async Task JoinZone(string zoneId)
   {
-    var connectionId = Context.ConnectionId;
-    if (ConnectedClients.TryAdd(connectionId, connectionId))
+    var normalizedZone = NormalizeZone(zoneId);
+    var snapshot = presence.MoveToZone(Context.ConnectionId, normalizedZone);
+    await Clients.Group(AdminPresenceGroup).SendAsync("PresenceUpdated", snapshot);
+  }
+
+  public async Task LeaveZone()
+  {
+    var snapshot = presence.Remove(Context.ConnectionId);
+    await Clients.Group(AdminPresenceGroup).SendAsync("PresenceUpdated", snapshot);
+  }
+
+  public async Task JoinAdminDashboard()
+  {
+    if (Context.User?.Identity?.IsAuthenticated != true ||
+        !(Context.User.IsInRole("SUPER_ADMIN") || Context.User.IsInRole("ADMIN") ||
+          Context.User.IsInRole("MODERATOR") || Context.User.IsInRole("FINANCE")))
     {
-      Interlocked.Increment(ref _activeUserCount);
-      await Clients.All.SendAsync("UpdateActiveUsersCount", _activeUserCount);
+      throw new HubException("Admin authorization is required.");
     }
-    await base.OnConnectedAsync();
+
+    await Groups.AddToGroupAsync(Context.ConnectionId, AdminPresenceGroup);
+    await Clients.Caller.SendAsync("PresenceUpdated", presence.Snapshot());
   }
 
   public override async Task OnDisconnectedAsync(Exception? exception)
   {
-    var connectionId = Context.ConnectionId;
-    if (ConnectedClients.TryRemove(connectionId, out _))
+    try
     {
-      Interlocked.Decrement(ref _activeUserCount);
-      await Clients.All.SendAsync("UpdateActiveUsersCount", _activeUserCount);
+      var snapshot = presence.Remove(Context.ConnectionId);
+      await Clients.Group(AdminPresenceGroup).SendAsync("PresenceUpdated", snapshot);
     }
-    await base.OnDisconnectedAsync(exception);
+    catch (Exception cleanupError)
+    {
+      logger.LogError(cleanupError, "Presence cleanup failed for connection {ConnectionId}.", Context.ConnectionId);
+    }
+    finally
+    {
+      await base.OnDisconnectedAsync(exception);
+    }
+  }
+
+  private static string NormalizeZone(string zoneId)
+  {
+    var value = zoneId?.Trim();
+    if (string.IsNullOrWhiteSpace(value) || value.Length > 160)
+      throw new HubException("A valid zone identifier is required.");
+    return value.ToLowerInvariant();
   }
 }

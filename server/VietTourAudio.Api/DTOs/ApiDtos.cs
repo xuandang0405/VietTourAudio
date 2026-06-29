@@ -26,7 +26,8 @@ public sealed record UserResponseDto(
   string Email,
   string? Phone,
   string Role,
-  string Status
+  string Status,
+  bool MustChangePassword = false
 );
 
 public sealed record StallRequestDto(

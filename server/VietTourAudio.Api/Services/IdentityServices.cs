@@ -34,7 +34,8 @@ public sealed class DatabaseIdentityService(
     var connection = await DatabaseSql.OpenConnectionAsync(db);
     await using var command = connection.CreateCommand();
     command.CommandText = """
-      SELECT vpu.id, vpu.vendor_id, vpu.email, vpu.pass_hash, vpu.full_name, vpu.status
+      SELECT vpu.id, vpu.vendor_id, vpu.email, vpu.pass_hash, vpu.full_name, vpu.status,
+        vpu.must_change_password
       FROM vendor_portal_users vpu JOIN Vendors v ON v.id = vpu.vendor_id
       WHERE vpu.email = @email LIMIT 1
       """;
@@ -47,7 +48,8 @@ public sealed class DatabaseIdentityService(
 
     var id = reader.GetString(reader.GetOrdinal("id"));
     var vendorId = reader.GetString(reader.GetOrdinal("vendor_id"));
-    return CreateToken(new UserResponseDto(id, reader.GetString(reader.GetOrdinal("full_name")), email, null, "VENDOR", "ACTIVE"), vendorId);
+    return CreateToken(new UserResponseDto(id, reader.GetString(reader.GetOrdinal("full_name")), email, null,
+      "VENDOR", "ACTIVE", reader.GetBoolean(reader.GetOrdinal("must_change_password"))), vendorId);
   }
 
   public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request)
@@ -78,11 +80,11 @@ public sealed class DatabaseIdentityService(
     {
       var connection = await DatabaseSql.OpenConnectionAsync(db);
       await using var command = connection.CreateCommand();
-      command.CommandText = "SELECT full_name,email,status FROM vendor_portal_users WHERE id=@id LIMIT 1";
+      command.CommandText = "SELECT full_name,email,status,must_change_password FROM vendor_portal_users WHERE id=@id LIMIT 1";
       command.AddParameter("@id", id);
       await using var reader = await command.ExecuteReaderAsync();
       if (!await reader.ReadAsync()) throw new KeyNotFoundException();
-      return new UserResponseDto(id, reader.GetString(0), reader.GetString(1), null, role, reader.GetString(2));
+      return new UserResponseDto(id, reader.GetString(0), reader.GetString(1), null, role, reader.GetString(2), reader.GetBoolean(3));
     }
     var user = await db.Users.AsNoTracking().SingleAsync(x => x.Id == id);
     return new UserResponseDto(user.Id, user.FullName, user.Email, null, user.Role.ToString(), user.Status.ToString());
@@ -126,7 +128,7 @@ public sealed class DatabaseIdentityService(
       var connection = await DatabaseSql.OpenConnectionAsync(db);
       await using var command = connection.CreateCommand();
       command.CommandText = """
-        SELECT vpu.status, v.id FROM vendor_portal_users vpu
+        SELECT vpu.status, v.id, vpu.must_change_password FROM vendor_portal_users vpu
         JOIN Vendors v ON v.id=vpu.vendor_id WHERE vpu.id=@id AND vpu.vendor_id=@vendorId LIMIT 1
         """;
       command.AddParameter("@id", id);
@@ -141,7 +143,15 @@ public sealed class DatabaseIdentityService(
       if (account is null || account.Status != UserStatus.ACTIVE || account.Role.ToString() != role)
         throw new UnauthorizedAccessException("auth.account_inactive");
     }
-    return CreateToken(new UserResponseDto(id, name, email, null, role, "ACTIVE"), vendorId);
+    var mustChangePassword = false;
+    if (role == "VENDOR")
+    {
+      var rows = await DatabaseSql.QueryRowsAsync(db,
+        "SELECT must_change_password FROM vendor_portal_users WHERE id=@id LIMIT 1",
+        new Dictionary<string, object?> { ["@id"] = id });
+      mustChangePassword = rows.Count > 0 && Convert.ToBoolean(rows[0]["must_change_password"]);
+    }
+    return CreateToken(new UserResponseDto(id, name, email, null, role, "ACTIVE", mustChangePassword), vendorId);
   }
 
   private AuthResponseDto CreateToken(UserResponseDto user, string? vendorId)
@@ -157,6 +167,7 @@ public sealed class DatabaseIdentityService(
       new("token_type", "access")
     };
     if (!string.IsNullOrEmpty(vendorId)) claims.Add(new("vendor_id", vendorId));
+    if (user.MustChangePassword) claims.Add(new("must_change_password", "true"));
     var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
     var token = new JwtSecurityToken(
       configuration["Jwt:Issuer"], configuration["Jwt:Audience"], claims,
@@ -177,7 +188,7 @@ public sealed class DatabaseUserService(AppDbContext db) : IUserService
 {
   public async Task<IReadOnlyList<UserResponseDto>> GetUsersAsync() =>
     await db.Users.AsNoTracking().OrderBy(x => x.Id)
-      .Select(x => new UserResponseDto(x.Id, x.FullName, x.Email, null, x.Role.ToString(), x.Status.ToString()))
+      .Select(x => new UserResponseDto(x.Id, x.FullName, x.Email, null, x.Role.ToString(), x.Status.ToString(), false))
       .ToListAsync();
 
   public async Task<UserResponseDto> GetByIdAsync(string id)

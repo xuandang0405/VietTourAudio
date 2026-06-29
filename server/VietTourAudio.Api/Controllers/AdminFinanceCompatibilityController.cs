@@ -24,7 +24,7 @@ public sealed class AdminWalletCompatibilityController(AppDbContext db, Microsof
 {
   [HttpGet]
   public async Task<IActionResult> List() => Ok(ApiResponseFactory.Ok(await DatabaseSql.QueryRowsAsync(db, """
-    SELECT CAST(v.id AS CHAR) id,v.trade_name businessName,v.contact_email ownerEmail,
+    SELECT CAST(v.id AS CHAR) id,v.trade_name businessName,v.email ownerEmail,
       v.status verificationStatus,CAST(vw.id AS CHAR) walletId,vw.balance,vw.total_top_up totalTopUp,
       'ACTIVE' AS subscriptionStatus, NULL AS periodEnd, 'VTA Premium' AS planName, 199000.00 AS monthlyPrice,
       (SELECT COUNT(*) FROM Pois p WHERE p.vendor_id=v.id) stallCount
@@ -35,7 +35,7 @@ public sealed class AdminWalletCompatibilityController(AppDbContext db, Microsof
   public async Task<IActionResult> Detail(string vendorId)
   {
     var vendor = (await DatabaseSql.QueryRowsAsync(db, """
-      SELECT CAST(v.id AS CHAR) id,v.trade_name businessName,v.contact_email ownerEmail,
+      SELECT CAST(v.id AS CHAR) id,v.trade_name businessName,v.email ownerEmail,
         v.contact_name ownerDisplayName,v.status verificationStatus,CAST(vw.id AS CHAR) walletId,
         vw.balance,vw.total_top_up totalTopUp, 'ACTIVE' AS subscriptionStatus, NULL AS periodEnd,
         'VTA Premium' AS planName, 199000.00 AS monthlyPrice
@@ -189,7 +189,9 @@ public sealed class AdminWalletCompatibilityController(AppDbContext db, Microsof
 [ApiController]
 [Route("api/admin/revenue")]
 [Authorize(Roles = "SUPER_ADMIN,ADMIN,FINANCE")]
-public sealed class AdminRevenueCompatibilityController(AppDbContext db) : ControllerBase
+public sealed class AdminRevenueCompatibilityController(
+  AppDbContext db,
+  VietTourAudio.Api.Services.IPresenceTracker presence) : ControllerBase
 {
   [HttpGet("commissions")]
   public IActionResult Commissions()
@@ -279,7 +281,7 @@ public sealed class AdminRevenueCompatibilityController(AppDbContext db) : Contr
       allTime = allTimeStats,
       pendingCount,
       chartData,
-      activeUsers = Hubs.NotificationHub.ActiveUserCount
+      activeUsers = presence.Snapshot().TotalActive
     }));
   }
 }

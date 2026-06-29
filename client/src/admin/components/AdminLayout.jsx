@@ -30,7 +30,7 @@ import { useAdminAuthStore } from '../store/adminAuthStore';
 import { LanguageSwitcher } from '../../components/LanguageSwitcher';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchAdminNotifications, markAdminNotificationRead } from '../api/adminApi';
-import { subscribeRealtime } from '../../services/realtimeClient';
+import { joinAdminPresence, leaveAdminPresence, subscribeRealtime } from '../../services/realtimeClient';
 import { appConfig } from '../../config/appConfig';
 import toast from 'react-hot-toast';
 
@@ -150,8 +150,18 @@ export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const user = useAdminAuthStore((state) => state.user);
+  const accessToken = useAdminAuthStore((state) => state.accessToken);
   const clearSession = useAdminAuthStore((state) => state.clearSession);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    void joinAdminPresence(accessToken).catch((error) => {
+      console.warn('Admin presence stream is temporarily unavailable.', error);
+    });
+    return () => {
+      void leaveAdminPresence();
+    };
+  }, [accessToken]);
 
   useEffect(() => {
     const handleNotification = (notification) => {

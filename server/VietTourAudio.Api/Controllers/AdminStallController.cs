@@ -92,6 +92,9 @@ public sealed class AdminStallController(
     if (string.IsNullOrWhiteSpace(request.Name))
       return BadRequest(ApiResponseFactory.Fail("Tên sạp không được để trống"));
 
+    await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+    await DatabaseSql.QueryRowsAsync(db, "SELECT id FROM Vendors WHERE id=@vendorId FOR UPDATE",
+      new Dictionary<string, object?> { ["@vendorId"] = request.VendorId });
     var currentCount = await db.Pois.CountAsync(x => x.VendorId == request.VendorId);
     if (currentCount >= 3)
       return Conflict(ApiResponseFactory.Fail("Vendor đã đạt giới hạn tối đa 3 sạp hàng."));
@@ -126,6 +129,7 @@ public sealed class AdminStallController(
 
     db.Pois.Add(poi);
     await db.SaveChangesAsync();
+    await transaction.CommitAsync();
 
     return Ok(ApiResponseFactory.Ok(new
     {

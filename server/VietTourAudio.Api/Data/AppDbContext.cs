@@ -17,6 +17,8 @@ public class AppDbContext : DbContext
   public DbSet<Wallet> Wallets => Set<Wallet>();
   public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
   public DbSet<SystemTicket> SystemTickets => Set<SystemTicket>();
+  public DbSet<VisitEvent> VisitEvents => Set<VisitEvent>();
+  public DbSet<AudioPlayEvent> AudioPlayEvents => Set<AudioPlayEvent>();
   public DbSet<AdminPaymentConfig> AdminPaymentConfigs => Set<AdminPaymentConfig>();
   public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
 
@@ -178,12 +180,51 @@ public class AppDbContext : DbContext
       entity.ToTable("system_tickets");
       entity.HasKey(x => x.Id);
       entity.Property(x => x.Id).HasColumnName("id").HasMaxLength(36);
+      entity.Property(x => x.UserId).HasColumnName("user_id").HasMaxLength(36);
+      entity.Property(x => x.SenderType).HasColumnName("sender_type").HasMaxLength(20);
       entity.Property(x => x.SenderEmail).HasColumnName("sender_email").HasMaxLength(255);
       entity.Property(x => x.Subject).HasColumnName("subject").HasMaxLength(255);
       entity.Property(x => x.Message).HasColumnName("message");
       entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
       entity.Property(x => x.CreatedAt).HasColumnName("created_at");
       entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+      entity.HasIndex(x => x.UserId);
+    });
+
+    modelBuilder.Entity<VisitEvent>(entity =>
+    {
+      entity.ToTable("visit_events");
+      entity.HasKey(x => x.Id);
+      entity.Property(x => x.Id).HasColumnName("id").HasMaxLength(36);
+      entity.Property(x => x.PoiId).HasColumnName("poi_id").HasMaxLength(36);
+      entity.Property(x => x.VendorId).HasColumnName("vendor_id").HasMaxLength(36);
+      entity.Property(x => x.UserId).HasColumnName("user_id").HasMaxLength(36);
+      entity.Property(x => x.SessionId).HasColumnName("session_id").HasMaxLength(160);
+      entity.Property(x => x.Latitude).HasColumnName("latitude").HasPrecision(10, 7);
+      entity.Property(x => x.Longitude).HasColumnName("longitude").HasPrecision(10, 7);
+      entity.Property(x => x.DistanceMeters).HasColumnName("distance_meters").HasPrecision(10, 2);
+      entity.Property(x => x.Source).HasColumnName("source").HasMaxLength(20);
+      entity.Property(x => x.VisitedAt).HasColumnName("visited_at");
+      entity.HasIndex(x => new { x.PoiId, x.VisitedAt });
+      entity.HasIndex(x => new { x.VendorId, x.VisitedAt });
+      entity.HasIndex(x => new { x.SessionId, x.VisitedAt });
+    });
+
+    modelBuilder.Entity<AudioPlayEvent>(entity =>
+    {
+      entity.ToTable("audio_play_events");
+      entity.HasKey(x => x.Id);
+      entity.Property(x => x.Id).HasColumnName("id").HasMaxLength(36);
+      entity.Property(x => x.PoiId).HasColumnName("poi_id").HasMaxLength(36);
+      entity.Property(x => x.VendorId).HasColumnName("vendor_id").HasMaxLength(36);
+      entity.Property(x => x.UserId).HasColumnName("user_id").HasMaxLength(36);
+      entity.Property(x => x.SessionId).HasColumnName("session_id").HasMaxLength(160);
+      entity.Property(x => x.LanguageCode).HasColumnName("language_code").HasMaxLength(10);
+      entity.Property(x => x.Source).HasColumnName("source").HasMaxLength(20);
+      entity.Property(x => x.PlayedAt).HasColumnName("played_at");
+      entity.HasIndex(x => new { x.PoiId, x.PlayedAt });
+      entity.HasIndex(x => new { x.VendorId, x.PlayedAt });
+      entity.HasIndex(x => new { x.SessionId, x.PlayedAt });
     });
 
     modelBuilder.Entity<AdminPaymentConfig>(entity =>
