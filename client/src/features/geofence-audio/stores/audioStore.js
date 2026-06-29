@@ -5,6 +5,7 @@ import { useAudioQueueStore } from './audioQueueStore';
 import { visitorTrackingService } from '../services/visitorTrackingService';
 import { usePremiumStore } from '../../vendor-wallet/stores/premiumStore';
 import { resolveBackendMediaUrl } from '../../../utils/mediaUrl';
+import { premiumAccessApi } from '../../payment/premiumAccessApi';
 
 const DEFAULT_COOLDOWN_MS = 10 * 60 * 1000;
 let globalAudio = null;
@@ -74,35 +75,56 @@ export const useAudioStore = create(
 
         useAudioQueueStore.getState().enqueue(poi.id, () => {
           return new Promise((resolve) => {
-            const success = get().playPoi(poi, languageMeta, {
-              onFinished: resolve
-            });
-
-            if (!success) resolve();
+            get().playPoi(poi, languageMeta, { onFinished: resolve })
+              .then((success) => {
+                if (!success) resolve();
+              })
+              .catch(resolve);
           });
         });
       },
 
-      playPoi: (poi, languageMeta, options = {}) => {
+      playPoi: async (poi, languageMeta, options = {}) => {
         if (!poi?.id) {
           set({ isPlaying: false, lastError: 'Không tìm thấy điểm thuyết minh.' });
           return false;
         }
 
-        // ── Kiểm tra Freemium ──────────────────────────────────
+        const text = poi.narration?.[languageMeta?.code] ?? poi.description ?? '';
+        const audioUrl = poi.audioUrl;
+        if (!audioUrl && !text.trim()) {
+          set({ currentPoiId: poi.id, isPlaying: false, lastError: 'Chưa có nội dung thuyết minh.' });
+          return false;
+        }
+
         const premiumState = usePremiumStore.getState();
-        if (!premiumState.canListen()) {
-          set({ isPlaying: false, lastError: 'Đã hết lượt nghe miễn phí. Vui lòng mở khóa Premium.' });
+        const backendPoiId = poi.backendId ?? poi.apiId ?? poi.id;
+        let access;
+        try {
+          access = await premiumAccessApi.authorizeAudioPlay(backendPoiId);
+          premiumState.applyServerStatus(access);
+        } catch (error) {
+          set({
+            isPlaying: false,
+            lastError: error.response?.data?.message ?? 'Không thể xác thực quyền nghe audio.'
+          });
+          return false;
+        }
+
+        if (!access?.allowed) {
+          premiumState.markPoiPlayed(backendPoiId);
+          set({ isPlaying: false, lastError: 'Đã hết lượt nghe miễn phí cho điểm này. Vui lòng mở khóa Premium.' });
           window.dispatchEvent(new CustomEvent('open-checkout'));
           return false;
+        }
+        if (access.freeListenConsumed) {
+          premiumState.markPoiPlayed(backendPoiId);
+          premiumState.markPoiPlayed(poi.id);
         }
 
         // Stop any current audio
         get().stop();
         set({ activeOnFinished: options.onFinished || null });
-
-        const text = poi.narration?.[languageMeta?.code] ?? poi.description ?? '';
-        const audioUrl = poi.audioUrl;
 
         if (audioUrl) {
           const audio = getAudioElement({ getState: () => get(), setState: set });
@@ -132,8 +154,7 @@ export const useAudioStore = create(
                 get().playTtsFallback(text, languageMeta, poi, premiumState, options);
               });
 
-              premiumState.decrementFreeListens();
-              visitorTrackingService.trackAudioPlay(poi, languageMeta.code);
+              visitorTrackingService.trackAudioPlay(poi, languageMeta?.code);
               return true;
             } catch (err) {
               console.error('HTML5 audio setup exception, trying TTS fallback:', err);
@@ -178,8 +199,6 @@ export const useAudioStore = create(
           return false;
         }
 
-        premiumState.decrementFreeListens();
-
         set((state) => ({
           currentPoiId: poi.id,
           isPlaying: true,
@@ -194,11 +213,11 @@ export const useAudioStore = create(
           }
         }));
 
-        visitorTrackingService.trackAudioPlay(poi, languageMeta.code);
+        visitorTrackingService.trackAudioPlay(poi, languageMeta?.code);
         return true;
       },
 
-      replayPoi: (poi, languageMeta) => {
+      replayPoi: async (poi, languageMeta) => {
         if (!poi?.id) return false;
 
         set((state) => ({
@@ -210,7 +229,7 @@ export const useAudioStore = create(
 
         useAudioQueueStore.getState().clearQueue();
         get().stop();
-        return get().playPoi(poi, languageMeta, { force: true });
+        return await get().playPoi(poi, languageMeta, { force: true });
       },
 
       pauseAudio: () => {

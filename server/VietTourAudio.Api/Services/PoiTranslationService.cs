@@ -39,19 +39,19 @@ public sealed class PoiTranslationService(IHttpClientFactory httpClientFactory)
       // Translate StallName
       if (!string.IsNullOrWhiteSpace(poi.StallName))
       {
-        poi.StallNameEn = await FetchTranslationAsync(client, poi.StallName, "vi", "en");
-        poi.StallNameJa = await FetchTranslationAsync(client, poi.StallName, "vi", "ja");
-        poi.StallNameKo = await FetchTranslationAsync(client, poi.StallName, "vi", "ko");
-        poi.StallNameZh = await FetchTranslationAsync(client, poi.StallName, "vi", "zh-CN");
+        if (string.IsNullOrWhiteSpace(poi.StallNameEn)) poi.StallNameEn = await FetchTranslationAsync(client, poi.StallName, "vi", "en");
+        if (string.IsNullOrWhiteSpace(poi.StallNameJa)) poi.StallNameJa = await FetchTranslationAsync(client, poi.StallName, "vi", "ja");
+        if (string.IsNullOrWhiteSpace(poi.StallNameKo)) poi.StallNameKo = await FetchTranslationAsync(client, poi.StallName, "vi", "ko");
+        if (string.IsNullOrWhiteSpace(poi.StallNameZh)) poi.StallNameZh = await FetchTranslationAsync(client, poi.StallName, "vi", "zh-CN");
       }
 
       // Translate Description
       if (!string.IsNullOrWhiteSpace(poi.Description))
       {
-        poi.DescriptionEn = await FetchTranslationAsync(client, poi.Description, "vi", "en");
-        poi.DescriptionJa = await FetchTranslationAsync(client, poi.Description, "vi", "ja");
-        poi.DescriptionKo = await FetchTranslationAsync(client, poi.Description, "vi", "ko");
-        poi.DescriptionZh = await FetchTranslationAsync(client, poi.Description, "vi", "zh-CN");
+        if (string.IsNullOrWhiteSpace(poi.DescriptionEn)) poi.DescriptionEn = await FetchTranslationAsync(client, poi.Description, "vi", "en");
+        if (string.IsNullOrWhiteSpace(poi.DescriptionJa)) poi.DescriptionJa = await FetchTranslationAsync(client, poi.Description, "vi", "ja");
+        if (string.IsNullOrWhiteSpace(poi.DescriptionKo)) poi.DescriptionKo = await FetchTranslationAsync(client, poi.Description, "vi", "ko");
+        if (string.IsNullOrWhiteSpace(poi.DescriptionZh)) poi.DescriptionZh = await FetchTranslationAsync(client, poi.Description, "vi", "zh-CN");
       }
 
       Console.WriteLine($"[TRANSLATION SUCCESS]: 5-Language dictionary generated for Stall: {poi.StallName}");
@@ -68,6 +68,36 @@ public sealed class PoiTranslationService(IHttpClientFactory httpClientFactory)
       poi.DescriptionJa ??= poi.Description;
       poi.DescriptionKo ??= poi.Description;
       poi.DescriptionZh ??= poi.Description;
+    }
+  }
+
+  /// <summary>
+  /// Auto-translates a product name if translated columns are empty.
+  /// </summary>
+  public async Task AutoLocalizeProductAsync(PoiProduct product)
+  {
+    if (string.IsNullOrWhiteSpace(product.ProductName))
+      return;
+
+    var client = httpClientFactory.CreateClient();
+    client.Timeout = TimeSpan.FromSeconds(15);
+
+    try
+    {
+      if (string.IsNullOrWhiteSpace(product.ProductNameEn)) product.ProductNameEn = await FetchTranslationAsync(client, product.ProductName, "vi", "en");
+      if (string.IsNullOrWhiteSpace(product.ProductNameJa)) product.ProductNameJa = await FetchTranslationAsync(client, product.ProductName, "vi", "ja");
+      if (string.IsNullOrWhiteSpace(product.ProductNameKo)) product.ProductNameKo = await FetchTranslationAsync(client, product.ProductName, "vi", "ko");
+      if (string.IsNullOrWhiteSpace(product.ProductNameZh)) product.ProductNameZh = await FetchTranslationAsync(client, product.ProductName, "vi", "zh-CN");
+
+      Console.WriteLine($"[TRANSLATION SUCCESS]: 5-Language dictionary generated for Product: {product.ProductName}");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"[TRANSLATION WARNING]: Product translation pipeline slipped: {ex.Message}");
+      product.ProductNameEn ??= product.ProductName;
+      product.ProductNameJa ??= product.ProductName;
+      product.ProductNameKo ??= product.ProductName;
+      product.ProductNameZh ??= product.ProductName;
     }
   }
 

@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-export const PREMIUM_DURATION_MS = 24 * 60 * 60 * 1000;
-
 function createDeviceId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -24,60 +22,57 @@ function writeLegacyPremium(isPremium, expiresAt) {
   }
 }
 
-function readLegacyPremium() {
-  if (typeof window === 'undefined') {
-    return { isPremium: false, expiresAt: 0 };
-  }
-
-  const isPremium = window.localStorage.getItem('isPremium') === 'true';
-  const expiresAt = Number(window.localStorage.getItem('premiumExpiry') ?? 0);
-
-  if (!isPremium || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-    writeLegacyPremium(false, 0);
-    return { isPremium: false, expiresAt: 0 };
-  }
-
-  return { isPremium: true, expiresAt };
-}
-
-export const FREE_LISTENS_DEFAULT = 2;
+export const FREE_LISTENS_DEFAULT = 1;
 
 export const usePremiumStore = create(
   persist(
     (set, get) => {
-      const legacyPremium = readLegacyPremium();
-
       return ({
       deviceId: createDeviceId(),
-      isPremium: true,
-      expiresAt: legacyPremium.expiresAt,
+      isPremium: false,
+      expiresAt: 0,
       purchasedAt: 0,
       paymentRef: null,
       freeListensRemaining: FREE_LISTENS_DEFAULT,
+      playedPoiIds: {},
 
-      // Kiểm tra user có thể nghe không (còn lượt free HOẶC đang Premium)
-      canListen: () => true,
-
-      // Trừ 1 lượt nghe miễn phí; trả về số lượt còn lại (-1 nếu đã hết)
-      decrementFreeListens: () => {
-        const { isPremium, freeListensRemaining } = get();
-        if (isPremium) return freeListensRemaining;
-        if (freeListensRemaining <= 0) return 0;
-        const next = freeListensRemaining - 1;
-        set({ freeListensRemaining: next });
-        return next;
+      canListen: (poiId) => {
+        const { isPremium, expiresAt, playedPoiIds } = get();
+        if (isPremium && expiresAt > Date.now()) return true;
+        return Boolean(poiId) && !playedPoiIds[String(poiId)];
       },
 
-      activatePremium: (ref = null, durationMs = PREMIUM_DURATION_MS) => {
-        const expiresAt = Date.now() + durationMs;
-        set({
-          isPremium: true,
-          expiresAt,
-          purchasedAt: Date.now(),
-          paymentRef: ref
-        });
-        writeLegacyPremium(true, expiresAt);
+      markPoiPlayed: (poiId) => {
+        if (!poiId) return;
+        set((state) => ({
+          playedPoiIds: { ...state.playedPoiIds, [String(poiId)]: true },
+          freeListensRemaining: 0
+        }));
       },
+
+      applyServerStatus: ({
+        isPremium,
+        expiry,
+        transactionId = null,
+        poiId = null,
+        hasUsedFreeListen = false
+      }) => {
+        const expiresAt = expiry ? new Date(expiry).getTime() : 0;
+        const active = Boolean(isPremium) && Number.isFinite(expiresAt) && expiresAt > Date.now();
+        set((state) => ({
+          isPremium: active,
+          expiresAt: active ? expiresAt : 0,
+          purchasedAt: active ? Date.now() : 0,
+          paymentRef: transactionId,
+          playedPoiIds: poiId && hasUsedFreeListen
+            ? { ...state.playedPoiIds, [String(poiId)]: true }
+            : state.playedPoiIds,
+          freeListensRemaining: poiId && hasUsedFreeListen ? 0 : state.freeListensRemaining
+        }));
+        writeLegacyPremium(active, active ? expiresAt : 0);
+      },
+
+      activatePremium: () => {},
 
       deactivatePremium: () => {
         set({
@@ -130,14 +125,24 @@ export const usePremiumStore = create(
     },
     {
       name: 'vta-premium-store',
+      version: 2,
       storage: createJSONStorage(() => window.localStorage),
+      migrate: (persistedState) => ({
+        ...persistedState,
+        isPremium: false,
+        expiresAt: 0,
+        paymentRef: null,
+        freeListensRemaining: FREE_LISTENS_DEFAULT,
+        playedPoiIds: persistedState?.playedPoiIds ?? {}
+      }),
       partialize: (state) => ({
         deviceId: state.deviceId,
         isPremium: state.isPremium,
         expiresAt: state.expiresAt,
         purchasedAt: state.purchasedAt,
         paymentRef: state.paymentRef,
-        freeListensRemaining: state.freeListensRemaining
+        freeListensRemaining: state.freeListensRemaining,
+        playedPoiIds: state.playedPoiIds
       })
     }
   )

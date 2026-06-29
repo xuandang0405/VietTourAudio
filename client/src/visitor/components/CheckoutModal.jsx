@@ -9,6 +9,7 @@ import { appConfig } from '../../config/appConfig';
 import { getVisitorSessionId } from '../../utils/visitorSession';
 import toast from 'react-hot-toast';
 import { usePremiumStore } from '../../features/vendor-wallet/stores/premiumStore';
+import { premiumAccessApi } from '../../features/payment/premiumAccessApi';
 
 export function CheckoutModal({ open, onClose, onSuccess }) {
   const { t } = useTranslation('translation', { keyPrefix: 'landing' });
@@ -26,7 +27,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
   const [isProcessingVisa, setIsProcessingVisa] = useState(false);
   const successTriggeredRef = useRef(false);
   const successCloseTimerRef = useRef(null);
-  const activatePremium = usePremiumStore((state) => state.activatePremium);
+  const applyServerStatus = usePremiumStore((state) => state.applyServerStatus);
 
   // Visa card fields
   const [visaName, setVisaName] = useState('');
@@ -35,6 +36,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
   const [visaCvv, setVisaCvv] = useState('');
 
   const guestId = getVisitorSessionId();
+  const visitorHeaders = { 'X-Visitor-Session': guestId };
   const transferContent = `VTA PREMIUM USER ${guestId}`;
 
   useEffect(() => {
@@ -72,14 +74,29 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
     }
   }, [open]);
 
-  const triggerPremiumSuccessSequence = useCallback(() => {
+  const triggerPremiumSuccessSequence = useCallback(async () => {
     if (successTriggeredRef.current) return;
     successTriggeredRef.current = true;
-    activatePremium(`manual-payment-${activeTransactionId}`);
+    const premiumStatus = await premiumAccessApi.getStatus();
+    applyServerStatus(premiumStatus);
     setProofStatus('APPROVED');
     toast.success(tRoot('payment.approved_toast'));
-    successCloseTimerRef.current = window.setTimeout(() => onSuccess?.(), 2400);
-  }, [activatePremium, activeTransactionId, onSuccess, tRoot]);
+    successCloseTimerRef.current = window.setTimeout(() => onSuccess?.(premiumStatus), 2400);
+  }, [applyServerStatus, onSuccess, tRoot]);
+
+  const handleBuyPass24Hours = async () => {
+    setLoading(true);
+    try {
+      const premiumStatus = await premiumAccessApi.unlock24Hours();
+      applyServerStatus(premiumStatus);
+      toast.success('Tuyệt vời! Tài khoản của bạn đã được nâng cấp lên Premium trong 24h.');
+      onSuccess?.(premiumStatus);
+    } catch {
+      toast.error('Giao dịch thất bại. Vui lòng kiểm tra lại kết nối mạng.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!open || proofStatus !== 'PENDING' || !activeTransactionId) return undefined;
@@ -152,7 +169,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
         senderType: 'USER',
         paymentMethod: selectedMethod,
         transactionType: 'USER_PREMIUM'
-      });
+      }, { headers: visitorHeaders });
       const transactionId = initRes.data?.data?.transaction?.id || initRes.data?.transaction?.id;
       if (!transactionId) {
         throw new Error("Không thể khởi tạo giao dịch.");
@@ -164,7 +181,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
       formData.append('proofFile', proofFile);
       
       await axios.post(`${appConfig.paymentApiBaseUrl}/checkout/upload-proof`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data', ...visitorHeaders }
       });
       
       setActiveTransactionId(transactionId);
@@ -211,7 +228,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
         senderType: 'USER',
         paymentMethod: 'VISA',
         transactionType: 'USER_PREMIUM'
-      });
+      }, { headers: visitorHeaders });
       const transactionId = initRes.data?.data?.transaction?.id || initRes.data?.transaction?.id;
       if (!transactionId) {
         throw new Error("Không thể khởi tạo giao dịch.");
@@ -224,7 +241,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
         cardNumber: visaNumber.replace(/\s+/g, ''),
         expiry: visaExpiry,
         cvv: visaCvv
-      });
+      }, { headers: visitorHeaders });
       
       onSuccess?.(); // Active Premium locally
     } catch (err) {
@@ -265,21 +282,12 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="relative w-full max-w-[360px] overflow-hidden rounded-2xl border border-slate-700 bg-gradient-to-b from-slate-800 to-slate-900 text-center text-white shadow-2xl shadow-black/45 backdrop-blur-xl tablet:max-w-[480px] pc:max-w-[520px]"
+            className="w-full max-w-md mx-auto bg-slate-900 text-white rounded-3xl shadow-2xl overflow-y-auto max-h-[85vh] scrollbar-thin scrollbar-thumb-slate-700 relative text-center"
             role="dialog"
             aria-modal="true"
             aria-labelledby="checkout-title"
           >
             <div className="absolute left-0 right-0 top-0 h-32 bg-gradient-to-br from-premiumNeon/70 via-abyssIndigo/70 to-oceanCyan/65" />
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-full border border-white/20 bg-bgAbyss/35 text-white backdrop-blur-md transition duration-150 ease-out hover:bg-bgAbyss/55 active:scale-[0.98]"
-              aria-label="Đóng"
-            >
-              <X size={18} />
-            </button>
 
             <div className="relative z-10 mx-auto mt-12 grid h-20 w-20 place-items-center rounded-2xl border-4 border-bgSurface bg-bgAbyss shadow-neon-premium">
               <Crown size={40} className="text-premiumNeon" />
@@ -295,6 +303,16 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
                 <span className="bg-gradient-to-r from-premiumNeon to-electricBlue bg-clip-text font-display text-4xl font-bold text-transparent">30.000</span>
                 <span className="ml-1 text-sm font-bold text-electricBlue">VND</span>
               </div>
+
+              <button
+                type="button"
+                onClick={handleBuyPass24Hours}
+                disabled={loading}
+                className="mb-5 mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-4 text-sm font-black text-slate-950 shadow-lg transition hover:brightness-110 disabled:opacity-50"
+              >
+                {loading ? <Loader2 size={20} className="animate-spin" /> : <Crown size={20} />}
+                MỞ KHÓA PREMIUM 24H
+              </button>
 
               {/* Segmented Tab Bar Selector */}
               <div className="flex bg-slate-900/60 p-1 rounded-xl gap-1 mb-6 border border-slate-700/50 relative z-10 mx-auto max-w-[340px]">
@@ -341,11 +359,11 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
                 </div>
               ) : selectedMethod === 'BANK' || selectedMethod === 'MOMO' ? (
                 <div>
-                  <div className="relative mx-auto mt-4 flex aspect-square w-full max-w-[200px] items-center justify-center rounded-xl bg-white p-4 shadow-sm">
+                  <div className="relative p-3 bg-white rounded-2xl shadow-md mx-auto w-48 h-48 flex items-center justify-center mt-4">
                     {qrSrc ? (
-                      <img src={qrSrc} alt="Payment QR" className="w-full h-full object-contain rounded-lg" />
+                      <img src={qrSrc} alt="Payment QR" className="w-full h-full object-contain rounded-xl" />
                     ) : (
-                      <QRCodeSVG value={transferContent} size={168} level="M" includeMargin />
+                      <QRCodeSVG value={transferContent} size={168} level="M" includeMargin={false} />
                     )}
                   </div>
 
@@ -353,35 +371,52 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
                     Quét mã QR để chuyển khoản trực tiếp qua ứng dụng ví điện tử hoặc ngân hàng.
                   </p>
 
-                  <div className="mt-6 text-left rounded-2xl border border-glassBorder bg-white/5 p-4 shadow-glass-inner">
-                    <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                      <span className="text-textSeafoam">
-                        {selectedMethod === 'BANK' ? t('bank') : 'Ví điện tử'}
+                  <div className="mt-6 text-left rounded-2xl border border-slate-700 bg-slate-950/80 p-4 shadow-inner">
+                    <div className="mb-3 flex items-center justify-between gap-3 text-sm pb-2 border-b border-slate-800">
+                      <span className="text-slate-400">
+                        {selectedMethod === 'BANK' ? 'Ngân hàng' : 'Ví điện tử'}
                       </span>
-                      <span className="text-right font-bold text-textCrisp">
+                      <span className="text-right font-bold text-white">
                         {currentGateway.accountName}
                       </span>
                     </div>
-                    <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                      <span className="text-textSeafoam">
+                    <div className="mb-3 flex items-center justify-between gap-3 text-sm pb-2 border-b border-slate-800">
+                      <span className="text-slate-400">
                         {selectedMethod === 'BANK' ? 'Số tài khoản' : 'Số điện thoại'}
                       </span>
-                      <span className="text-right font-bold text-textCrisp">
-                        {currentGateway.accountNumber}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-3 text-sm mt-3 bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl">
-                      <span className="text-amber-400 font-semibold">Nội dung CK:</span>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-amber-300">{transferContent}</span>
+                        <span className="font-mono font-bold text-white">{currentGateway.accountNumber}</span>
                         <button
                           type="button"
-                          onClick={() => handleCopyText(transferContent)}
-                          className="rounded-full border border-amber-500/20 bg-amber-500/10 p-1.5 text-amber-300 transition duration-150 hover:bg-amber-500/20 active:scale-[0.98] cursor-pointer"
+                          onClick={() => {
+                            handleCopyText(currentGateway.accountNumber);
+                            toast.success('Đã sao chép số tài khoản');
+                          }}
+                          className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-300 hover:text-white transition cursor-pointer"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                      <div className="flex items-center justify-between text-xs text-amber-400 font-semibold">
+                        <span>Nội dung chuyển khoản bắt buộc</span>
+                        <span className="text-[10px] text-amber-500 font-normal">Chính xác 100%</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mt-1">
+                        <span className="font-mono font-bold text-base text-amber-300">{transferContent}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleCopyText(transferContent);
+                            toast.success('Đã sao chép nội dung chuyển khoản');
+                          }}
+                          className="flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-400 active:scale-[0.98] transition cursor-pointer shadow-md"
                           aria-label="Sao chép nội dung chuyển khoản"
                         >
-                          {copied ? <CheckCircle2 size={14} className="text-success" /> : <Copy size={14} />}
+                          <Copy size={12} />
+                          Sao chép
                         </button>
                       </div>
                     </div>
@@ -422,15 +457,21 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
                   ) : (
                     <>
                       <div className="mt-4 text-left">
-                        <label className="block text-xs font-semibold text-slate-400 mb-1">
-                          Tải lên ảnh chụp minh chứng chuyển khoản:
+                        <span className="block text-xs font-semibold text-slate-400 mb-2">
+                          Minh chứng thanh toán:
+                        </span>
+                        <label className="flex items-center justify-center gap-2 w-full rounded-xl border border-dashed border-slate-600 bg-slate-900/60 px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-900 hover:text-white active:scale-[0.98] transition cursor-pointer">
+                          <svg className="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                          <span className="truncate">{proofFile ? proofFile.name : 'Chọn ảnh biên lai chuyển khoản'}</span>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            onChange={handleProofFileSelect} 
+                            className="hidden"
+                          />
                         </label>
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          onChange={handleProofFileSelect} 
-                          className="w-full text-xs text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-teal-600/20 file:text-teal-400 hover:file:bg-teal-600/30 file:cursor-pointer"
-                        />
                       </div>
 
                       <button

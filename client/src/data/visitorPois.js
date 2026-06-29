@@ -12,13 +12,18 @@ export function getLocalizedPoiContent(poi, languageCode = 'vi') {
   const descriptions = poi?.descriptions ?? {};
   const narrations = poi?.narration ?? {};
   return {
-    description: descriptions[languageCode] ?? poi?.description ?? '',
-    narration: narrations[languageCode] ?? narrations.vi ?? poi?.description ?? ''
+    description: descriptions[languageCode] || descriptions.vi || poi?.description || '',
+    narration: narrations[languageCode] || narrations.vi || poi?.description || ''
   };
 }
 
 export function localizePoi(poi, languageCode = 'vi') {
-  return { ...poi, ...getLocalizedPoiContent(poi, languageCode) };
+  const titles = poi?.titles ?? {};
+  return {
+    ...poi,
+    ...getLocalizedPoiContent(poi, languageCode),
+    title: titles[languageCode] || titles.vi || poi?.title || poi?.name || ''
+  };
 }
 
 export function localizeDestination(destination) {

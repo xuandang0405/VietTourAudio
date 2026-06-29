@@ -444,6 +444,7 @@
     "add_secondary": "Thêm sạp phụ (+)"
   },
   "landing": {
+    "no_server_data": "Chưa có dữ liệu thực tế từ máy chủ. Vui lòng kết nối database!",
     "no_description": "Chưa có mô tả",
     "insideRadius": "Bạn đã vào bán kính kích hoạt",
     "playing": "Đang phát thuyết minh tự động",

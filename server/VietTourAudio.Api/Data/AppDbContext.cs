@@ -32,6 +32,8 @@ public class AppDbContext : DbContext
       entity.Property(x => x.FullName).HasColumnName("full_name").HasMaxLength(160);
       entity.Property(x => x.Role).HasColumnName("role").HasConversion<string>();
       entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>();
+      entity.Property(x => x.IsPremiumActive).HasColumnName("is_premium_active");
+      entity.Property(x => x.PremiumExpiryDate).HasColumnName("premium_expiry_date");
       entity.Property(x => x.CreatedAt).HasColumnName("created_at");
       entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
       entity.HasIndex(x => x.Email).IsUnique();
@@ -101,6 +103,14 @@ public class AppDbContext : DbContext
       entity.Property(x => x.PendingCoverUrl).HasColumnName("pending_cover_image_url").HasMaxLength(500);
       entity.Property(x => x.PendingLatitude).HasColumnName("pending_latitude");
       entity.Property(x => x.PendingLongitude).HasColumnName("pending_longitude");
+      entity.Property(x => x.PendingNameEn).HasColumnName("pending_name_en").HasMaxLength(255);
+      entity.Property(x => x.PendingNameJa).HasColumnName("pending_name_ja").HasMaxLength(255);
+      entity.Property(x => x.PendingNameKo).HasColumnName("pending_name_ko").HasMaxLength(255);
+      entity.Property(x => x.PendingNameZh).HasColumnName("pending_name_zh").HasMaxLength(255);
+      entity.Property(x => x.PendingDescriptionEn).HasColumnName("pending_description_en");
+      entity.Property(x => x.PendingDescriptionJa).HasColumnName("pending_description_ja");
+      entity.Property(x => x.PendingDescriptionKo).HasColumnName("pending_description_ko");
+      entity.Property(x => x.PendingDescriptionZh).HasColumnName("pending_description_zh");
       entity.Property(x => x.ApprovalStatus).HasColumnName("approval_status").HasMaxLength(50);
       entity.Property(x => x.IsPremiumPriority).HasColumnName("is_premium_priority");
       entity.Property(x => x.TriggerRadius).HasColumnName("trigger_radius");
@@ -120,6 +130,10 @@ public class AppDbContext : DbContext
       entity.Property(x => x.Id).HasColumnName("id");
       entity.Property(x => x.PoiId).HasColumnName("poi_id").HasMaxLength(36);
       entity.Property(x => x.ProductName).HasColumnName("product_name").HasMaxLength(255);
+      entity.Property(x => x.ProductNameEn).HasColumnName("product_name_en").HasMaxLength(255);
+      entity.Property(x => x.ProductNameJa).HasColumnName("product_name_ja").HasMaxLength(255);
+      entity.Property(x => x.ProductNameKo).HasColumnName("product_name_ko").HasMaxLength(255);
+      entity.Property(x => x.ProductNameZh).HasColumnName("product_name_zh").HasMaxLength(255);
       entity.Property(x => x.Price).HasColumnName("price").HasPrecision(18, 2);
       entity.Property(x => x.CreatedAt).HasColumnName("created_at");
 

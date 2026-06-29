@@ -186,20 +186,46 @@ export function useGeofenceAudio({ onToast }) {
         const apiId = Number(apiPoi.id);
         const description = apiPoi.description ?? '';
         const displayName = apiPoi.stallName ?? apiPoi.name ?? apiPoi.title ?? '';
+        const coverUrl = apiPoi.coverUrl ?? apiPoi.coverImageUrl ?? apiPoi.imageUrl ?? '';
+        const translatedNames = {
+          en: apiPoi.stallName_EN ?? apiPoi.stallNameEn ?? '',
+          ja: apiPoi.stallName_JA ?? apiPoi.stallNameJa ?? '',
+          ko: apiPoi.stallName_KO ?? apiPoi.stallNameKo ?? '',
+          zh: apiPoi.stallName_ZH ?? apiPoi.stallNameZh ?? ''
+        };
+        const translatedDescriptions = {
+          en: apiPoi.description_EN ?? apiPoi.descriptionEn ?? '',
+          ja: apiPoi.description_JA ?? apiPoi.descriptionJa ?? '',
+          ko: apiPoi.description_KO ?? apiPoi.descriptionKo ?? '',
+          zh: apiPoi.description_ZH ?? apiPoi.descriptionZh ?? ''
+        };
         const approvalStatus = apiPoi.approvalStatus === 1
           ? 'APPROVED'
           : String(apiPoi.approvalStatus ?? 'APPROVED').toUpperCase();
         return {
           id: apiPoi.slug ?? String(apiPoi.id),
           apiId,
+          backendId: String(apiPoi.id),
           stallId: apiPoi.stallId == null ? null : Number(apiPoi.stallId),
           name: apiPoi.name ?? displayName,
           title: displayName,
+          stallName: displayName,
+          stallName_EN: translatedNames.en,
+          stallName_JA: translatedNames.ja,
+          stallName_KO: translatedNames.ko,
+          stallName_ZH: translatedNames.zh,
+          description_EN: translatedDescriptions.en,
+          description_JA: translatedDescriptions.ja,
+          description_KO: translatedDescriptions.ko,
+          description_ZH: translatedDescriptions.zh,
+          titles: { vi: displayName, ...translatedNames },
           zoneName: apiPoi.zoneName ?? '',
           category: apiPoi.category ?? '',
-          image: resolveBackendMediaUrl(apiPoi.imageUrl),
+          coverUrl,
+          imageUrl: coverUrl,
+          image: resolveBackendMediaUrl(coverUrl),
           description,
-          descriptions: { vi: description },
+          descriptions: { vi: description, ...translatedDescriptions },
           narration: { [currentLanguage]: apiPoi.ttsScript ?? description },
           latitude,
           longitude,
@@ -324,9 +350,12 @@ export function useGeofenceAudio({ onToast }) {
 
   // Geofence automatic audio playback trigger
   useEffect(() => {
-    const needsPremium = activeAutoPoi?.isPremiumPoi && !isPremium;
     const premiumState = usePremiumStore.getState();
-    if (!activeAutoPoi || needsPremium || !premiumState.canListen() || !canAutoPlay(activeAutoPoi.id)) return;
+    if (
+      !activeAutoPoi ||
+      !premiumState.canListen(activeAutoPoi.backendId ?? activeAutoPoi.id) ||
+      !canAutoPlay(activeAutoPoi.id)
+    ) return;
 
     enqueuePoi(activeAutoPoi, getLanguageMeta());
     setSelectedPoiId(activeAutoPoi.id);

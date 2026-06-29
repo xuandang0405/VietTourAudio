@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace VietTourAudio.Api.DTOs;
 
@@ -82,7 +83,15 @@ public sealed record PoiResponseDto(
   bool IsInsideGeofence,
   string? QrCodeId = null,
   string? TourId = null,
-  string? TourSlug = null
+  string? TourSlug = null,
+  [property: JsonPropertyName("stallName_EN")] string? StallNameEn = null,
+  [property: JsonPropertyName("description_EN")] string? DescriptionEn = null,
+  [property: JsonPropertyName("stallName_JA")] string? StallNameJa = null,
+  [property: JsonPropertyName("description_JA")] string? DescriptionJa = null,
+  [property: JsonPropertyName("stallName_KO")] string? StallNameKo = null,
+  [property: JsonPropertyName("description_KO")] string? DescriptionKo = null,
+  [property: JsonPropertyName("stallName_ZH")] string? StallNameZh = null,
+  [property: JsonPropertyName("description_ZH")] string? DescriptionZh = null
 );
 
 public sealed record PoiContentRequestDto(

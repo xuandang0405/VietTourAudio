@@ -45,7 +45,13 @@ export function VendorStall() {
   const markerRef = useRef(null);
 
   // Unified form state
-  const [form, setForm] = useState({ name: '', description: '', latitude: 10.77582, longitude: 106.70208 });
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    latitude: 10.77582,
+    longitude: 106.70208,
+    coverUrl: ''
+  });
   const [imageFile, setImageFile] = useState(null);
   const [previewImage, setPreviewImage] = useState('');
   
@@ -100,13 +106,20 @@ export function VendorStall() {
 
   useEffect(() => {
     if (!stall) return;
+    const coverUrl =
+      stall.pendingCoverImageUrl ??
+      stall.coverUrl ??
+      stall.coverImageUrl ??
+      stall.imageUrl ??
+      '';
     setForm({
       name: stall.pendingName ?? stall.name ?? '',
       description: stall.pendingDescription ?? stall.description ?? '',
       latitude: Number(stall.pendingLatitude ?? stall.latitude),
-      longitude: Number(stall.pendingLongitude ?? stall.longitude)
+      longitude: Number(stall.pendingLongitude ?? stall.longitude),
+      coverUrl
     });
-    setPreviewImage(toPublicImageUrl(stall.pendingCoverImageUrl ?? stall.imageUrl ?? ''));
+    setPreviewImage(toPublicImageUrl(coverUrl));
     loadTranslations();
   }, [stall]);
 
@@ -178,6 +191,7 @@ export function VendorStall() {
     payload.append('description', form.description.trim());
     payload.append('latitude', String(form.latitude));
     payload.append('longitude', String(form.longitude));
+    if (form.coverUrl) payload.append('coverUrl', form.coverUrl);
     if (imageFile) payload.append('image', imageFile);
     try {
       await submitVendorStallUpdate(payload);

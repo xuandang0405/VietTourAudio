@@ -311,6 +311,26 @@ export function POIForm({
               />
             </div>
 
+            {activeTab !== 'vi' && (
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={handleAutoTranslateThisLang}
+                  disabled={translating}
+                  className="flex items-center gap-1.5 rounded-lg bg-teal-50 px-3.5 py-1.5 text-xs font-bold text-teal-700 hover:bg-teal-100 transition active:scale-95 disabled:opacity-60 cursor-pointer"
+                >
+                  {translating ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Đang dịch...</span>
+                    </>
+                  ) : (
+                    <span>Auto-Translate (Dịch tự động)</span>
+                  )}
+                </button>
+              </div>
+            )}
+
 
           </div>
 

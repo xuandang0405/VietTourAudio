@@ -444,6 +444,7 @@
     "add_secondary": "Add Secondary Stall (+)"
   },
   "landing": {
+    "no_server_data": "No real-time data from server. Please connect to the database!",
     "no_description": "No description available",
     "insideRadius": "You are inside the activation radius",
     "playing": "Playing audio guide",

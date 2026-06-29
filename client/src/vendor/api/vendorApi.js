@@ -140,7 +140,7 @@ export async function updateVendorPoi(poiId, data) {
 }
 
 export async function requestUpdatePoi(data) {
-  return unwrap(await vendorApiClient.post('/poi/request-update', data));
+  return unwrap(await vendorApiClient.put('/poi/request-update', data));
 }
 
 // --- Revenue ---

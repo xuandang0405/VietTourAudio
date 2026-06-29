@@ -2,6 +2,7 @@ import axios from 'axios';
 import { appConfig } from '../../config/appConfig';
 import { useVendorAuthStore } from '../../vendor/store/vendorAuthStore';
 import { adminApiClient } from '../../admin/api/adminApi';
+import { getVisitorSessionId } from '../../utils/visitorSession';
 
 const paymentClient = axios.create({
   baseURL: `${appConfig.apiBaseUrl}/payment/checkout`,
@@ -11,6 +12,7 @@ const paymentClient = axios.create({
 paymentClient.interceptors.request.use((config) => {
   const token = useVendorAuthStore.getState().accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  config.headers['X-Visitor-Session'] = getVisitorSessionId();
   return config;
 });
 

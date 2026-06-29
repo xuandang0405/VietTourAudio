@@ -120,6 +120,51 @@ public sealed class VendorController(
     })));
   }
 
+  [HttpPut("poi/request-update")]
+  public async Task<IActionResult> RequestPoiUpdate([FromBody] UnifiedStallUpdateDto request)
+  {
+    if (string.IsNullOrWhiteSpace(request.Id) || string.IsNullOrWhiteSpace(request.StallName))
+      return BadRequest(ApiResponseFactory.Fail("stall.name_required"));
+    if (request.Latitude is < -90 or > 90 || request.Longitude is < -180 or > 180)
+      return BadRequest(ApiResponseFactory.Fail("stall.invalid_coordinates"));
+
+    var poi = await db.Pois.FirstOrDefaultAsync(candidate =>
+      candidate.Id == request.Id && candidate.VendorId == VendorId);
+    if (poi is null)
+      return NotFound(ApiResponseFactory.Fail("Không tìm thấy sạp hàng."));
+
+    // Vendor edits remain pending until an admin approves them. In particular,
+    // never replace the pending or published cover with a blank request value.
+    poi.PendingName = request.StallName.Trim();
+    poi.PendingDescription = request.Description;
+    poi.PendingLatitude = request.Latitude;
+    poi.PendingLongitude = request.Longitude;
+    poi.PendingCoverUrl = string.IsNullOrWhiteSpace(request.CoverUrl)
+      ? poi.PendingCoverUrl ?? poi.CoverUrl
+      : request.CoverUrl.Trim();
+    
+    // Save pending translation overrides
+    poi.PendingNameEn = request.StallNameEn;
+    poi.PendingNameJa = request.StallNameJa;
+    poi.PendingNameKo = request.StallNameKo;
+    poi.PendingNameZh = request.StallNameZh;
+    poi.PendingDescriptionEn = request.DescriptionEn;
+    poi.PendingDescriptionJa = request.DescriptionJa;
+    poi.PendingDescriptionKo = request.DescriptionKo;
+    poi.PendingDescriptionZh = request.DescriptionZh;
+
+    poi.ApprovalStatus = "PENDING";
+    poi.UpdatedAt = DateTime.UtcNow;
+
+    await db.SaveChangesAsync();
+    return Ok(ApiResponseFactory.Ok(new
+    {
+      success = true,
+      approvalStatus = poi.ApprovalStatus,
+      coverUrl = poi.PendingCoverUrl ?? poi.CoverUrl
+    }));
+  }
+
   [HttpGet("content")]
   public async Task<IActionResult> GetContent()
   {
@@ -166,7 +211,11 @@ public sealed class VendorController(
         p.latitude, p.longitude, p.status, p.approval_status approvalStatus,
         p.trigger_radius activationRadius, v.is_premium isPremium, v.premium_expiry_date premiumExpiryDate,
         p.pending_name pendingName, p.pending_description pendingDescription, p.pending_cover_image_url pendingCoverImageUrl,
-        p.pending_latitude pendingLatitude, p.pending_longitude pendingLongitude
+        p.pending_latitude pendingLatitude, p.pending_longitude pendingLongitude,
+        p.stall_name_en, p.stall_name_ja, p.stall_name_ko, p.stall_name_zh,
+        p.description_en, p.description_ja, p.description_ko, p.description_zh,
+        p.pending_name_en, p.pending_name_ja, p.pending_name_ko, p.pending_name_zh,
+        p.pending_description_en, p.pending_description_ja, p.pending_description_ko, p.pending_description_zh
       FROM Pois p JOIN vendors v ON v.id=p.vendor_id WHERE p.vendor_id=@vendorId
       """, new Dictionary<string, object?> { ["@vendorId"] = VendorId });
     return Ok(ApiResponseFactory.Ok(rows.Select(x => new
@@ -175,6 +224,7 @@ public sealed class VendorController(
       name = x["name"],
       slug = x["slug"],
       description = x["description"],
+      coverUrl = x["coverImageUrl"],
       coverImageUrl = x["coverImageUrl"],
       latitude = x["latitude"] != null ? Convert.ToDecimal(x["latitude"]) : 0m,
       longitude = x["longitude"] != null ? Convert.ToDecimal(x["longitude"]) : 0m,
@@ -187,7 +237,23 @@ public sealed class VendorController(
       pendingDescription = x["pendingDescription"],
       pendingCoverImageUrl = x["pendingCoverImageUrl"],
       pendingLatitude = x["pendingLatitude"] != null ? Convert.ToDecimal(x["pendingLatitude"]) : (decimal?)null,
-      pendingLongitude = x["pendingLongitude"] != null ? Convert.ToDecimal(x["pendingLongitude"]) : (decimal?)null
+      pendingLongitude = x["pendingLongitude"] != null ? Convert.ToDecimal(x["pendingLongitude"]) : (decimal?)null,
+      stallNameEn = x["stall_name_en"],
+      stallNameJa = x["stall_name_ja"],
+      stallNameKo = x["stall_name_ko"],
+      stallNameZh = x["stall_name_zh"],
+      descriptionEn = x["description_en"],
+      descriptionJa = x["description_ja"],
+      descriptionKo = x["description_ko"],
+      descriptionZh = x["description_zh"],
+      pendingNameEn = x["pending_name_en"],
+      pendingNameJa = x["pending_name_ja"],
+      pendingNameKo = x["pending_name_ko"],
+      pendingNameZh = x["pending_name_zh"],
+      pendingDescriptionEn = x["pending_description_en"],
+      pendingDescriptionJa = x["pending_description_ja"],
+      pendingDescriptionKo = x["pending_description_ko"],
+      pendingDescriptionZh = x["pending_description_zh"]
     })));
   }
 
@@ -199,7 +265,11 @@ public sealed class VendorController(
         p.latitude, p.longitude, p.status, p.approval_status approvalStatus,
         p.trigger_radius activationRadius, v.is_premium isPremium, v.premium_expiry_date premiumExpiryDate,
         p.pending_name pendingName, p.pending_description pendingDescription, p.pending_cover_image_url pendingCoverImageUrl,
-        p.pending_latitude pendingLatitude, p.pending_longitude pendingLongitude
+        p.pending_latitude pendingLatitude, p.pending_longitude pendingLongitude,
+        p.stall_name_en, p.stall_name_ja, p.stall_name_ko, p.stall_name_zh,
+        p.description_en, p.description_ja, p.description_ko, p.description_zh,
+        p.pending_name_en, p.pending_name_ja, p.pending_name_ko, p.pending_name_zh,
+        p.pending_description_en, p.pending_description_ja, p.pending_description_ko, p.pending_description_zh
       FROM Pois p JOIN vendors v ON v.id=p.vendor_id WHERE p.vendor_id=@vendorId LIMIT 1
       """, new Dictionary<string, object?> { ["@vendorId"] = VendorId });
     if (rows.Count == 0) return NotFound(ApiResponseFactory.Fail("stall.not_found"));
@@ -210,6 +280,7 @@ public sealed class VendorController(
       name = x["name"],
       slug = x["slug"],
       description = x["description"],
+      coverUrl = x["coverImageUrl"],
       coverImageUrl = x["coverImageUrl"],
       latitude = x["latitude"] != null ? Convert.ToDecimal(x["latitude"]) : 0m,
       longitude = x["longitude"] != null ? Convert.ToDecimal(x["longitude"]) : 0m,
@@ -222,7 +293,23 @@ public sealed class VendorController(
       pendingDescription = x["pendingDescription"],
       pendingCoverImageUrl = x["pendingCoverImageUrl"],
       pendingLatitude = x["pendingLatitude"] != null ? Convert.ToDecimal(x["pendingLatitude"]) : (decimal?)null,
-      pendingLongitude = x["pendingLongitude"] != null ? Convert.ToDecimal(x["pendingLongitude"]) : (decimal?)null
+      pendingLongitude = x["pendingLongitude"] != null ? Convert.ToDecimal(x["pendingLongitude"]) : (decimal?)null,
+      stallNameEn = x["stall_name_en"],
+      stallNameJa = x["stall_name_ja"],
+      stallNameKo = x["stall_name_ko"],
+      stallNameZh = x["stall_name_zh"],
+      descriptionEn = x["description_en"],
+      descriptionJa = x["description_ja"],
+      descriptionKo = x["description_ko"],
+      descriptionZh = x["description_zh"],
+      pendingNameEn = x["pending_name_en"],
+      pendingNameJa = x["pending_name_ja"],
+      pendingNameKo = x["pending_name_ko"],
+      pendingNameZh = x["pending_name_zh"],
+      pendingDescriptionEn = x["pending_description_en"],
+      pendingDescriptionJa = x["pending_description_ja"],
+      pendingDescriptionKo = x["pending_description_ko"],
+      pendingDescriptionZh = x["pending_description_zh"]
     }));
   }
 
@@ -263,17 +350,44 @@ public sealed class VendorController(
   public async Task<IActionResult> GetPoiProducts(string poiId)
   {
     var rows = await db.PoiProducts.AsNoTracking().Where(x => x.PoiId == poiId)
-      .Select(x => new { id = x.Id.ToString(), poiId = x.PoiId, name = x.ProductName, price = x.Price }).ToListAsync();
+      .Select(x => new {
+        id = x.Id.ToString(),
+        poiId = x.PoiId,
+        name = x.ProductName,
+        price = x.Price,
+        nameEn = x.ProductNameEn,
+        nameJa = x.ProductNameJa,
+        nameKo = x.ProductNameKo,
+        nameZh = x.ProductNameZh
+      }).ToListAsync();
     return Ok(ApiResponseFactory.Ok(new { products = rows }));
   }
 
   [HttpPost("pois/{poiId}/products")]
   public async Task<IActionResult> AddPoiProduct(string poiId, [FromBody] ProductRequest request)
   {
-    var product = new PoiProduct { PoiId = poiId, ProductName = request.Name.Trim(), Price = request.Price };
+    var product = new PoiProduct
+    {
+      PoiId = poiId,
+      ProductName = request.Name.Trim(),
+      Price = request.Price,
+      ProductNameEn = request.NameEn,
+      ProductNameJa = request.NameJa,
+      ProductNameKo = request.NameKo,
+      ProductNameZh = request.NameZh
+    };
     db.PoiProducts.Add(product); 
+    await translationService.AutoLocalizeProductAsync(product);
     await db.SaveChangesAsync();
-    return Ok(ApiResponseFactory.Ok(new { id = product.Id.ToString(), name = product.ProductName, price = product.Price }));
+    return Ok(ApiResponseFactory.Ok(new {
+      id = product.Id.ToString(),
+      name = product.ProductName,
+      price = product.Price,
+      nameEn = product.ProductNameEn,
+      nameJa = product.ProductNameJa,
+      nameKo = product.ProductNameKo,
+      nameZh = product.ProductNameZh
+    }));
   }
 
   [HttpPut("pois/{poiId}/products/{productId:int}")]
@@ -283,8 +397,21 @@ public sealed class VendorController(
     if (product == null) return NotFound(ApiResponseFactory.Fail("product.not_found"));
     product.ProductName = request.Name.Trim();
     product.Price = request.Price;
+    product.ProductNameEn = request.NameEn;
+    product.ProductNameJa = request.NameJa;
+    product.ProductNameKo = request.NameKo;
+    product.ProductNameZh = request.NameZh;
+    await translationService.AutoLocalizeProductAsync(product);
     await db.SaveChangesAsync();
-    return Ok(ApiResponseFactory.Ok(new { id = product.Id.ToString(), name = product.ProductName, price = product.Price }));
+    return Ok(ApiResponseFactory.Ok(new {
+      id = product.Id.ToString(),
+      name = product.ProductName,
+      price = product.Price,
+      nameEn = product.ProductNameEn,
+      nameJa = product.ProductNameJa,
+      nameKo = product.ProductNameKo,
+      nameZh = product.ProductNameZh
+    }));
   }
 
   [HttpDelete("pois/{poiId}/products/{productId:int}")]
@@ -314,6 +441,9 @@ public sealed class VendorController(
     {
       storedName = await StoreFileAsync(request.Image, ["image/png", "image/jpeg", "image/webp"], [".png", ".jpg", ".jpeg", ".webp"], "vendor");
     }
+    var submittedCoverUrl = string.IsNullOrWhiteSpace(request.CoverUrl)
+      ? null
+      : request.CoverUrl.Trim();
 
     var vendor = await db.Vendors.SingleOrDefaultAsync(v => v.Id == VendorId);
     if (vendor == null) return NotFound(ApiResponseFactory.Fail("vendor.not_found"));
@@ -336,7 +466,7 @@ public sealed class VendorController(
         ApprovalStatus = "PENDING",
         PendingName = request.Name.Trim(),
         PendingDescription = request.Description,
-        PendingCoverUrl = storedName is null ? null : $"/uploads/vendor/{storedName}",
+        PendingCoverUrl = storedName is null ? submittedCoverUrl : $"/uploads/vendor/{storedName}",
         PendingLatitude = (double)latitude,
         PendingLongitude = (double)longitude,
         CreatedAt = DateTime.UtcNow,
@@ -361,13 +491,19 @@ public sealed class VendorController(
       }
       else
       {
-        poi.PendingCoverUrl ??= poi.CoverUrl;
+        // An empty file input must never erase an already persisted image path.
+        poi.PendingCoverUrl = submittedCoverUrl ?? poi.PendingCoverUrl ?? poi.CoverUrl;
       }
       poi.ApprovalStatus = "PENDING";
       poi.UpdatedAt = DateTime.UtcNow;
     }
     await db.SaveChangesAsync();
-    return Ok(ApiResponseFactory.Ok(new { submitted = true, approvalStatus = "PENDING" }));
+    return Ok(ApiResponseFactory.Ok(new
+    {
+      submitted = true,
+      approvalStatus = "PENDING",
+      coverUrl = poi.PendingCoverUrl ?? poi.CoverUrl
+    }));
   }
 
   [HttpGet("wallet")]
@@ -391,7 +527,16 @@ public sealed class VendorController(
   public async Task<IActionResult> Products()
   {
     var rows = await db.PoiProducts.AsNoTracking().Where(x => x.Poi.VendorId == VendorId)
-      .Select(x => new { id = x.Id.ToString(), poiId = x.PoiId, name = x.ProductName, x.Price }).ToListAsync();
+      .Select(x => new {
+        id = x.Id.ToString(),
+        poiId = x.PoiId,
+        name = x.ProductName,
+        price = x.Price,
+        nameEn = x.ProductNameEn,
+        nameJa = x.ProductNameJa,
+        nameKo = x.ProductNameKo,
+        nameZh = x.ProductNameZh
+      }).ToListAsync();
     return Ok(ApiResponseFactory.Ok(rows));
   }
 
@@ -400,9 +545,28 @@ public sealed class VendorController(
   {
     var poi = await db.Pois.FirstOrDefaultAsync(x => x.VendorId == VendorId);
     if (poi == null) return NotFound(ApiResponseFactory.Fail("poi.not_found"));
-    var product = new PoiProduct { PoiId = poi.Id, ProductName = request.Name.Trim(), Price = request.Price };
-    db.PoiProducts.Add(product); await db.SaveChangesAsync();
-    return Ok(ApiResponseFactory.Ok(new { id = product.Id.ToString(), name = product.ProductName, product.Price }));
+    var product = new PoiProduct
+    {
+      PoiId = poi.Id,
+      ProductName = request.Name.Trim(),
+      Price = request.Price,
+      ProductNameEn = request.NameEn,
+      ProductNameJa = request.NameJa,
+      ProductNameKo = request.NameKo,
+      ProductNameZh = request.NameZh
+    };
+    db.PoiProducts.Add(product);
+    await translationService.AutoLocalizeProductAsync(product);
+    await db.SaveChangesAsync();
+    return Ok(ApiResponseFactory.Ok(new {
+      id = product.Id.ToString(),
+      name = product.ProductName,
+      price = product.Price,
+      nameEn = product.ProductNameEn,
+      nameJa = product.ProductNameJa,
+      nameKo = product.ProductNameKo,
+      nameZh = product.ProductNameZh
+    }));
   }
 
   [HttpDelete("products/{id:int}")]
@@ -511,11 +675,38 @@ public sealed class VendorController(
 }
 
 public sealed record VendorProfileRequest(string TradeName, string ContactEmail);
-public sealed record VendorStallRequest(string Name, string? Description, string Latitude, string Longitude, IFormFile? Image);
+public sealed record VendorStallRequest(
+  string Name,
+  string? Description,
+  string Latitude,
+  string Longitude,
+  string? CoverUrl,
+  IFormFile? Image);
 public sealed record VendorStallCreateRequest(string Name, string? Description, decimal Latitude, decimal Longitude);
-public sealed record ProductRequest(string Name, decimal Price);
+public sealed record ProductRequest(
+  string Name,
+  decimal Price,
+  string? NameEn = null,
+  string? NameJa = null,
+  string? NameKo = null,
+  string? NameZh = null);
 public sealed record TopUpRequest(decimal Amount, string? Note, IFormFile Proof);
 public sealed record VendorContentRequest(string TtsScript, string Language = "vi");
 public sealed record LocationRequest(decimal Latitude, decimal Longitude);
 public sealed record PoiUpdateRequest(string? PoiId, string? Name, string? Description, decimal? Latitude, decimal? Longitude);
+public sealed record UnifiedStallUpdateDto(
+  string Id,
+  string StallName,
+  string? Description,
+  double Latitude,
+  double Longitude,
+  string? CoverUrl,
+  string? StallNameEn = null,
+  string? StallNameJa = null,
+  string? StallNameKo = null,
+  string? StallNameZh = null,
+  string? DescriptionEn = null,
+  string? DescriptionJa = null,
+  string? DescriptionKo = null,
+  string? DescriptionZh = null);
 public sealed record VendorTranslationRequest(string Text, string[] TargetLangs);

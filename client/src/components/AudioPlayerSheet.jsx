@@ -76,38 +76,7 @@ export function AudioPlayerSheet({ enrichedPois = [], selectedStall }) {
   };
 
   if (isCollapsed) {
-    return (
-      <aside className="absolute bottom-20 left-4 right-4 z-45 pointer-events-auto flex items-center justify-between rounded-2xl bg-white/95 p-3 shadow-lg backdrop-blur-md border border-slate-200 transition-all duration-300">
-        <div className="flex items-center gap-3 overflow-hidden cursor-pointer w-full" onClick={() => setIsCollapsed(false)}>
-          {activePoi ? (
-            <img 
-              src={footerPoiImageUrl} 
-              alt="Thumbnail" 
-              onError={(e) => { e.target.src = '/uploads/default-poi.png'; }}
-              className="h-10 w-10 rounded-lg object-cover"
-            />
-          ) : (
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-600 shadow-sm border border-teal-200">
-              <Headphones size={20} className={isPlaying ? 'animate-pulse' : ''} />
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-slate-900">{activePoi?.title || t('landing.waiting')}</p>
-            <p className="text-xs font-medium text-slate-500">
-              {isPlaying ? t('landing.playing') : t('landing.stopped')} {queue.length > 0 ? `• ${t('landing.queue', { count: queue.length })}` : ''}
-            </p>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-1 border-l border-slate-200 pl-3">
-          <button onClick={handleTogglePlay} className="p-2 text-slate-400 hover:text-slate-700 transition active:scale-95 bg-slate-50 rounded-full" aria-label={isPlaying ? t('landing.pause', { defaultValue: 'Tạm dừng' }) : t('landing.resume', { defaultValue: 'Phát tiếp' })}>
-            {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-          </button>
-          <button onClick={() => setIsCollapsed(false)} className="p-2 text-slate-400 hover:text-slate-700 transition active:scale-95">
-            <ChevronUp size={24} />
-          </button>
-        </div>
-      </aside>
-    );
+    return null;
   }
 
   return (

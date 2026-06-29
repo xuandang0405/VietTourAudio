@@ -125,31 +125,6 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
 
         </div>
       </div>
-      
-      {isHtml5 ? (
-        <div className="flex flex-col gap-1 px-1">
-          <input
-            type="range"
-            min="0"
-            max={duration || 100}
-            value={currentTime}
-            onChange={(e) => seek(Number(e.target.value))}
-            className="w-full h-1 rounded-lg appearance-none cursor-pointer bg-slate-200 accent-teal-600 focus:outline-none"
-            aria-label="Tiến trình phát"
-          />
-          <div className="flex justify-between text-[10px] font-semibold text-slate-400 font-mono">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center gap-3">
-          <Volume2 size={18} className="text-slate-400" />
-          <div className="h-1 flex-1 rounded-full bg-slate-100 overflow-hidden">
-            <div className={`h-full rounded-full transition-all duration-300 ${isPlaying ? 'bg-teal-500 w-full' : 'bg-slate-300 w-1/2'}`}></div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -107,8 +107,19 @@ public sealed class GuestController(
           {
             poi.Id,
             Name = poi.StallName,
+            stallName = poi.StallName,
+            stallName_EN = poi.StallNameEn,
+            description_EN = poi.DescriptionEn,
+            stallName_JA = poi.StallNameJa,
+            description_JA = poi.DescriptionJa,
+            stallName_KO = poi.StallNameKo,
+            description_KO = poi.DescriptionKo,
+            stallName_ZH = poi.StallNameZh,
+            description_ZH = poi.DescriptionZh,
             poi.Slug,
             poi.Description,
+            coverUrl = poi.CoverUrl,
+            imageUrl = poi.CoverUrl,
             poi.Latitude,
             poi.Longitude,
             ActivationRadius = poi.TriggerRadius,
@@ -149,8 +160,19 @@ public sealed class GuestController(
       {
         poi.Id,
         Name = poi.StallName,
+        stallName = poi.StallName,
+        stallName_EN = poi.StallNameEn,
+        description_EN = poi.DescriptionEn,
+        stallName_JA = poi.StallNameJa,
+        description_JA = poi.DescriptionJa,
+        stallName_KO = poi.StallNameKo,
+        description_KO = poi.DescriptionKo,
+        stallName_ZH = poi.StallNameZh,
+        description_ZH = poi.DescriptionZh,
         poi.Slug,
         poi.Description,
+        coverUrl = poi.CoverUrl,
+        imageUrl = poi.CoverUrl,
         poi.Latitude,
         poi.Longitude,
         ActivationRadius = poi.TriggerRadius,
@@ -191,11 +213,18 @@ public sealed class GuestController(
       x.Slug,
       x.Description,
       coverImage = x.CoverUrl,
+      coverUrl = x.CoverUrl,
+      poi_count = x.Pois.Count(p => p.Status == "ACTIVE" && p.ApprovalStatus == "APPROVED"),
       latitude = x.Latitude,
       longitude = x.Longitude,
       pois = x.Pois.Where(p => p.Status == "ACTIVE" && p.ApprovalStatus == "APPROVED")
-        .Select(p => new { id = p.Id, name = p.StallName, title = p.StallName, p.Slug, p.Description,
-          p.Latitude, p.Longitude, activationRadius = p.TriggerRadius, stallId = p.VendorId })
+        .Select(p => new { id = p.Id, name = p.StallName, title = p.StallName, stallName = p.StallName,
+          stallName_EN = p.StallNameEn, description_EN = p.DescriptionEn,
+          stallName_JA = p.StallNameJa, description_JA = p.DescriptionJa,
+          stallName_KO = p.StallNameKo, description_KO = p.DescriptionKo,
+          stallName_ZH = p.StallNameZh, description_ZH = p.DescriptionZh, p.Slug, p.Description,
+          coverUrl = p.CoverUrl, imageUrl = p.CoverUrl, p.Latitude, p.Longitude,
+          activationRadius = p.TriggerRadius, stallId = p.VendorId })
     });
 
     return Ok(ApiResponseFactory.Ok(result));
@@ -206,7 +235,12 @@ public sealed class GuestController(
   {
     if (string.IsNullOrWhiteSpace(zoneCode)) return BadRequest(ApiResponseFactory.Fail("error.zone_code_required"));
     var rows = await DatabaseSql.QueryRowsAsync(db, """
-      SELECT p.id, p.stall_name AS name, p.slug, p.description, p.latitude, p.longitude,
+      SELECT p.id, p.stall_name AS name, p.stall_name AS stallName,
+             p.stall_name_en AS stallName_EN, p.description_en AS description_EN,
+             p.stall_name_ja AS stallName_JA, p.description_ja AS description_JA,
+             p.stall_name_ko AS stallName_KO, p.description_ko AS description_KO,
+             p.stall_name_zh AS stallName_ZH, p.description_zh AS description_ZH,
+             p.slug, p.description, p.cover_url AS imageUrl, p.latitude, p.longitude,
              p.trigger_radius AS activationRadius, p.is_premium_priority AS isPremiumContent,
              p.vendor_id AS stallId, p.stall_name AS stallName, NULL AS audioUrl,
              p.festival_zone_id AS tourId, f.slug AS tourSlug
@@ -440,7 +474,12 @@ public sealed class GuestController(
   public async Task<IActionResult> Poi(string id)
   {
     var poi = await db.Pois.AsNoTracking().Where(x => x.Id == id && x.Status == "ACTIVE" && x.ApprovalStatus == "APPROVED")
-      .Select(x => new { id = x.Id, name = x.StallName, x.Slug, x.Description, x.Latitude, x.Longitude,
+      .Select(x => new { id = x.Id, name = x.StallName, stallName = x.StallName,
+        stallName_EN = x.StallNameEn, description_EN = x.DescriptionEn,
+        stallName_JA = x.StallNameJa, description_JA = x.DescriptionJa,
+        stallName_KO = x.StallNameKo, description_KO = x.DescriptionKo,
+        stallName_ZH = x.StallNameZh, description_ZH = x.DescriptionZh,
+        x.Slug, x.Description, coverUrl = x.CoverUrl, imageUrl = x.CoverUrl, x.Latitude, x.Longitude,
         activationRadius = x.TriggerRadius, tourId = x.FestivalZoneId, products = x.Products.Select(p => new { id = p.Id.ToString(), name = p.ProductName, p.Price }) })
       .SingleOrDefaultAsync();
     return poi is null ? NotFound(ApiResponseFactory.Fail("poi.not_found")) : Ok(ApiResponseFactory.Ok(poi));

@@ -234,7 +234,18 @@ public sealed class CheckoutPaymentController(
   {
     if (string.IsNullOrWhiteSpace(senderId) || senderType is not ("USER" or "VENDOR"))
       return BadRequest(ApiResponseFactory.Fail("Invalid sender."));
-    if (senderType != "VENDOR") return null;
+    if (senderType == "USER")
+    {
+      var authenticatedUserId = User.Identity?.IsAuthenticated == true &&
+        string.Equals(User.FindFirstValue(ClaimTypes.Role), "USER", StringComparison.OrdinalIgnoreCase)
+          ? User.FindFirstValue(ClaimTypes.NameIdentifier)
+          : null;
+      var expectedSenderId = authenticatedUserId ??
+        Request.Headers["X-Visitor-Session"].ToString().Trim();
+      return string.Equals(expectedSenderId, senderId, StringComparison.Ordinal)
+        ? null
+        : Unauthorized(ApiResponseFactory.Fail("Tourist identity does not match."));
+    }
     var claim = User.FindFirstValue("vendor_id");
     return User.Identity?.IsAuthenticated == true && claim == senderId
       ? null

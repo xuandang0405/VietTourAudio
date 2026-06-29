@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Heart, Lock, Navigation, QrCode, RefreshCw, Volume2, X } from 'lucide-react';
 import { useFavoritesStore } from '../../../stores/favoritesStore';
 import { QRCodeSVG } from 'qrcode.react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { appConfig } from '../../../config/appConfig';
 import { getLocalizedPoiContent } from '../../../data/visitorPois';
 import { useTranslation } from 'react-i18next';
@@ -30,7 +30,22 @@ export function PoiBottomSheet({
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
   const isFavorite = useFavoritesStore((state) => state.isFavorite);
   const stallId = poi?.stallId || selectedStall?.id;
-  const isFav = stallId ? isFavorite(stallId) : false;
+  const [isFav, setIsFav] = useState(false);
+
+  useEffect(() => {
+    setIsFav(stallId ? isFavorite(stallId) : false);
+  }, [stallId, isFavorite]);
+
+  const handleToggleFavorite = async (poiId) => {
+    if (!stallId) return;
+    setIsFav((prev) => !prev);
+    try {
+      await toggleFavorite(stallId);
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err);
+      setIsFav(stallId ? isFavorite(stallId) : false);
+    }
+  };
 
   const formatDistance = (meters) => {
     if (meters >= 1000) {
@@ -50,11 +65,25 @@ export function PoiBottomSheet({
   const currentPoiId = useAudioStore((state) => state.currentPoiId);
   const isPlaying = useAudioStore((state) => state.isPlaying);
   const replayPoi = useAudioStore((state) => state.replayPoi);
+  const getCooldownRemaining = useAudioStore((state) => state.getCooldownRemaining);
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
   const getLanguageMeta = useLanguageStore((state) => state.getLanguageMeta);
   // BẢN GỐC ĐÃ BỎ KHÓA PREMIUM: LUÔN CHO PHÉP NGHE MIỄN PHÍ
   const audioLocked = false;
   const localizedContent = getLocalizedPoiContent(poi, currentLanguage);
+
+  const [cooldownTime, setCooldownTime] = useState(0);
+
+  useEffect(() => {
+    if (!poi) return undefined;
+    const updateCooldown = () => {
+      const rem = getCooldownRemaining(poi.backendId ?? poi.id);
+      setCooldownTime(Math.max(0, rem));
+    };
+    updateCooldown();
+    const interval = setInterval(updateCooldown, 1000);
+    return () => clearInterval(interval);
+  }, [poi, getCooldownRemaining]);
   const qrTarget = poi
     ? `${appConfig.publicAppUrl}/map?poi=${encodeURIComponent(poi.id)}&source=qr&qr=${poi.qrCodeId ?? poi.apiId}`
     : '';
@@ -118,11 +147,11 @@ export function PoiBottomSheet({
                   >
                     <X size={20} />
                   </button>
-                  {stallId && (
+                  {poi && (
                     <motion.button
                       type="button"
                       whileTap={{ scale: 0.9 }}
-                      onClick={() => toggleFavorite(stallId)}
+                      onClick={() => handleToggleFavorite(poi.id)}
                       className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-slate-50 transition duration-150 ease-out hover:bg-slate-100 active:scale-[0.98]"
                       aria-label={isFav ? t('favorites_remove', { defaultValue: 'Xóa khỏi yêu thích' }) : t('favorites_add', { defaultValue: 'Thêm vào yêu thích' })}
                     >
@@ -229,31 +258,38 @@ export function PoiBottomSheet({
                 </div>
 
                 {!audioLocked ? (
-                  <div className="rounded-2xl border border-teal-100 bg-white p-4 shadow-sm">
+                  <div className="rounded-2xl border border-teal-100 bg-white p-4 shadow-sm mt-4 space-y-3">
                     <AudioVisualizer active={currentPoiId === poi.id && isPlaying} />
                     {poi.isInsideRadius && (
-                      <p className="mt-4 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-center text-xs font-bold text-orange-600">
+                      <p className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-center text-xs font-bold text-orange-600">
                         {t('landing.insideRadius')}
                       </p>
                     )}
-                    <button 
-                      type="button" 
-                      data-testid="replay-audio" 
-                      onClick={handleReplay}
-                      className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-teal-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition duration-150 ease-out hover:bg-teal-700 active:scale-[0.98] cursor-pointer"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-refresh-cw">
-                        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
-                        <path d="M21 3v5h-5"></path>
-                        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
-                        <path d="M8 16H3v5"></path>
-                      </svg>
-                      {t('audio.replay', { defaultValue: 'Phát lại' })}
-                    </button>
-                    <p className="mt-3 text-center text-xs font-semibold text-slate-500">{t('landing.browserTts')}: {getLanguageMeta().name}</p>
+                    {cooldownTime > 0 && !isPlaying ? (
+                      <button disabled className="px-4 py-3 rounded-xl bg-slate-100 text-slate-400 font-medium text-sm flex items-center justify-center gap-2 border border-slate-200 w-full">
+                        <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                        Phát lại sau {Math.ceil(cooldownTime / 1000)}s
+                      </button>
+                    ) : (
+                      <button 
+                        type="button" 
+                        data-testid="replay-audio" 
+                        onClick={handleReplay}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-teal-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition duration-150 ease-out hover:bg-teal-700 active:scale-[0.98] cursor-pointer"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-refresh-cw">
+                          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                          <path d="M21 3v5h-5"></path>
+                          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                          <path d="M8 16H3v5"></path>
+                        </svg>
+                        {t('audio.replay', { defaultValue: 'Phát lại' })}
+                      </button>
+                    )}
+                    <p className="text-center text-xs font-semibold text-slate-500">{t('landing.browserTts')}: {getLanguageMeta().name}</p>
                   </div>
                 ) : (
-                  <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm mt-4 space-y-3">
                     <AudioVisualizer locked />
                     <div data-testid="audio-locked-state" className="absolute inset-0 grid place-items-center bg-slate-100/80 px-5 text-center backdrop-blur-[2px]">
                       <div>
@@ -272,7 +308,7 @@ export function PoiBottomSheet({
                       type="button"
                       data-testid="unlock-audio"
                       onClick={onUpgrade}
-                      className="relative z-10 mt-20 w-full rounded-full bg-orange-500 px-4 py-3 text-sm font-bold text-white shadow-sm transition duration-150 ease-out hover:bg-orange-600 active:scale-[0.98]"
+                      className="relative z-10 w-full rounded-full bg-orange-500 px-4 py-3 text-sm font-bold text-white shadow-sm transition duration-150 ease-out hover:bg-orange-600 active:scale-[0.98]"
                     >
                       {t('landing.upgradePremium', { defaultValue: '🔓 Mở khóa toàn bộ Audio – 30.000 VND' })}
                     </button>

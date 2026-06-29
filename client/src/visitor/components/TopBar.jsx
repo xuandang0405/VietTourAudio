@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useLanguageStore } from '../../stores/languageStore';
 import { useSearchParams } from 'react-router-dom';
 import logo from '../../assets/logo/logo.png';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 const languages = [
   { code: 'vi', name: 'VI' },
@@ -16,6 +18,41 @@ export function TopBar({ title = 'VietTourAudio', compact = false }) {
   const { t, i18n } = useTranslation();
   const { currentLanguage, setLanguage } = useLanguageStore();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const activeZoneGuidToken = searchParams.get('zone');
+  const [zoneMetadata, setZoneMetadata] = useState({ 
+    name: title !== 'VietTourAudio' ? title : 'VietTourAudio', 
+    description: t('common.smartGuide', 'Hướng dẫn thông minh') 
+  });
+
+  useEffect(() => {
+    if (activeZoneGuidToken) {
+      axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/zones/${activeZoneGuidToken}`)
+        .then(res => {
+          if (res.data?.success && res.data?.data) {
+            setZoneMetadata({
+              name: res.data.data.name,
+              description: t('common.food_zone', 'Khu ẩm thực đặc sắc')
+            });
+          } else if (res.data?.data?.name) {
+            setZoneMetadata({
+              name: res.data.data.name,
+              description: t('common.food_zone', 'Khu ẩm thực đặc sắc')
+            });
+          } else {
+            setZoneMetadata({ name: title, description: t('common.smartGuide', 'Hướng dẫn thông minh') });
+          }
+        })
+        .catch(() => {
+          setZoneMetadata({ name: title, description: t('common.smartGuide', 'Hướng dẫn thông minh') });
+        });
+    } else {
+      setZoneMetadata({ 
+        name: title, 
+        description: t('common.smartGuide', 'Hướng dẫn thông minh') 
+      });
+    }
+  }, [activeZoneGuidToken, title, t]);
 
   const toggleLanguage = () => {
     const currentIndex = languages.findIndex(l => l.code === currentLanguage);
@@ -32,15 +69,11 @@ export function TopBar({ title = 'VietTourAudio', compact = false }) {
     <header className="absolute left-4 right-4 top-4 z-10">
       <div className="flex items-center justify-between px-4 py-3 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-2xl">
         <div className="flex min-w-0 items-center gap-3">
-          <img className="h-10 w-10 flex-shrink-0 rounded-xl border border-slate-100" src={logo} alt="VietTourAudio" loading="lazy" decoding="async" />
-          {compact ? (
-            <div className="min-w-0">
-              <p className="truncate font-display text-base font-bold text-slate-900">{title}</p>
-              <p className="text-xs font-medium text-slate-500">{t('common.smartGuide', 'Smart Guide')}</p>
-            </div>
-          ) : (
-            <span className="font-display text-xl font-bold text-slate-900">VietTourAudio</span>
-          )}
+          <img className="h-10 w-10 flex-shrink-0 rounded-xl border border-slate-100" src="/src/assets/logo/logo.png" alt="VietTourAudio" loading="lazy" decoding="async" />
+          <div className="min-w-0">
+            <p className="truncate font-display text-base font-bold text-slate-900">VietTourAudio</p>
+            <p className="text-xs font-medium text-slate-500">Hướng dẫn thông minh</p>
+          </div>
         </div>
 
         <button

@@ -45,13 +45,14 @@ import { UserPremiumUpgrade } from './features/payment/UserPremiumUpgrade';
 import { VendorBilling } from './features/payment/VendorBilling';
 import { appConfig } from './config/appConfig';
 import { startRealtimeClient } from './services/realtimeClient';
+import { premiumAccessApi } from './features/payment/premiumAccessApi';
 
 function AppRoutes() {
   const { t } = useTranslation('translation', { keyPrefix: 'landing' });
   const location = useLocation();
   const isAdminOrVendor = location.pathname.startsWith('/admin') || location.pathname.startsWith('/vendor');
   const navigate = useNavigate();
-  const activatePremium = usePremiumStore((state) => state.activatePremium);
+  const applyServerStatus = usePremiumStore((state) => state.applyServerStatus);
   const checkExpiry = usePremiumStore((state) => state.checkExpiry);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [toast, setToast] = useState('');
@@ -76,7 +77,10 @@ function AppRoutes() {
 
   useEffect(() => {
     checkExpiry();
-  }, [checkExpiry]);
+    premiumAccessApi.getStatus()
+      .then(applyServerStatus)
+      .catch(() => applyServerStatus({ isPremium: false, expiry: null }));
+  }, [applyServerStatus, checkExpiry]);
 
   useEffect(() => {
     import('./stores/favoritesStore').then(({ useFavoritesStore }) => {
@@ -102,8 +106,9 @@ function AppRoutes() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  function handlePaymentSuccess() {
-    activatePremium('checkout-payment');
+  async function handlePaymentSuccess(premiumStatus) {
+    const status = premiumStatus ?? await premiumAccessApi.getStatus();
+    applyServerStatus(status);
     setCheckoutOpen(false);
     showToast(t('paymentSuccess'));
     setShowConfetti(true);

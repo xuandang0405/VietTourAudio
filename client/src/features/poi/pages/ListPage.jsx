@@ -1,4 +1,4 @@
-import { ChevronRight, Crown, Headphones } from 'lucide-react';
+import { ChevronRight, Crown, Headphones, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import heroTravel from '../../../assets/img/hero-travel.png';
@@ -18,8 +18,10 @@ export function ListPage({ onUpgrade }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const zoneQuery = searchParams.get('zone');
+  const backendAssetHost = import.meta.env.VITE_API_BASE_URL.replace('/api', '');
 
   const [databasePois, setDatabasePois] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [databaseDestinations, setDatabaseDestinations] = useState([]);
   const [dataError, setDataError] = useState('');
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
@@ -53,6 +55,7 @@ export function ListPage({ onUpgrade }) {
           title: apiPoi.name,
           zoneName: apiPoi.zoneName,
           category: apiPoi.category,
+          coverUrl: apiPoi.coverUrl,
           image: apiPoi.imageUrl ?? heroTravel,
           latitude: Number(apiPoi.latitude),
           longitude: Number(apiPoi.longitude),
@@ -68,7 +71,7 @@ export function ListPage({ onUpgrade }) {
         };
       }));
     }).catch(() => {
-      if (active) setDataError(t('no_server_data', { defaultValue: 'Chưa có dữ liệu thực tế từ máy chủ.' }));
+      if (active) setDataError(t('no_server_data', 'Chưa có dữ liệu thực tế từ máy chủ. Vui lòng kết nối database!'));
     });
 
     stallService.getAll().then((response) => {
@@ -84,7 +87,7 @@ export function ListPage({ onUpgrade }) {
         image: heroTravel
       })));
     }).catch(() => {
-      if (active) setDataError(t('no_server_data', { defaultValue: 'Chưa có dữ liệu thực tế từ máy chủ.' }));
+      if (active) setDataError(t('no_server_data', 'Chưa có dữ liệu thực tế từ máy chủ. Vui lòng kết nối database!'));
     });
 
     return () => {
@@ -105,13 +108,20 @@ export function ListPage({ onUpgrade }) {
           return poi.tourSlug === zoneQuery;
         })
       : localizedPois;
+    const searchedPois = searchQuery.trim()
+      ? filteredPois.filter(poi => 
+          poi.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+          poi.category?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+          poi.description?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : filteredPois;
     return position
-      ? enrichPoisWithDistance(filteredPois, position, currentLanguage)
-      : filteredPois.map((poi) => ({
+      ? enrichPoisWithDistance(searchedPois, position, currentLanguage)
+      : searchedPois.map((poi) => ({
         ...poi,
         distanceLabel: poi.distanceHint ?? formatDistance(Number.POSITIVE_INFINITY, currentLanguage)
       }));
-  }, [currentLanguage, databasePois, position, zoneQuery]);
+  }, [currentLanguage, databasePois, position, zoneQuery, searchQuery]);
   const destinations = useMemo(
     () => databaseDestinations
       .map((destination) => localizeDestination(destination, currentLanguage)),
@@ -127,9 +137,22 @@ export function ListPage({ onUpgrade }) {
           <p className="text-xs font-bold uppercase text-oceanCyan">{t('inArea')}</p>
           <h1 className="mt-1 font-display text-3xl font-bold leading-tight text-textCrisp">{t('stallsAndDestinations')}</h1>
         </header>
+        <div className="sticky top-0 bg-white/95 backdrop-blur-md pb-3 pt-1 z-10 px-1 mb-4">
+          <label className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-600 focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500">
+            <Search size={17} className="text-slate-400" />
+            <input
+              className="min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400"
+              placeholder={t('searchPlaceholder', 'Tìm kiếm sạp hàng...')}
+              aria-label={t('searchPlaceholder', 'Tìm kiếm sạp hàng...')}
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+          </label>
+        </div>
+
         {(dataError || pois.length === 0) && (
           <div className="mb-6 rounded-2xl border border-slate-200 bg-white/80 p-6 text-center text-sm font-semibold text-slate-600">
-            {dataError || t('no_server_data', { defaultValue: 'Chưa có dữ liệu thực tế từ máy chủ.' })}
+            {dataError || t('no_server_data', 'Chưa có dữ liệu thực tế từ máy chủ. Vui lòng kết nối database!')}
           </div>
         )}
 
@@ -139,10 +162,17 @@ export function ListPage({ onUpgrade }) {
             const detailTarget = zoneQuery ? `/map?zone=${zoneQuery}&poi=${poi.id}` : `/map?poi=${poi.id}`;
             return (
               <Link key={poi.id} to={detailTarget} className="glass-card flex items-center gap-4 p-3 active:scale-[0.98]">
-                <div className="relative h-20 w-20 flex-shrink-0">
-                  <img className="h-full w-full rounded-xl border border-glassBorder object-cover" src={poi.image} alt={poi.title} loading="lazy" decoding="async" />
+                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100 shadow-inner">
+                  <img 
+                    src={poi.coverUrl?.startsWith('http') ? poi.coverUrl : `${backendAssetHost}${poi.coverUrl || '/uploads/default-placeholder.png'}`}
+                    alt=""
+                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=200'; }}
+                    className="w-full h-full object-cover rounded-xl"
+                    loading="lazy"
+                    decoding="async"
+                  />
                   {audioAvailable && (
-                    <div className="absolute -right-1 -top-1 rounded-full border border-premiumNeon/30 bg-premiumNeon p-1 shadow-neon-premium">
+                    <div className="absolute -right-1 -top-1 rounded-full border border-premiumNeon/30 bg-premiumNeon p-1 shadow-neon-premium z-10">
                       <Headphones size={12} className="text-white" />
                     </div>
                   )}

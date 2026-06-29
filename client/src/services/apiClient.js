@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { appConfig } from '../config/appConfig';
+import { getVisitorSessionId } from '../utils/visitorSession';
 
 // Centralized API client representing [UC48] Offline Cache / Sync request layer
 export const apiClient = axios.create({
@@ -17,6 +18,7 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    config.headers['X-Visitor-Session'] = getVisitorSessionId();
     return config;
   },
   (error) => {

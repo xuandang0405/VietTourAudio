@@ -256,6 +256,14 @@ public sealed class DatabasePoiService : IPoiService
     var vendorId = reader.IsDBNull(reader.GetOrdinal("vendor_id")) ? "" : reader.GetString(reader.GetOrdinal("vendor_id"));
     var stallName = reader.GetString(reader.GetOrdinal("stall_name"));
     var desc = reader.NullableString("description");
+    var stallNameEn = reader.NullableString("stall_name_en");
+    var descriptionEn = reader.NullableString("description_en");
+    var stallNameJa = reader.NullableString("stall_name_ja");
+    var descriptionJa = reader.NullableString("description_ja");
+    var stallNameKo = reader.NullableString("stall_name_ko");
+    var descriptionKo = reader.NullableString("description_ko");
+    var stallNameZh = reader.NullableString("stall_name_zh");
+    var descriptionZh = reader.NullableString("description_zh");
     var cover = reader.NullableString("cover_url");
     var lat = reader.GetDouble(reader.GetOrdinal("latitude"));
     var lng = reader.GetDouble(reader.GetOrdinal("longitude"));
@@ -269,7 +277,9 @@ public sealed class DatabasePoiService : IPoiService
       id, vendorId,
       string.Join('-', stallName.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries)),
       stallName, desc, zoneName, "Điểm tham quan", cover, (decimal)lat, (decimal)lng, radius, isPremium, status, null, false,
-      null, festivalZoneId, tourSlug);
+      null, festivalZoneId, tourSlug,
+      stallNameEn, descriptionEn, stallNameJa, descriptionJa,
+      stallNameKo, descriptionKo, stallNameZh, descriptionZh);
   }
 }
 

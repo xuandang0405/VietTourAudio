@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using VietTourAudio.Api.Data;
 using VietTourAudio.Api.Domain;
 using VietTourAudio.Api.Helpers;
@@ -11,20 +12,53 @@ public sealed class PaymentEntitlementService(AppDbContext db)
   {
     if (transaction.SenderType == "USER" && transaction.TransactionType == "USER_PREMIUM")
     {
-      await DatabaseSql.ExecuteAsync(db, """
+      var expiry = DateTime.UtcNow.AddHours(24);
+      var user = await db.Users.SingleOrDefaultAsync(candidate => candidate.Id == transaction.SenderId);
+      if (user is not null)
+      {
+        user.IsPremiumActive = true;
+        user.PremiumExpiryDate = expiry;
+        user.UpdatedAt = DateTime.UtcNow;
+        return;
+      }
+
+      await db.Database.ExecuteSqlInterpolatedAsync($"""
         INSERT INTO visitor_sessions(token,is_premium,premium_24h_expiry)
-        VALUES(@senderId,1,DATE_ADD(NOW(),INTERVAL 30 DAY))
+        VALUES({transaction.SenderId},1,{expiry})
         ON DUPLICATE KEY UPDATE
           is_premium=1,
-          premium_24h_expiry=DATE_ADD(
-            GREATEST(COALESCE(premium_24h_expiry,NOW()),NOW()),INTERVAL 30 DAY)
-        """, new Dictionary<string, object?> { ["@senderId"] = transaction.SenderId });
+          premium_24h_expiry={expiry},
+          last_seen_at=UTC_TIMESTAMP()
+        """);
       return;
     }
 
-    if (transaction.SenderType != "VENDOR" ||
-        !ulong.TryParse(transaction.SenderId, out var vendorId))
+    ulong vendorId = 0;
+    if (transaction.SenderType == "VENDOR")
+    {
+      if (!ulong.TryParse(transaction.SenderId, out vendorId))
+      {
+        var connection = await DatabaseSql.OpenConnectionAsync(db);
+        await using var command = connection.CreateCommand();
+        if (db.Database.CurrentTransaction is { } tx) command.Transaction = tx.GetDbTransaction();
+        command.CommandText = "SELECT vendor_id FROM vendor_portal_users WHERE id = @id LIMIT 1";
+        command.AddParameter("@id", transaction.SenderId);
+        var result = await command.ExecuteScalarAsync();
+        if (result == null || !ulong.TryParse(result.ToString(), out vendorId))
+        {
+          command.CommandText = "SELECT id FROM vendors WHERE id = @id LIMIT 1";
+          var directResult = await command.ExecuteScalarAsync();
+          if (directResult == null || !ulong.TryParse(directResult.ToString(), out vendorId))
+          {
+            throw new InvalidOperationException("Invalid payment sender.");
+          }
+        }
+      }
+    }
+    else
+    {
       throw new InvalidOperationException("Invalid payment sender.");
+    }
 
     if (transaction.TransactionType == "VENDOR_PREMIUM")
     {

@@ -45,10 +45,11 @@ public sealed class AdminPoiController(
       approvalStatus = p.ApprovalStatus,
       translations = new List<object>
       {
-        new { language = "en", name = p.StallNameEn ?? "", description = p.DescriptionEn ?? "" },
-        new { language = "ja", name = p.StallNameJa ?? "", description = p.DescriptionJa ?? "" },
-        new { language = "ko", name = p.StallNameKo ?? "", description = p.DescriptionKo ?? "" },
-        new { language = "zh", name = p.StallNameZh ?? "", description = p.DescriptionZh ?? "" }
+        new { lang = "vi", title = p.StallName ?? "", ttsScript = p.Description ?? "" },
+        new { lang = "en", title = p.StallNameEn ?? "", ttsScript = p.DescriptionEn ?? "" },
+        new { lang = "ja", title = p.StallNameJa ?? "", ttsScript = p.DescriptionJa ?? "" },
+        new { lang = "ko", title = p.StallNameKo ?? "", ttsScript = p.DescriptionKo ?? "" },
+        new { lang = "zh", title = p.StallNameZh ?? "", ttsScript = p.DescriptionZh ?? "" }
       }
     }).ToList();
 
@@ -145,6 +146,7 @@ public sealed class AdminPoiController(
       UpdatedAt = DateTime.UtcNow
     };
     db.Pois.Add(entity);
+    MapTranslations(entity, body);
     // Auto-translate before saving to database
     await translationService.AutoLocalizeAsync(entity);
     await db.SaveChangesAsync();
@@ -180,6 +182,8 @@ public sealed class AdminPoiController(
       poi.CoverUrl = newCoverUrl;
     }
     poi.UpdatedAt = DateTime.UtcNow;
+
+    MapTranslations(poi, body);
 
     await translationService.AutoLocalizeAsync(poi);
     var affected = await db.SaveChangesAsync();
@@ -312,4 +316,38 @@ public sealed class AdminPoiController(
   }
 
   private static string Slugify(string value) => StringHelpers.Slugify(value);
+
+  private static void MapTranslations(Poi poi, JsonElement body)
+  {
+    if (body.TryGetProperty("translations", out var translationsVal) && translationsVal.ValueKind == JsonValueKind.Array)
+    {
+      foreach (var item in translationsVal.EnumerateArray())
+      {
+        var lang = item.GetProperty("lang").GetString();
+        var title = item.TryGetProperty("title", out var tVal) ? tVal.GetString() : null;
+        var ttsScript = item.TryGetProperty("ttsScript", out var tsVal) ? tsVal.GetString() : null;
+
+        if (lang == "en")
+        {
+          poi.StallNameEn = title;
+          poi.DescriptionEn = ttsScript;
+        }
+        else if (lang == "ja")
+        {
+          poi.StallNameJa = title;
+          poi.DescriptionJa = ttsScript;
+        }
+        else if (lang == "ko")
+        {
+          poi.StallNameKo = title;
+          poi.DescriptionKo = ttsScript;
+        }
+        else if (lang == "zh")
+        {
+          poi.StallNameZh = title;
+          poi.DescriptionZh = ttsScript;
+        }
+      }
+    }
+  }
 }

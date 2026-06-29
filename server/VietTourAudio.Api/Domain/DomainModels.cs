@@ -20,6 +20,8 @@ public sealed class User : IEntity
   public string FullName { get; set; } = "";
   public UserRole Role { get; set; }
   public UserStatus Status { get; set; }
+  public bool IsPremiumActive { get; set; }
+  public DateTime? PremiumExpiryDate { get; set; }
   public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
   public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
@@ -90,6 +92,14 @@ public sealed class Poi : IEntity
   public int SortOrder { get; set; }
   public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
   public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+  public string? PendingNameEn { get; set; }
+  public string? PendingNameJa { get; set; }
+  public string? PendingNameKo { get; set; }
+  public string? PendingNameZh { get; set; }
+  public string? PendingDescriptionEn { get; set; }
+  public string? PendingDescriptionJa { get; set; }
+  public string? PendingDescriptionKo { get; set; }
+  public string? PendingDescriptionZh { get; set; }
 
   // Navigation properties
   public FestivalZone FestivalZone { get; set; } = null!;
@@ -102,6 +112,10 @@ public sealed class PoiProduct : IEntity
   public int Id { get; set; }
   public string PoiId { get; set; } = "";
   public string ProductName { get; set; } = "";
+  public string? ProductNameEn { get; set; }
+  public string? ProductNameJa { get; set; }
+  public string? ProductNameKo { get; set; }
+  public string? ProductNameZh { get; set; }
   public decimal Price { get; set; }
   public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

@@ -280,30 +280,36 @@ export function LandingPage({ onToast, onUpgrade }) {
               <div className="text-slate-400 font-semibold text-center py-8">{t('common.no_data', { defaultValue: 'Chưa có dữ liệu' })}</div>
             ) : (
               <div className="flex flex-col gap-4">
-                {tours.map((zone) => (
-                  <div
-                    key={zone.id}
-                    onClick={() => navigate(`/zone/${zone.slug}`)}
-                    className="group flex items-center gap-4 rounded-xl bg-white p-3 border border-slate-100 shadow-sm transition hover:shadow-md hover:border-teal-200 cursor-pointer"
-                  >
-                    <img
-                      src={zone.cover_image_url || 'https://images.unsplash.com/photo-1555921015-5532091f6026?w=200&h=200&fit=crop'}
-                      alt={zone.name}
-                      className="h-20 w-20 rounded-lg object-cover bg-slate-200"
-                    />
-                    <div className="flex-1">
-                      <h3 className="font-bold text-slate-900 group-hover:text-teal-700 transition">
-                        {zone.name}
-                      </h3>
-                      <p className="text-sm text-slate-500 mt-1">
-                        {zone.poi_count} {t('discovery.poi_count_label', { defaultValue: 'điểm tham quan' })}
-                      </p>
+                {tours.map((zone) => {
+                  const assetServerRoot = import.meta.env.VITE_API_BASE_URL.replace('/api', '');
+                  const item = { ...zone, coverUrl: zone.coverUrl || zone.coverImage || zone.cover_image_url };
+                  const finalImageUrl = item.coverUrl?.startsWith('http') ? item.coverUrl : `${assetServerRoot}${item.coverUrl || '/uploads/default-placeholder.png'}`;
+                  const poiCountValue = item.poi_count ?? item.pois?.length ?? 0;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => navigate(`/zone/${item.slug}`)}
+                      className="group flex items-center gap-4 rounded-xl bg-white p-3 border border-slate-100 shadow-sm transition hover:shadow-md hover:border-teal-200 cursor-pointer"
+                    >
+                      <img
+                        src={finalImageUrl}
+                        alt={item.name}
+                        className="h-20 w-20 rounded-lg object-cover bg-slate-200"
+                      />
+                      <div className="flex-1">
+                        <h3 className="font-bold text-slate-900 group-hover:text-teal-700 transition">
+                          {item.name}
+                        </h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                          {poiCountValue} {t('discovery.poi_count_label', { defaultValue: 'điểm tham quan' })}
+                        </p>
+                      </div>
+                      <div className="pr-2 text-slate-300 group-hover:text-teal-500 transition">
+                        <ChevronRight size={24} />
+                      </div>
                     </div>
-                    <div className="pr-2 text-slate-300 group-hover:text-teal-500 transition">
-                      <ChevronRight size={24} />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 

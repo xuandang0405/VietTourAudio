@@ -204,6 +204,17 @@ public sealed class AdminStallController(
     if (stall.PendingLatitude.HasValue) stall.Latitude = stall.PendingLatitude.Value;
     if (stall.PendingLongitude.HasValue) stall.Longitude = stall.PendingLongitude.Value;
     
+    // Copy pending translation overrides
+    stall.StallNameEn = stall.PendingNameEn ?? stall.StallNameEn;
+    stall.StallNameJa = stall.PendingNameJa ?? stall.StallNameJa;
+    stall.StallNameKo = stall.PendingNameKo ?? stall.StallNameKo;
+    stall.StallNameZh = stall.PendingNameZh ?? stall.StallNameZh;
+
+    stall.DescriptionEn = stall.PendingDescriptionEn ?? stall.DescriptionEn;
+    stall.DescriptionJa = stall.PendingDescriptionJa ?? stall.DescriptionJa;
+    stall.DescriptionKo = stall.PendingDescriptionKo ?? stall.DescriptionKo;
+    stall.DescriptionZh = stall.PendingDescriptionZh ?? stall.DescriptionZh;
+
     if (!string.IsNullOrEmpty(newCoverUrl) && newCoverUrl != oldCoverUrl)
     {
       stall.CoverUrl = newCoverUrl;
@@ -218,8 +229,16 @@ public sealed class AdminStallController(
     stall.PendingCoverUrl = null;
     stall.PendingLatitude = null;
     stall.PendingLongitude = null;
+    stall.PendingNameEn = null;
+    stall.PendingNameJa = null;
+    stall.PendingNameKo = null;
+    stall.PendingNameZh = null;
+    stall.PendingDescriptionEn = null;
+    stall.PendingDescriptionJa = null;
+    stall.PendingDescriptionKo = null;
+    stall.PendingDescriptionZh = null;
 
-    // Run translations
+    // Run translations (fills in blanks dynamically)
     await translationService.AutoLocalizeAsync(stall);
 
     var saved = await db.SaveChangesAsync();
