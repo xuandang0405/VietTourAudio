@@ -341,10 +341,12 @@ CREATE TABLE payment_transactions (
   transaction_type VARCHAR(40) NOT NULL,
   amount DECIMAL(14,2) NOT NULL,
   transfer_memo VARCHAR(255) NOT NULL,
+  pending_key VARCHAR(64) NULL,
   proof_attachment_url VARCHAR(600) NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
   created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (id),
-  UNIQUE KEY uq_payment_transactions_transfer_memo (transfer_memo)
+  UNIQUE KEY uq_payment_transactions_transfer_memo (transfer_memo),
+  UNIQUE KEY uq_payment_transactions_pending_key (pending_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

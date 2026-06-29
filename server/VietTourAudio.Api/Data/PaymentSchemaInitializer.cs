@@ -8,6 +8,11 @@ public static class PaymentSchemaInitializer
   public static async Task InitializeAsync(AppDbContext db)
   {
     await db.Database.ExecuteSqlRawAsync("""
+      ALTER TABLE payment_transactions
+        ADD COLUMN IF NOT EXISTS pending_key VARCHAR(64) NULL AFTER transfer_memo,
+        ADD UNIQUE INDEX IF NOT EXISTS uq_payment_transactions_pending_key (pending_key)
+      """);
+    await db.Database.ExecuteSqlRawAsync("""
       ALTER TABLE users
         ADD COLUMN IF NOT EXISTS is_premium_active TINYINT(1) NOT NULL DEFAULT 0 AFTER status,
         ADD COLUMN IF NOT EXISTS premium_expiry_date DATETIME(6) NULL DEFAULT NULL AFTER is_premium_active

@@ -25,8 +25,10 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
   const [proofStatus, setProofStatus] = useState(''); // '', 'PENDING'
   const [activeTransactionId, setActiveTransactionId] = useState('');
   const [isProcessingVisa, setIsProcessingVisa] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const successTriggeredRef = useRef(false);
   const successCloseTimerRef = useRef(null);
+  const paymentSubmissionLockRef = useRef(false);
   const applyServerStatus = usePremiumStore((state) => state.applyServerStatus);
 
   // Visa card fields
@@ -63,6 +65,8 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
       setProofStatus('');
       setActiveTransactionId('');
       successTriggeredRef.current = false;
+      paymentSubmissionLockRef.current = false;
+      setIsProcessingPayment(false);
       if (successCloseTimerRef.current) {
         window.clearTimeout(successCloseTimerRef.current);
         successCloseTimerRef.current = null;
@@ -84,7 +88,11 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
     successCloseTimerRef.current = window.setTimeout(() => onSuccess?.(premiumStatus), 2400);
   }, [applyServerStatus, onSuccess, tRoot]);
 
-  const handleBuyPass24Hours = async () => {
+  const handleBuyPass24Hours = async (event) => {
+    event?.preventDefault();
+    if (paymentSubmissionLockRef.current || isProcessingPayment || loading) return;
+    paymentSubmissionLockRef.current = true;
+    setIsProcessingPayment(true);
     setLoading(true);
     try {
       const premiumStatus = await premiumAccessApi.unlock24Hours();
@@ -95,6 +103,8 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
       toast.error('Giao dịch thất bại. Vui lòng kiểm tra lại kết nối mạng.');
     } finally {
       setLoading(false);
+      setIsProcessingPayment(false);
+      paymentSubmissionLockRef.current = false;
     }
   };
 
@@ -155,12 +165,16 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
     }
   };
 
-  const handleProofSubmit = async () => {
+  const handleProofSubmit = async (event) => {
+    event?.preventDefault();
+    if (paymentSubmissionLockRef.current || isProcessingPayment || isUploadingProof) return;
     if (!proofFile) {
       toast.error(tRoot('payment.proof_required'));
       return;
     }
-    
+
+    paymentSubmissionLockRef.current = true;
+    setIsProcessingPayment(true);
     setIsUploadingProof(true);
     try {
       // 1. Initialize payment transaction in database
@@ -196,6 +210,8 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
       );
     } finally {
       setIsUploadingProof(false);
+      setIsProcessingPayment(false);
+      paymentSubmissionLockRef.current = false;
     }
   };
 
@@ -214,12 +230,16 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
     }
   };
 
-  const handleVisaSubmit = async () => {
+  const handleVisaSubmit = async (event) => {
+    event?.preventDefault();
+    if (paymentSubmissionLockRef.current || isProcessingPayment || isProcessingVisa) return;
     if (!visaName || !visaNumber || !visaExpiry || !visaCvv) {
       alert("Vui lòng điền đầy đủ thông tin thẻ Visa!");
       return;
     }
-    
+
+    paymentSubmissionLockRef.current = true;
+    setIsProcessingPayment(true);
     setIsProcessingVisa(true);
     try {
       // 1. Initialize payment transaction in database
@@ -249,6 +269,8 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
       alert("Thanh toán thẻ Visa thất bại: " + (err.response?.data?.message || err.message));
     } finally {
       setIsProcessingVisa(false);
+      setIsProcessingPayment(false);
+      paymentSubmissionLockRef.current = false;
     }
   };
 
@@ -274,7 +296,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={() => onClose()}
             aria-label="Đóng thanh toán Premium"
           />
           <motion.section
@@ -306,8 +328,8 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
 
               <button
                 type="button"
-                onClick={handleBuyPass24Hours}
-                disabled={loading}
+                onClick={(event) => handleBuyPass24Hours(event)}
+                disabled={loading || isProcessingPayment}
                 className="mb-5 mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-4 text-sm font-black text-slate-950 shadow-lg transition hover:brightness-110 disabled:opacity-50"
               >
                 {loading ? <Loader2 size={20} className="animate-spin" /> : <Crown size={20} />}
@@ -318,6 +340,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
               <div className="flex bg-slate-900/60 p-1 rounded-xl gap-1 mb-6 border border-slate-700/50 relative z-10 mx-auto max-w-[340px]">
                 <button
                   type="button"
+                  disabled={isProcessingPayment}
                   onClick={() => setSelectedMethod('BANK')}
                   className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     selectedMethod === 'BANK'
@@ -329,6 +352,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
                 </button>
                 <button
                   type="button"
+                  disabled={isProcessingPayment}
                   onClick={() => setSelectedMethod('MOMO')}
                   className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     selectedMethod === 'MOMO'
@@ -340,6 +364,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
                 </button>
                 <button
                   type="button"
+                  disabled={isProcessingPayment}
                   onClick={() => setSelectedMethod('VISA')}
                   className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                     selectedMethod === 'VISA'
@@ -476,8 +501,8 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
 
                       <button
                         type="button"
-                        onClick={handleProofSubmit}
-                        disabled={isUploadingProof}
+                        onClick={(event) => handleProofSubmit(event)}
+                        disabled={isUploadingProof || isProcessingPayment}
                         className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-premiumNeon to-electricBlue px-4 py-4 text-sm font-bold text-white shadow-neon-premium transition duration-150 ease-out hover:brightness-110 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                       >
                         {isUploadingProof ? (
@@ -556,8 +581,8 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
 
                   <button
                     type="button"
-                    onClick={handleVisaSubmit}
-                    disabled={isProcessingVisa}
+                    onClick={(event) => handleVisaSubmit(event)}
+                    disabled={isProcessingVisa || isProcessingPayment}
                     className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-premiumNeon to-electricBlue px-4 py-4 text-sm font-bold text-white shadow-neon-premium transition duration-150 ease-out hover:brightness-110 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                   >
                     {isProcessingVisa ? (

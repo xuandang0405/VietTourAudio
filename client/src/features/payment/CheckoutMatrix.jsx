@@ -19,6 +19,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
   const [configsLoading, setConfigsLoading] = useState(true);
   const [checkout, setCheckout] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [proof, setProof] = useState(null);
   const [viewMode, setViewMode] = useState('CHECKOUT');
   const [activeTransactionId, setActiveTransactionId] = useState('');
@@ -53,21 +54,50 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
     return () => { active = false; };
   }, [t]);
 
-  useEffect(() => {
-    if (!senderId || configsLoading || !configs.some((config) => config.gatewayType === method)) return;
-    let active = true;
-    setBusy(true);
+  function selectPaymentMethod(nextMethod) {
+    if (isProcessingPayment || busy) return;
+    setMethod(nextMethod);
     setCheckout(null);
     setViewMode('CHECKOUT');
     setActiveTransactionId('');
     successTriggeredRef.current = false;
     setQrFailed(false);
-    paymentApi.initialize({ senderId: String(senderId), senderType, paymentMethod: method, transactionType })
-      .then((data) => { if (active) setCheckout(data); })
-      .catch((error) => toast.error(error.response?.data?.message ?? t('common.error')))
-      .finally(() => { if (active) setBusy(false); });
-    return () => { active = false; };
-  }, [configs, configsLoading, method, senderId, senderType, t, transactionType]);
+  }
+
+  async function handleInitializeCheckout(event) {
+    event?.preventDefault();
+    if (isProcessingPayment || busy) return;
+    if (!senderId || configsLoading || !configs.some((config) => config.gatewayType === method)) {
+      toast.error(t('payment.method_unavailable'));
+      return;
+    }
+
+    setIsProcessingPayment(true);
+    const loadingToast = toast.loading(
+      t('payment.initializing', { defaultValue: 'Đang khởi tạo giao dịch...' })
+    );
+    try {
+      const data = await paymentApi.initialize({
+        senderId: String(senderId),
+        senderType,
+        paymentMethod: method,
+        transactionType
+      });
+      setCheckout(data);
+      setViewMode('CHECKOUT');
+      setActiveTransactionId('');
+      successTriggeredRef.current = false;
+      setQrFailed(false);
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message ??
+          t('common.error', { defaultValue: 'Không thể khởi tạo giao dịch.' })
+      );
+    } finally {
+      toast.dismiss(loadingToast);
+      setIsProcessingPayment(false);
+    }
+  }
 
   useEffect(() => {
     if (senderType !== 'VENDOR' || viewMode !== 'WAITING_APPROVAL' || !activeTransactionId) {
@@ -120,6 +150,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
   }
 
   async function submitProof() {
+    if (busy || isProcessingPayment) return;
     if (!proof) return toast.error(t('payment.proof_required'));
     setBusy(true);
     try {
@@ -136,6 +167,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
 
   async function submitVisa(event) {
     event.preventDefault();
+    if (busy || isProcessingPayment) return;
     setBusy(true);
     try {
       await paymentApi.processVisa({ transactionId: checkout.transaction.id, ...card });
@@ -198,7 +230,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
             </p>
             <button
               type="button"
-              onClick={onSuccessClose}
+              onClick={() => onSuccessClose?.()}
               className="mt-8 rounded-2xl bg-amber-300 px-6 py-3 font-black text-slate-950 shadow-lg shadow-amber-500/20 transition hover:scale-105 hover:bg-amber-200"
             >
               {t('vendor_payment.start_now', { defaultValue: 'Bắt đầu trải nghiệm ngay' })}
@@ -214,7 +246,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
         {methods.map(({ id, icon: Icon, key }) => {
           const available = configs.some((config) => config.gatewayType === id);
           return (
-            <button key={id} type="button" onClick={() => available ? setMethod(id) : toast.error(t('payment.method_unavailable'))}
+            <button key={id} type="button" disabled={isProcessingPayment || busy} onClick={() => available ? selectPaymentMethod(id) : toast.error(t('payment.method_unavailable'))}
               className={`relative flex items-center gap-3 rounded-2xl border p-4 text-left font-bold transition ${method === id && available ? 'border-teal-500 bg-teal-50 text-teal-800 ring-2 ring-teal-100' : available ? 'border-slate-200 text-slate-600 hover:border-teal-200' : 'border-slate-100 bg-slate-50 text-slate-300'}`}>
               <Icon size={22} /><span>{t(key)}</span>
               {!available && <span className="absolute right-2 top-2 rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-black uppercase text-slate-500">{t('payment.inactive')}</span>}
@@ -224,7 +256,19 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
       </div>
       {!configsLoading && configs.length === 0 && <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">{t('payment.no_gateways')}</div>}
 
-      {busy && !checkout && <div className="grid min-h-56 place-items-center"><Loader2 className="animate-spin text-teal-600" /></div>}
+      {!checkout && !configsLoading && configs.length > 0 && (
+        <button
+          type="button"
+          disabled={isProcessingPayment || busy}
+          onClick={(event) => handleInitializeCheckout(event)}
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3.5 font-black text-white transition hover:bg-orange-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+        >
+          {isProcessingPayment && <Loader2 className="animate-spin" size={18} />}
+          {isProcessingPayment
+            ? t('payment.processing', { defaultValue: 'Đang xử lý giao dịch...' })
+            : t('payment.start', { defaultValue: 'BẮT ĐẦU GIAO DỊCH' })}
+        </button>
+      )}
 
       {checkout && method !== 'VISA' && (
         <div className="mt-6 grid gap-6 md:grid-cols-[220px_1fr]">
@@ -240,14 +284,14 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
               <p className="text-xs font-black uppercase text-amber-700">{t('payment.memo')}</p>
               <div className="mt-2 flex items-center justify-between gap-3">
                 <code className="break-all text-sm font-black text-slate-950">{checkout.transaction.transferMemo}</code>
-                <button type="button" onClick={copyMemo} className="rounded-xl bg-white p-2 text-teal-700 shadow-sm"><Copy size={18} /></button>
+                <button type="button" onClick={() => copyMemo()} className="rounded-xl bg-white p-2 text-teal-700 shadow-sm"><Copy size={18} /></button>
               </div>
               <p className="mt-2 text-xs text-amber-800">{t('payment.memo_warning')}</p>
             </div>
             <p className="text-lg font-black text-teal-700">{Number(checkout.transaction.amount).toLocaleString()} VND</p>
             <input type="file" accept="image/*" onChange={(e) => setProof(e.target.files?.[0] ?? null)}
               className="block w-full rounded-xl border border-slate-200 p-3 text-sm" />
-            <button type="button" disabled={busy} onClick={submitProof}
+            <button type="button" disabled={busy || isProcessingPayment} onClick={() => submitProof()}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-3 font-black text-white disabled:opacity-60">
               {busy ? <Loader2 className="animate-spin" size={18} /> : null}
               {t('payment.submit_transaction')}
@@ -257,7 +301,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
       )}
 
       {checkout && method === 'VISA' && (
-        <form onSubmit={submitVisa} className="mt-6 grid gap-4 rounded-2xl bg-slate-50 p-5">
+        <form onSubmit={(event) => submitVisa(event)} className="mt-6 grid gap-4 rounded-2xl bg-slate-50 p-5">
           <label className="text-sm font-bold text-slate-700">{t('payment.cardholder_name')}
             <input required value={card.cardholderName}
               onChange={(e) => setCard({ ...card, cardholderName: e.target.value.toUpperCase() })}
@@ -279,7 +323,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, onSucces
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3" placeholder="•••" />
             </label>
           </div>
-          <button disabled={busy} className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 font-black text-white">
+          <button type="submit" disabled={busy || isProcessingPayment} className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 font-black text-white">
             {busy && <Loader2 className="animate-spin" size={18} />}{t('payment.visa_submit')}
           </button>
         </form>

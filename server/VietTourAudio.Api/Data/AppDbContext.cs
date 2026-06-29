@@ -211,11 +211,13 @@ public class AppDbContext : DbContext
       entity.Property(x => x.TransactionType).HasColumnName("transaction_type").HasMaxLength(40);
       entity.Property(x => x.Amount).HasColumnName("amount").HasPrecision(14, 2);
       entity.Property(x => x.TransferMemo).HasColumnName("transfer_memo").HasMaxLength(255);
+      entity.Property(x => x.PendingKey).HasColumnName("pending_key").HasMaxLength(64);
       entity.Property(x => x.ProofAttachmentUrl).HasColumnName("proof_attachment_url").HasMaxLength(600);
       entity.Property(x => x.Status).HasColumnName("status").HasMaxLength(20);
       entity.Property(x => x.CreatedAt).HasColumnName("created_at");
       entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
       entity.HasIndex(x => x.TransferMemo).IsUnique();
+      entity.HasIndex(x => x.PendingKey).IsUnique();
     });
   }
 }

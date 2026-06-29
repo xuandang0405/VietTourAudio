@@ -1,7 +1,10 @@
 using System;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
@@ -29,20 +32,18 @@ public sealed class CheckoutPaymentController(
   [HttpPost("initialize")]
   public async Task<IActionResult> Initialize([FromBody] CheckoutIntent request)
   {
-    var method = request.PaymentMethod.Trim().ToUpperInvariant();
-    var senderType = request.SenderType.Trim().ToUpperInvariant();
-    var transactionType = request.TransactionType.Trim().ToUpperInvariant();
-    var senderId = request.SenderId.Trim();
-    if (senderType == "VENDOR")
-    {
-      senderId = User.FindFirstValue("vendor_id") ?? "";
-      if (string.IsNullOrWhiteSpace(senderId))
-        return Unauthorized(ApiResponseFactory.Fail("Vendor authentication is required."));
-    }
-    var senderError = ValidateSender(senderId, senderType);
-    if (senderError is not null) return senderError;
+    var method = request.PaymentMethod?.Trim().ToUpperInvariant() ?? "";
+    var transactionType = request.TransactionType?.Trim().ToUpperInvariant() ?? "";
+    var sender = await ResolveCheckoutSenderAsync(request);
+    if (sender.Error is not null) return sender.Error;
+    var senderId = sender.SenderId;
+    var senderType = sender.SenderType;
+
     if (!PaymentRules.Methods.Contains(method) || !PaymentRules.Types.Contains(transactionType))
       return BadRequest(ApiResponseFactory.Fail("Invalid payment intent."));
+    if ((senderType == "USER" && transactionType != "USER_PREMIUM") ||
+        (senderType == "VENDOR" && transactionType == "USER_PREMIUM"))
+      return BadRequest(ApiResponseFactory.Fail("Payment intent does not match the authenticated sender type."));
 
     var config = await db.AdminPaymentConfigs.AsNoTracking()
       .SingleOrDefaultAsync(x => x.GatewayType == method && x.IsActive);
@@ -51,6 +52,47 @@ public sealed class CheckoutPaymentController(
     var amount = ResolveAmount(transactionType);
     var id = Guid.NewGuid().ToString("N");
     var memo = BuildMemo(config.TransferMemoPattern, id, senderId, transactionType);
+    var now = DateTime.UtcNow;
+    var cutoff = now.AddMinutes(-2);
+    var pendingKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+      $"{senderType}:{senderId}:{transactionType}")));
+
+    await using var initializationTransaction =
+      await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+
+    await db.PaymentTransactions
+      .Where(payment =>
+        payment.PendingKey == pendingKey &&
+        (payment.Status != "PENDING" || payment.CreatedAt < cutoff))
+      .ExecuteUpdateAsync(updates => updates
+        .SetProperty(payment => payment.PendingKey, (string?)null));
+
+    var recentPending = await db.PaymentTransactions
+      .AsNoTracking()
+      .Where(payment =>
+        payment.SenderId == senderId &&
+        payment.SenderType == senderType &&
+        payment.TransactionType == transactionType &&
+        payment.Status == "PENDING" &&
+        payment.CreatedAt >= cutoff)
+      .OrderByDescending(payment => payment.CreatedAt)
+      .FirstOrDefaultAsync();
+    if (recentPending is not null)
+    {
+      await initializationTransaction.RollbackAsync();
+      logger.LogWarning(
+        "Duplicate checkout initialization dropped for {SenderType}/{SenderId}; existing transaction {TransactionId}.",
+        senderType,
+        senderId,
+        recentPending.Id);
+      return Conflict(new
+      {
+        success = false,
+        message = "Hệ thống đang xử lý giao dịch trước đó của bạn. Vui lòng không gửi liên tục!",
+        transactionId = recentPending.Id
+      });
+    }
+
     var ledger = new PaymentTransaction
     {
       Id = id,
@@ -60,12 +102,31 @@ public sealed class CheckoutPaymentController(
       TransactionType = transactionType,
       Amount = amount,
       TransferMemo = memo,
+      PendingKey = pendingKey,
       Status = "PENDING",
-      CreatedAt = DateTime.UtcNow,
-      UpdatedAt = DateTime.UtcNow
+      CreatedAt = now,
+      UpdatedAt = now
     };
-    db.PaymentTransactions.Add(ledger);
-    await db.SaveChangesAsync();
+    try
+    {
+      db.PaymentTransactions.Add(ledger);
+      await db.SaveChangesAsync();
+      await initializationTransaction.CommitAsync();
+    }
+    catch (DbUpdateException exception)
+    {
+      await initializationTransaction.RollbackAsync();
+      logger.LogWarning(
+        exception,
+        "Concurrent duplicate checkout initialization dropped for {SenderType}/{SenderId}.",
+        senderType,
+        senderId);
+      return Conflict(new
+      {
+        success = false,
+        message = "Hệ thống đang xử lý giao dịch trước đó của bạn. Vui lòng không gửi liên tục!"
+      });
+    }
 
     return Ok(ApiResponseFactory.Ok(new
     {
@@ -87,6 +148,7 @@ public sealed class CheckoutPaymentController(
         !IsValidCard(request.CardNumber, request.Expiry, request.Cvv))
     {
       ledger.Status = "FAILED";
+      ledger.PendingKey = null;
       ledger.UpdatedAt = DateTime.UtcNow;
       await db.SaveChangesAsync();
       return BadRequest(ApiResponseFactory.Fail("Invalid card details."));
@@ -94,8 +156,20 @@ public sealed class CheckoutPaymentController(
 
     await Task.Delay(1500, HttpContext.RequestAborted);
     await using var transaction = await db.Database.BeginTransactionAsync();
-    await entitlements.ApplyAsync(ledger);
+    var entitlementApplied = await entitlements.ApplyAsync(ledger);
+    if (!entitlementApplied)
+    {
+      await transaction.RollbackAsync();
+      logger.LogWarning(
+        "Visa transaction {TransactionId} was payable but its entitlement sender {SenderType}/{SenderId} was invalid.",
+        ledger.Id,
+        ledger.SenderType,
+        ledger.SenderId);
+      return BadRequest(ApiResponseFactory.Fail(
+        "Giao dịch không gắn với tài khoản hoặc phiên khách hợp lệ."));
+    }
     ledger.Status = "APPROVED";
+    ledger.PendingKey = null;
     ledger.UpdatedAt = DateTime.UtcNow;
     await db.SaveChangesAsync();
     await transaction.CommitAsync();
@@ -232,6 +306,8 @@ public sealed class CheckoutPaymentController(
 
   private IActionResult? ValidateSender(string senderId, string senderType)
   {
+    senderId = senderId?.Trim() ?? "";
+    senderType = senderType?.Trim().ToUpperInvariant() ?? "";
     if (string.IsNullOrWhiteSpace(senderId) || senderType is not ("USER" or "VENDOR"))
       return BadRequest(ApiResponseFactory.Fail("Invalid sender."));
     if (senderType == "USER")
@@ -250,6 +326,70 @@ public sealed class CheckoutPaymentController(
     return User.Identity?.IsAuthenticated == true && claim == senderId
       ? null
       : Unauthorized(ApiResponseFactory.Fail("Vendor identity does not match."));
+  }
+
+  private async Task<CheckoutSenderResolution> ResolveCheckoutSenderAsync(CheckoutIntent request)
+  {
+    if (User.Identity?.IsAuthenticated == true)
+    {
+      var role = User.FindFirstValue(ClaimTypes.Role)?.ToUpperInvariant();
+      if (role == "USER")
+      {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)?.Trim() ?? "";
+        if (!Guid.TryParse(userId, out var userGuid) || userGuid == Guid.Empty)
+          return CheckoutSenderResolution.Fail(
+            BadRequest(ApiResponseFactory.Fail("Authenticated user claim is not a valid GUID.")));
+
+        var normalizedUserId = userGuid.ToString("N");
+        var userExists = await db.Users.AsNoTracking().AnyAsync(user =>
+          (user.Id == userId || user.Id == normalizedUserId) &&
+          user.Status == UserStatus.ACTIVE);
+        return userExists
+          ? CheckoutSenderResolution.Ok(userId, "USER")
+          : CheckoutSenderResolution.Fail(
+            Unauthorized(ApiResponseFactory.Fail("Authenticated user does not exist or is inactive.")));
+      }
+
+      if (role == "VENDOR")
+      {
+        var vendorId = User.FindFirstValue("vendor_id")?.Trim() ?? "";
+        if (!Guid.TryParse(vendorId, out var vendorGuid) || vendorGuid == Guid.Empty)
+          return CheckoutSenderResolution.Fail(
+            BadRequest(ApiResponseFactory.Fail("Authenticated vendor claim is not a valid GUID.")));
+
+        var normalizedVendorId = vendorGuid.ToString("N");
+        var vendorExists = await db.Vendors.AsNoTracking().AnyAsync(vendor =>
+          vendor.Id == vendorId || vendor.Id == normalizedVendorId);
+        return vendorExists
+          ? CheckoutSenderResolution.Ok(vendorId, "VENDOR")
+          : CheckoutSenderResolution.Fail(
+            Unauthorized(ApiResponseFactory.Fail("Authenticated vendor does not exist.")));
+      }
+
+      return CheckoutSenderResolution.Fail(
+        Unauthorized(ApiResponseFactory.Fail("This account role cannot initialize checkout.")));
+    }
+
+    var visitorToken = Request.Headers["X-Visitor-Session"].ToString().Trim();
+    var validVisitorToken = visitorToken.Length is >= 16 and <= 160 &&
+      visitorToken.All(character => char.IsLetterOrDigit(character) || character == '-');
+    if (!validVisitorToken)
+      return CheckoutSenderResolution.Fail(
+        Unauthorized(ApiResponseFactory.Fail("A valid tourist session is required.")));
+
+    var requestedSenderId = request.SenderId?.Trim();
+    if (!string.IsNullOrEmpty(requestedSenderId) &&
+        !string.Equals(requestedSenderId, visitorToken, StringComparison.Ordinal))
+      return CheckoutSenderResolution.Fail(
+        Unauthorized(ApiResponseFactory.Fail("Tourist session does not match the payment sender.")));
+
+    var now = DateTime.UtcNow;
+    await db.Database.ExecuteSqlInterpolatedAsync($"""
+      INSERT INTO visitor_sessions(token,is_premium,last_seen_at)
+      VALUES({visitorToken},0,{now})
+      ON DUPLICATE KEY UPDATE last_seen_at={now}
+      """);
+    return CheckoutSenderResolution.Ok(visitorToken, "USER");
   }
 
   private static decimal ResolveAmount(string transactionType)
@@ -310,3 +450,15 @@ public sealed record VisaPaymentRequest(
   string CardNumber,
   string Expiry,
   string Cvv);
+
+internal sealed record CheckoutSenderResolution(
+  string SenderId,
+  string SenderType,
+  IActionResult? Error)
+{
+  public static CheckoutSenderResolution Ok(string senderId, string senderType) =>
+    new(senderId, senderType, null);
+
+  public static CheckoutSenderResolution Fail(IActionResult error) =>
+    new("", "", error);
+}

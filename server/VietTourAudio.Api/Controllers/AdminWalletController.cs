@@ -77,38 +77,80 @@ public sealed class AdminWalletController(
   [HttpPost("transactions/{id}/verify")]
   public async Task<IActionResult> Verify(string id, [FromBody] VerifyPaymentRequest request)
   {
+    if (!Guid.TryParse(id, out var transactionGuid))
+      return BadRequest(ApiResponseFactory.Fail("Mã định danh hóa đơn giao dịch không đúng định dạng GUID."));
+
     var status = request.Status.Trim().ToUpperInvariant();
     if (status is not ("APPROVED" or "FAILED"))
       return BadRequest(ApiResponseFactory.Fail("Status must be APPROVED or FAILED."));
 
     await using var transaction = await db.Database.BeginTransactionAsync();
-    var ledger = await db.PaymentTransactions.SingleOrDefaultAsync(x => x.Id == id);
-    if (ledger is null) return NotFound(ApiResponseFactory.Fail("Transaction not found."));
-    if (ledger.Status != "PENDING")
-      return Conflict(ApiResponseFactory.Fail("Transaction has already been processed."));
-
-    if (status == "APPROVED") await entitlements.ApplyAsync(ledger);
-    ledger.Status = status;
-    ledger.UpdatedAt = DateTime.UtcNow;
-    var affected = await db.SaveChangesAsync();
-    if (affected == 0)
-    {
-      await transaction.RollbackAsync();
-      return StatusCode(500, ApiResponseFactory.Fail("payment.transaction_not_saved"));
-    }
-    await transaction.CommitAsync();
     try
     {
-      await hubContext.Clients.All.SendAsync(
-        "ReceivePaymentUpdate",
-        ledger.Id,
-        ledger.Status);
+      var normalizedId = transactionGuid.ToString("N");
+      var ledger = await db.PaymentTransactions.SingleOrDefaultAsync(payment =>
+        payment.Id == id || payment.Id == normalizedId);
+      if (ledger is null)
+        return NotFound(ApiResponseFactory.Fail("Không tìm thấy hồ sơ giao dịch tương ứng trong Database."));
+      if (ledger.Status != "PENDING")
+        return Conflict(ApiResponseFactory.Fail("Transaction has already been processed."));
+
+      if (status == "APPROVED")
+      {
+        var applied = await entitlements.ApplyAsync(ledger);
+        if (!applied)
+        {
+          await transaction.RollbackAsync();
+          logger.LogWarning(
+            "Payment {PaymentId} approval was rejected because sender {SenderType}/{SenderId} could not receive its entitlement.",
+            ledger.Id,
+            ledger.SenderType,
+            ledger.SenderId);
+          return BadRequest(ApiResponseFactory.Fail(
+            "Phê duyệt thất bại: giao dịch không gắn với User, phiên khách hoặc Vendor hợp lệ."));
+        }
+      }
+
+      ledger.Status = status;
+      ledger.PendingKey = null;
+      ledger.UpdatedAt = DateTime.UtcNow;
+      var affected = await db.SaveChangesAsync();
+      if (affected == 0)
+      {
+        await transaction.RollbackAsync();
+        return StatusCode(500, ApiResponseFactory.Fail("payment.transaction_not_saved"));
+      }
+      await transaction.CommitAsync();
+
+      try
+      {
+        await hubContext.Clients.All.SendAsync(
+          "ReceivePaymentUpdate",
+          ledger.Id,
+          ledger.Status);
+      }
+      catch (Exception notificationException)
+      {
+        logger.LogWarning(
+          notificationException,
+          "Payment {PaymentId} committed but real-time broadcast failed.",
+          ledger.Id);
+      }
+      return Ok(ApiResponseFactory.Ok(ledger));
+    }
+    catch (InvalidOperationException exception)
+    {
+      await transaction.RollbackAsync();
+      logger.LogWarning(exception, "Payment {PaymentId} verification was rejected.", id);
+      return BadRequest(ApiResponseFactory.Fail(exception.Message));
     }
     catch (Exception exception)
     {
-      logger.LogWarning(exception, "Payment {PaymentId} committed but real-time broadcast failed", ledger.Id);
+      await transaction.RollbackAsync();
+      logger.LogError(exception, "Payment {PaymentId} verification failed safely.", id);
+      return StatusCode(500, ApiResponseFactory.Fail(
+        "Không thể xác minh giao dịch lúc này. Trạng thái giao dịch chưa bị thay đổi."));
     }
-    return Ok(ApiResponseFactory.Ok(ledger));
   }
 
   private async Task<string> SaveImageAsync(IFormFile file, string folder)

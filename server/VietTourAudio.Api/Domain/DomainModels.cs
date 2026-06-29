@@ -186,6 +186,7 @@ public sealed class PaymentTransaction
   public string TransactionType { get; set; } = "";
   public decimal Amount { get; set; }
   public string TransferMemo { get; set; } = "";
+  public string? PendingKey { get; set; }
   public string? ProofAttachmentUrl { get; set; }
   public string Status { get; set; } = "PENDING";
   public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
