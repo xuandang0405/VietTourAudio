@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace VietTourAudio.Api.Domain;
 
 public enum UserRole { SUPER_ADMIN, ADMIN, ZONE_ADMIN, MODERATOR, FINANCE, VENDOR, USER }
@@ -7,98 +10,124 @@ public enum TicketStatus { PENDING, IN_PROGRESS, PROCESSED, CLOSED }
 
 public interface IEntity
 {
-  ulong Id { get; set; }
 }
 
 public sealed class User : IEntity
 {
-  public ulong Id { get; set; }
+  public string Id { get; set; } = Guid.NewGuid().ToString("N");
   public string Email { get; set; } = "";
   public string PasswordHash { get; set; } = "";
   public string FullName { get; set; } = "";
   public UserRole Role { get; set; }
   public UserStatus Status { get; set; }
-  public ulong? AssignedZoneId { get; set; }
-  public DateTime CreatedAt { get; set; }
-  public DateTime UpdatedAt { get; set; }
+  public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+  public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
 public sealed class VendorProfile : IEntity
 {
-  public ulong Id { get; set; }
+  public string Id { get; set; } = Guid.NewGuid().ToString("N");
+  public string FestivalZoneId { get; set; } = "";
+  public string Email { get; set; } = "";
   public string TradeName { get; set; } = "";
-  public string Slug { get; set; } = "";
-  public string VendorCode { get; set; } = "";
-  public string ContactEmail { get; set; } = "";
-  public string Status { get; set; } = "PENDING";
-  public ulong? FestivalZoneId { get; set; }
-  public FestivalZone? FestivalZone { get; set; }
+  public bool IsPremium { get; set; }
+  public DateTime? PremiumActivationDate { get; set; }
+  public DateTime? PremiumExpiryDate { get; set; }
+  public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+  // Navigation properties
+  public FestivalZone FestivalZone { get; set; } = null!;
   public Wallet? Wallet { get; set; }
 }
 
 public sealed class FestivalZone : IEntity
 {
-  public ulong Id { get; set; }
+  public string Id { get; set; } = Guid.NewGuid().ToString("N");
+  public string ZoneCode { get; set; } = "";
   public string Name { get; set; } = "";
   public string Slug { get; set; } = "";
+  public double Latitude { get; set; }
+  public double Longitude { get; set; }
+  public string? CoverUrl { get; set; }
   public string? Description { get; set; }
-  public string? CoverImageUrl { get; set; }
-  public decimal? Latitude { get; set; }
-  public decimal? Longitude { get; set; }
   public string Status { get; set; } = "DRAFT";
   public int SortOrder { get; set; }
-  public ICollection<Poi> Pois { get; set; } = [];
-  public ICollection<VendorProfile> Vendors { get; set; } = [];
+  public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+  // Navigation properties
+  public ICollection<Poi> Pois { get; set; } = new List<Poi>();
+  public ICollection<VendorProfile> Vendors { get; set; } = new List<VendorProfile>();
 }
 
 public sealed class Poi : IEntity
 {
-  public ulong Id { get; set; }
-  public ulong TourId { get; set; }
-  public ulong StallId { get; set; }
-  public ulong? VendorId { get; set; }
-  public string Name { get; set; } = "";
+  public string Id { get; set; } = Guid.NewGuid().ToString("N");
+  public string FestivalZoneId { get; set; } = "";
+  public string? VendorId { get; set; }
+  public string StallName { get; set; } = "";
+  public string? StallNameEn { get; set; }
+  public string? StallNameJa { get; set; }
+  public string? StallNameKo { get; set; }
+  public string? StallNameZh { get; set; }
   public string Slug { get; set; } = "";
   public string? Description { get; set; }
-  public decimal Latitude { get; set; }
-  public decimal Longitude { get; set; }
-  public int ActivationRadius { get; set; }
-  public bool IsPremiumContent { get; set; }
+  public string? DescriptionEn { get; set; }
+  public string? DescriptionJa { get; set; }
+  public string? DescriptionKo { get; set; }
+  public string? DescriptionZh { get; set; }
+  public double Latitude { get; set; }
+  public double Longitude { get; set; }
   public string? CoverUrl { get; set; }
+  public string? PendingName { get; set; }
+  public string? PendingDescription { get; set; }
+  public string? PendingCoverUrl { get; set; }
+  public double? PendingLatitude { get; set; }
+  public double? PendingLongitude { get; set; }
+  public string ApprovalStatus { get; set; } = "PENDING";
+  public bool IsPremiumPriority { get; set; }
+  public double TriggerRadius { get; set; } = 3.0;
   public string Status { get; set; } = "ACTIVE";
-  public ApprovalStatus ApprovalStatus { get; set; }
+  public int SortOrder { get; set; }
   public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
   public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+  // Navigation properties
   public FestivalZone FestivalZone { get; set; } = null!;
-  public ICollection<PoiProduct> Products { get; set; } = [];
+  public VendorProfile? Vendor { get; set; }
+  public ICollection<PoiProduct> Products { get; set; } = new List<PoiProduct>();
 }
 
 public sealed class PoiProduct : IEntity
 {
-  public ulong Id { get; set; }
-  public ulong PoiId { get; set; }
-  public string Name { get; set; } = "";
+  public int Id { get; set; }
+  public string PoiId { get; set; } = "";
+  public string ProductName { get; set; } = "";
   public decimal Price { get; set; }
+  public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+  // Navigation properties
   public Poi Poi { get; set; } = null!;
 }
 
 public sealed class Wallet : IEntity
 {
-  public ulong Id { get; set; }
-  public ulong VendorId { get; set; }
+  public string Id { get; set; } = Guid.NewGuid().ToString("N");
+  public string VendorId { get; set; } = "";
   public decimal Balance { get; set; }
   public decimal PromoBalance { get; set; }
   public decimal TotalTopUp { get; set; }
   public decimal TotalSpent { get; set; }
+
+  // Navigation properties
   public VendorProfile Vendor { get; set; } = null!;
-  public ICollection<WalletTransaction> Transactions { get; set; } = [];
+  public ICollection<WalletTransaction> Transactions { get; set; } = new List<WalletTransaction>();
 }
 
 public sealed class WalletTransaction : IEntity
 {
-  public ulong Id { get; set; }
-  public ulong WalletId { get; set; }
-  public ulong VendorId { get; set; }
+  public string Id { get; set; } = Guid.NewGuid().ToString("N");
+  public string WalletId { get; set; } = "";
+  public string VendorId { get; set; } = "";
   public string TransactionType { get; set; } = "";
   public string TransactionCategory { get; set; } = "";
   public string Direction { get; set; } = "";
@@ -106,21 +135,21 @@ public sealed class WalletTransaction : IEntity
   public decimal BalanceBefore { get; set; }
   public decimal BalanceAfter { get; set; }
   public string? Description { get; set; }
-  public ulong? CreatedByUserId { get; set; }
-  public string? Metadata { get; set; }
-  public DateTime CreatedAt { get; set; }
+  public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+  // Navigation properties
   public Wallet Wallet { get; set; } = null!;
 }
 
 public sealed class SystemTicket : IEntity
 {
-  public ulong Id { get; set; }
+  public string Id { get; set; } = Guid.NewGuid().ToString("N");
   public string SenderEmail { get; set; } = "";
   public string Subject { get; set; } = "";
   public string Message { get; set; } = "";
   public TicketStatus Status { get; set; }
-  public DateTime CreatedAt { get; set; }
-  public DateTime UpdatedAt { get; set; }
+  public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+  public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
 public sealed class AdminPaymentConfig
@@ -136,7 +165,7 @@ public sealed class AdminPaymentConfig
 
 public sealed class PaymentTransaction
 {
-  public Guid Id { get; set; }
+  public string Id { get; set; } = Guid.NewGuid().ToString("N");
   public string SenderId { get; set; } = "";
   public string SenderType { get; set; } = "";
   public string PaymentMethod { get; set; } = "";
@@ -145,6 +174,6 @@ public sealed class PaymentTransaction
   public string TransferMemo { get; set; } = "";
   public string? ProofAttachmentUrl { get; set; }
   public string Status { get; set; } = "PENDING";
-  public DateTime CreatedAt { get; set; }
-  public DateTime UpdatedAt { get; set; }
+  public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+  public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

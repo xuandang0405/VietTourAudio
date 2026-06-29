@@ -132,9 +132,14 @@ var allowedOrigins = builder.Configuration
   .Get<string[]>() ?? ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174", "http://localhost:5175", "http://127.0.0.1:5175", "http://localhost:5176", "http://127.0.0.1:5176", "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"];
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-  ?? "server=localhost;port=3306;database=viettuoraudio;user=root;password=;SslMode=None;AllowPublicKeyRetrieval=True;";
+  ?? "server=localhost;port=3306;database=viettuoraudio;user=root;password=;SslMode=None;AllowPublicKeyRetrieval=True;GuidFormat=None;";
 
-builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+if (!connectionString.Contains("GuidFormat=", StringComparison.OrdinalIgnoreCase))
+{
+  connectionString = connectionString.TrimEnd(';') + ";GuidFormat=None;";
+}
+
+builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(connectionString, ServerVersion.Parse("10.4.32-mariadb")));
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient(string.Empty)
@@ -159,6 +164,7 @@ builder.Services.AddScoped<ICommissionService, CommissionService>();
 builder.Services.AddScoped<IAdminLogService, AdminLogService>();
 builder.Services.AddScoped<IGeofenceService, GeofenceService>();
 builder.Services.AddScoped<PaymentEntitlementService>();
+builder.Services.AddScoped<VietTourAudio.Api.Services.PoiTranslationService>();
 builder.Services.AddSingleton<PrototypeAnalyticsState>();
 
 builder.Services.AddSignalR();

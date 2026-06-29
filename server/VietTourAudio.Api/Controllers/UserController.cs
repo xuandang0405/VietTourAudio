@@ -17,8 +17,8 @@ public sealed class UserController(IUserService users, AppDbContext db) : Contro
   public async Task<IActionResult> GetAll() =>
     Ok(ApiResponseFactory.Ok(await users.GetUsersAsync()));
 
-  [HttpGet("{id:long}")]
-  public async Task<IActionResult> GetById(ulong id) =>
+  [HttpGet("{id}")]
+  public async Task<IActionResult> GetById(string id) =>
     Ok(ApiResponseFactory.Ok(await users.GetByIdAsync(id)));
 
   [HttpPost]
@@ -31,28 +31,28 @@ public sealed class UserController(IUserService users, AppDbContext db) : Contro
     {
       Email = email, FullName = request.FullName.Trim(),
       PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, 12),
-      Role = ParseRole(request.Role), Status = request.Status, AssignedZoneId = request.AssignedZoneId,
+      Role = ParseRole(request.Role), Status = request.Status,
       CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
     };
     db.Users.Add(user); await db.SaveChangesAsync();
     return Ok(ApiResponseFactory.Ok(Map(user)));
   }
 
-  [HttpPut("{id:long}")]
-  public async Task<IActionResult> Update(ulong id, [FromBody] AdminUserRequest request)
+  [HttpPut("{id}")]
+  public async Task<IActionResult> Update(string id, [FromBody] AdminUserRequest request)
   {
     var user = await db.Users.SingleOrDefaultAsync(x => x.Id == id);
     if (user is null) return NotFound(ApiResponseFactory.Fail("user.not_found"));
     user.Email = request.Email.Trim().ToLowerInvariant(); user.FullName = request.FullName.Trim();
-    user.Role = ParseRole(request.Role); user.Status = request.Status; user.AssignedZoneId = request.AssignedZoneId;
+    user.Role = ParseRole(request.Role); user.Status = request.Status;
     if (!string.IsNullOrWhiteSpace(request.Password))
       user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, 12);
     user.UpdatedAt = DateTime.UtcNow; await db.SaveChangesAsync();
     return Ok(ApiResponseFactory.Ok(Map(user)));
   }
 
-  [HttpDelete("{id:long}")]
-  public async Task<IActionResult> Delete(ulong id)
+  [HttpDelete("{id}")]
+  public async Task<IActionResult> Delete(string id)
   {
     var user = await db.Users.SingleOrDefaultAsync(x => x.Id == id);
     if (user is null) return NotFound(ApiResponseFactory.Fail("user.not_found"));
@@ -60,8 +60,8 @@ public sealed class UserController(IUserService users, AppDbContext db) : Contro
     return Ok(ApiResponseFactory.Ok(true));
   }
 
-  private static object Map(User user) => new { id = user.Id.ToString(), user.FullName, user.Email,
-    role = user.Role.ToString(), status = user.Status.ToString(), user.AssignedZoneId };
+  private static object Map(User user) => new { id = user.Id, user.FullName, user.Email,
+    role = user.Role.ToString(), status = user.Status.ToString() };
 
   private static UserRole ParseRole(string role) =>
     Enum.TryParse<UserRole>(role, true, out var value) && value is not UserRole.VENDOR and not UserRole.USER
@@ -69,4 +69,4 @@ public sealed class UserController(IUserService users, AppDbContext db) : Contro
 }
 
 public sealed record AdminUserRequest(string FullName, string Email, string Password, string Role,
-  UserStatus Status = UserStatus.ACTIVE, ulong? AssignedZoneId = null);
+  UserStatus Status = UserStatus.ACTIVE);

@@ -236,7 +236,7 @@ const serverBaseUrl = import.meta.env.VITE_API_BASE_URL.replace('/api', '');
 
 function MediaPreview({ item }) {
   if (item.mediaType === 'IMAGE' || item.mediaType === 'STALL') {
-    const rawPath = item.publicUrl;
+    const rawPath = item.coverUrl;
     const absoluteImgUrl = rawPath?.startsWith('http')
       ? rawPath
       : rawPath

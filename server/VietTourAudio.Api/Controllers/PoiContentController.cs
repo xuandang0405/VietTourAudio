@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using VietTourAudio.Api.DTOs;
 using VietTourAudio.Api.Helpers;
 using VietTourAudio.Api.Interfaces;
+using System.Threading.Tasks;
 
 namespace VietTourAudio.Api.Controllers;
 
@@ -16,8 +17,8 @@ public class PoiContentController : ControllerBase
     _poiContentService = poiContentService;
   }
 
-  [HttpGet("poi/{poiId:long}")]
-  public async Task<IActionResult> GetByPoi(ulong poiId)
+  [HttpGet("poi/{poiId}")]
+  public async Task<IActionResult> GetByPoi(string poiId)
   {
     var result = await _poiContentService.GetByPoiAsync(poiId);
     return Ok(ApiResponseFactory.Ok(result, "Nội dung thuyết minh của POI."));

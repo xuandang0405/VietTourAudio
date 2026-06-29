@@ -1,6 +1,15 @@
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using VietTourAudio.Api.Data;
+using VietTourAudio.Api.Helpers;
 
 namespace VietTourAudio.Api.Services;
 
@@ -17,99 +26,56 @@ public sealed class MonthlyBillingWorker(
         using (var scope = scopes.CreateScope())
         {
           var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-          await ProcessDueSubscriptionsInternal(context, stoppingToken);
+          await ProcessExpiredPremiumsInternal(context, stoppingToken);
         }
       }
       catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
       {
-        // Graceful shutdown — exit the loop cleanly without logging as an error
         break;
       }
       catch (Exception exception)
       {
-        logger.LogError(exception, "Monthly vendor billing pass failed");
+        logger.LogError(exception, "Premium validation pass failed");
       }
       try
       {
-        await Task.Delay(TimeSpan.FromDays(1), stoppingToken);
+        await Task.Delay(TimeSpan.FromHours(12), stoppingToken);
       }
       catch (OperationCanceledException)
       {
-        // Host is stopping — exit cleanly
         break;
       }
     }
   }
 
-  private async Task ProcessDueSubscriptionsInternal(AppDbContext discoveryDb, CancellationToken cancellationToken)
+  private async Task ProcessExpiredPremiumsInternal(AppDbContext db, CancellationToken cancellationToken)
   {
-    var due = await DatabaseSql.QueryRowsAsync(discoveryDb, """
-      SELECT CAST(vs.vendor_id AS CHAR) vendorId FROM vendor_subscriptions vs
-      WHERE vs.status IN('ACTIVE','OVERDUE') AND vs.next_billing_date IS NOT NULL
-        AND vs.next_billing_date<=CURDATE()
+    var expiredVendors = await DatabaseSql.QueryRowsAsync(db, """
+      SELECT CAST(id AS CHAR) vendorId FROM Vendors
+      WHERE is_premium = 1 AND premium_expiry_date IS NOT NULL AND premium_expiry_date < NOW()
       """);
-    foreach (var row in due)
+
+    foreach (var row in expiredVendors)
     {
       cancellationToken.ThrowIfCancellationRequested();
-      await ProcessVendor(ulong.Parse((string)row["vendorId"]!));
+      var vendorId = (string)row["vendorId"]!;
+      
+      await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+      try
+      {
+        await DatabaseSql.ExecuteAsync(db, "UPDATE Vendors SET is_premium = 0 WHERE id = @vendorId",
+          new Dictionary<string, object?> { ["@vendorId"] = vendorId });
+        await DatabaseSql.ExecuteAsync(db, "UPDATE Pois SET is_premium_priority = 0, trigger_radius = 3.0 WHERE vendor_id = @vendorId",
+          new Dictionary<string, object?> { ["@vendorId"] = vendorId });
+        
+        await transaction.CommitAsync(cancellationToken);
+        logger.LogInformation("Downgraded expired premium vendor: {VendorId}", vendorId);
+      }
+      catch (Exception ex)
+      {
+        await transaction.RollbackAsync(cancellationToken);
+        logger.LogError(ex, "Failed to downgrade premium status for vendor: {VendorId}", vendorId);
+      }
     }
-  }
-
-  private async Task ProcessVendor(ulong vendorId)
-  {
-    using var scope = scopes.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
-    var state = (await DatabaseSql.QueryRowsAsync(db, """
-      SELECT vs.id subscriptionId,vs.status subscriptionStatus,vs.next_billing_date nextBillingDate,
-        vs.price_snapshot fee,vw.id walletId,vw.balance
-      FROM vendor_subscriptions vs JOIN vendor_wallets vw ON vw.vendor_id=vs.vendor_id
-      WHERE vs.vendor_id=@vendorId AND vs.status IN('ACTIVE','OVERDUE')
-        AND vs.next_billing_date<=CURDATE() ORDER BY vs.id DESC LIMIT 1 FOR UPDATE
-      """, new Dictionary<string, object?> { ["@vendorId"] = vendorId })).SingleOrDefault();
-    if (state is null) { await transaction.RollbackAsync(); return; }
-
-    var subscriptionId = ulong.Parse((string)state["subscriptionId"]!);
-    var walletId = ulong.Parse((string)state["walletId"]!);
-    var balance = Convert.ToDecimal(state["balance"]);
-    var fee = Convert.ToDecimal(state["fee"]);
-    if (balance >= fee)
-    {
-      var after = balance - fee;
-      await DatabaseSql.ExecuteAsync(db, """
-        UPDATE vendor_wallets SET balance=@after,total_spent=total_spent+@fee WHERE id=@walletId;
-        INSERT INTO wallet_transactions(wallet_id,vendor_id,transaction_type,transaction_category,direction,
-          amount,balance_before,balance_after,description)
-        VALUES(@walletId,@vendorId,'FEE','WEBAPP_MONTHLY_RENT','DEBIT',@fee,@before,@after,'Monthly WebApp rental fee');
-        UPDATE vendor_subscriptions SET status='ACTIVE',payment_status='paid',
-          period_start=next_billing_date,period_end=DATE_ADD(next_billing_date,INTERVAL 1 MONTH),
-          next_billing_date=DATE_ADD(next_billing_date,INTERVAL 1 MONTH) WHERE id=@subscriptionId;
-        UPDATE stalls SET status=IF(billing_suspended=1,'APPROVED',status),billing_suspended=0 WHERE vendor_id=@vendorId;
-        INSERT INTO admin_notifications(vendor_id,notification_type,title,message,metadata)
-        VALUES(@vendorId,'WEBAPP_RENT_PAID','Monthly rental paid','Vendor monthly WebApp fee was deducted',
-          JSON_OBJECT('amount',@fee,'balanceAfter',@after));
-        """, new Dictionary<string, object?> { ["@after"] = after, ["@fee"] = fee, ["@before"] = balance,
-          ["@walletId"] = walletId, ["@vendorId"] = vendorId, ["@subscriptionId"] = subscriptionId });
-    }
-    else
-    {
-      var wasOverdue = string.Equals(state["subscriptionStatus"]?.ToString(), "OVERDUE", StringComparison.OrdinalIgnoreCase);
-      await DatabaseSql.ExecuteAsync(db, """
-        UPDATE vendor_subscriptions SET status=IF(CURDATE()>DATE_ADD(next_billing_date,INTERVAL 7 DAY),'SUSPENDED','OVERDUE'),
-          payment_status='unpaid' WHERE id=@subscriptionId;
-        UPDATE stalls SET status=IF(CURDATE()>DATE_ADD((SELECT next_billing_date FROM vendor_subscriptions WHERE id=@subscriptionId),
-          INTERVAL 7 DAY),'SUSPENDED',status),
-          billing_suspended=IF(CURDATE()>DATE_ADD((SELECT next_billing_date FROM vendor_subscriptions WHERE id=@subscriptionId),
-          INTERVAL 7 DAY),1,billing_suspended) WHERE vendor_id=@vendorId;
-        """, new Dictionary<string, object?> { ["@subscriptionId"] = subscriptionId, ["@vendorId"] = vendorId });
-      if (!wasOverdue)
-        await DatabaseSql.ExecuteAsync(db, """
-          INSERT INTO admin_notifications(vendor_id,notification_type,title,message,metadata)
-          VALUES(@vendorId,'WEBAPP_RENT_OVERDUE','Monthly rental overdue',
-            'Vendor wallet balance is insufficient; stall will be hidden after the 7-day grace period',
-            JSON_OBJECT('required',@fee,'balance',@balance,'graceDays',7))
-          """, new Dictionary<string, object?> { ["@vendorId"] = vendorId, ["@fee"] = fee, ["@balance"] = balance });
-    }
-    await transaction.CommitAsync();
   }
 }

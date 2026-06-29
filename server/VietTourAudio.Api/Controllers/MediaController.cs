@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 using VietTourAudio.Api.Helpers;
 using VietTourAudio.Api.Interfaces;
 
@@ -20,12 +22,12 @@ public class MediaController : ControllerBase
   public async Task<IActionResult> Upload(
     IFormFile file,
     [FromForm] string fileType,
-    [FromForm] ulong ownerId,
-    [FromForm] ulong? stallId,
-    [FromForm] ulong? poiId
+    [FromForm] string ownerId,
+    [FromForm] string? stallId,
+    [FromForm] string? poiId
   )
   {
-    if (file.Length == 0)
+    if (file == null || file.Length == 0)
     {
       return BadRequest(ApiResponseFactory.Fail("File upload không hợp lệ."));
     }

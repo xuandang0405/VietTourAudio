@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { resolveBackendMediaUrl } from '../../utils/mediaUrl';
 import { paymentApi } from './paymentApi';
+import { adminApiClient } from '../../admin/api/adminApi';
 
 const gateways = ['MOMO', 'BANK', 'VISA'];
 
@@ -12,7 +13,7 @@ export function AdminPaymentSettings() {
   const [active, setActive] = useState('MOMO');
   const [configs, setConfigs] = useState([]);
   const [pending, setPending] = useState([]);
-  const [form, setForm] = useState({ accountName: '', accountNumber: '', transferMemoPattern: 'VTA [Type] [Id]', isActive: true });
+  const [form, setForm] = useState({ accountName: '', accountNumber: '', transferMemoPattern: 'VTA [Type] [Id]', isActive: true, qrCodeUrl: '' });
   const [qr, setQr] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -24,7 +25,13 @@ export function AdminPaymentSettings() {
   useEffect(() => { load().catch(() => toast.error(t('common.error'))); }, [t]);
   useEffect(() => {
     const config = configs.find((item) => item.gatewayType === active);
-    setForm({ accountName: config?.accountName ?? '', accountNumber: config?.accountNumber ?? '', transferMemoPattern: config?.transferMemoPattern ?? 'VTA [Type] [Id]', isActive: config?.isActive ?? true });
+    setForm({
+      accountName: config?.accountName ?? '',
+      accountNumber: config?.accountNumber ?? '',
+      transferMemoPattern: config?.transferMemoPattern ?? 'VTA [Type] [Id]',
+      isActive: config?.isActive ?? true,
+      qrCodeUrl: config?.qrCodeUrl ?? ''
+    });
   }, [active, configs]);
 
   async function save(event) {
@@ -34,7 +41,12 @@ export function AdminPaymentSettings() {
     Object.entries(form).forEach(([key, value]) => body.append(key, String(value)));
     if (qr) body.append('qrCode', qr);
     setBusy(true);
-    try { await paymentApi.updateConfig(body); await load(); toast.success(t('admin_wallet.saved')); }
+    try {
+      await paymentApi.updateConfig(body);
+      await load();
+      setQr(null);
+      toast.success(t('admin_wallet.saved'));
+    }
     catch (error) {
       toast.error(
         error.response?.data?.message ||
@@ -59,8 +71,39 @@ export function AdminPaymentSettings() {
           <Field label={t('payment.account_name')} value={form.accountName} onChange={(accountName) => setForm({ ...form, accountName })} />
           <Field label={t('payment.account_number')} value={form.accountNumber} onChange={(accountNumber) => setForm({ ...form, accountNumber })} />
           <label className="md:col-span-2 text-sm font-bold text-slate-700">{t('payment.memo')}<input value={form.transferMemoPattern} onChange={(e) => setForm({ ...form, transferMemoPattern: e.target.value })} className="mt-2 w-full rounded-xl border px-4 py-3 font-mono" /></label>
-          {active !== 'VISA' && <label className="text-sm font-bold text-slate-700">{t('admin_wallet.qr_upload')}<input type="file" accept="image/*" onChange={(e) => setQr(e.target.files?.[0] ?? null)} className="mt-2 block w-full rounded-xl border p-3" /></label>}
-          {config?.qrCodeUrl && <img src={resolveBackendMediaUrl(config.qrCodeUrl)} alt={active} className="h-32 rounded-xl border object-contain" />}
+          {active !== 'VISA' && (
+            <label className="text-sm font-bold text-slate-700 font-sans">
+              {t('admin_wallet.qr_upload')}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (file.size > 5 * 1024 * 1024) {
+                      toast.error("Kích thước tệp vượt quá 5MB!");
+                      return;
+                    }
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    try {
+                      const res = await adminApiClient.post("/uploads?folder=settings", formData, {
+                        headers: { "Content-Type": "multipart/form-data" }
+                      });
+                      if (res.data?.data?.url) {
+                        setForm((prev) => ({ ...prev, qrCodeUrl: res.data.data.url }));
+                        toast.success("Tải ảnh lên thành công!");
+                      }
+                    } catch (err) {
+                      toast.error("Không thể tải ảnh lên.");
+                    }
+                  }
+                }}
+                className="mt-2 block w-full rounded-xl border p-3 font-semibold font-sans"
+              />
+            </label>
+          )}
+          {form.qrCodeUrl && <img src={resolveBackendMediaUrl(form.qrCodeUrl)} alt={active} className="h-32 rounded-xl border object-contain" />}
           <label className="flex items-center gap-3 text-sm font-bold"><input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />{t('admin_wallet.active')}</label>
           <button disabled={busy} className="flex items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 font-black text-white"><Save size={18} />{t('common.save')}</button>
         </form>

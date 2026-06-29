@@ -1,4 +1,8 @@
+using System;
+using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using VietTourAudio.Api.Data;
 using VietTourAudio.Api.Helpers;
@@ -14,7 +18,7 @@ public sealed class GuestPaymentCompatibilityController(AppDbContext db) : Contr
   {
     if (string.IsNullOrWhiteSpace(request.GuestId)) return BadRequest(ApiResponseFactory.Fail("payment.guest_required"));
     var tour = (await DatabaseSql.QueryRowsAsync(db,
-      "SELECT name,price,is_premium isPremium FROM tours WHERE id=@id AND status='PUBLISHED'",
+      "SELECT name, 0.00 AS price, 0 AS isPremium FROM FestivalZones WHERE id=@id AND status='PUBLISHED'",
       new Dictionary<string, object?> { ["@id"] = request.TourId })).SingleOrDefault();
     if (tour is null) return NotFound(ApiResponseFactory.Fail("tour.not_found"));
     var clean = new string(request.GuestId.Where(char.IsLetterOrDigit).ToArray());
@@ -26,7 +30,7 @@ public sealed class GuestPaymentCompatibilityController(AppDbContext db) : Contr
       ON DUPLICATE KEY UPDATE status='PENDING',created_at=NOW()
       """, new Dictionary<string, object?> { ["@guestId"] = request.GuestId, ["@tourId"] = request.TourId, ["@reference"] = reference });
     var setting = (await DatabaseSql.QueryRowsAsync(db,
-      "SELECT value FROM app_settings WHERE `key`='PREMIUM_PAYMENT_QR' LIMIT 1")).SingleOrDefault();
+      "SELECT vvalue AS value FROM app_settings WHERE kkey='PREMIUM_PAYMENT_QR' LIMIT 1")).SingleOrDefault();
     if (setting?["value"] is not string bankValue) return StatusCode(503, ApiResponseFactory.Fail("payment.bank_not_configured"));
     var parts = bankValue.Split(':');
     if (parts.Length < 4) return StatusCode(503, ApiResponseFactory.Fail("payment.bank_not_configured"));
@@ -51,8 +55,8 @@ public sealed class GuestPaymentCompatibilityController(AppDbContext db) : Contr
   {
     var content = body.TryGetProperty("content", out var value) ? value.GetString() :
       body.TryGetProperty("description", out value) ? value.GetString() : "";
-    var match = System.Text.RegularExpressions.Regex.Match(content ?? "", @"VTAG[A-Z0-9]+T\d+",
-      System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    var match = Regex.Match(content ?? "", @"VTAG[A-Z0-9]+T[A-Z0-9\-]+",
+      RegexOptions.IgnoreCase);
     if (!match.Success) return Ok(new { success = false, message = "payment.reference_invalid" });
     var reference = match.Value.ToUpperInvariant();
     var payment = (await DatabaseSql.QueryRowsAsync(db,
@@ -72,4 +76,4 @@ public sealed class GuestPaymentCompatibilityController(AppDbContext db) : Contr
   }
 }
 
-public sealed record PaymentUnlockRequest(string GuestId, ulong TourId);
+public sealed record PaymentUnlockRequest(string GuestId, string TourId);

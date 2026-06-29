@@ -108,6 +108,7 @@ export function ZoneManagement() {
   const [poiFormStallId, setPoiFormStallId] = useState('');
   const [poiFormTourId, setPoiFormTourId] = useState('');
   const [poiFormDescription, setPoiFormDescription] = useState('');
+  const [poiFormCoverImageUrl, setPoiFormCoverImageUrl] = useState('');
   const [poiFormLatitude, setPoiFormLatitude] = useState('');
   const [poiFormLongitude, setPoiFormLongitude] = useState('');
   const [poiFormRadius, setPoiFormRadius] = useState('25');
@@ -277,7 +278,7 @@ export function ZoneManagement() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
@@ -286,6 +287,21 @@ export function ZoneManagement() {
       }
       setSelectedFile(file);
       setPreviewUrl(URL.createObjectURL(file));
+
+      const formData = new FormData();
+      formData.append("file", file);
+      try {
+        const response = await adminApiClient.post("/uploads?folder=zones", formData, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+        if (response.data?.data?.url) {
+          setFormCoverImageUrl(response.data.data.url);
+          setPreviewUrl(response.data.data.url);
+          toast.success(t('zone.upload_success', { defaultValue: 'Tải ảnh lên thành công!' }));
+        }
+      } catch (err: any) {
+        toast.error("Không thể tải ảnh lên.");
+      }
     }
   };
 
@@ -428,9 +444,10 @@ export function ZoneManagement() {
   const openAddPoiModal = (tourId: string) => {
     setError('');
     setPoiFormName('');
-    setPoiFormStallId(stalls[0]?.id ?? '1');
+    setPoiFormStallId(stalls[0]?.id ? String(stalls[0].id) : '1');
     setPoiFormTourId(tourId);
     setPoiFormDescription('');
+    setPoiFormCoverImageUrl('');
     setPoiFormLatitude('10.77582');
     setPoiFormLongitude('106.70208');
     setPoiFormRadius('25');
@@ -452,6 +469,7 @@ export function ZoneManagement() {
     setPoiFormStallId(poi.stallId ?? (stalls[0]?.id ?? '1'));
     setPoiFormTourId(poi.tourId ? String(poi.tourId) : (selectedZoneId ?? ''));
     setPoiFormDescription(poi.description ?? '');
+    setPoiFormCoverImageUrl(poi.coverUrl ?? poi.coverImageUrl ?? '');
     setPoiFormLatitude(String(poi.latitude ?? ''));
     setPoiFormLongitude(String(poi.longitude ?? ''));
     setPoiFormRadius(String(poi.activationRadius ?? '25'));
@@ -516,16 +534,8 @@ export function ZoneManagement() {
         formData.append("latitude", lat.toFixed(6));
         formData.append("longitude", lng.toFixed(6));
 
-        if (coverImageMode === 'upload') {
-          if (selectedFile) {
-            formData.append("coverFile", selectedFile);
-          } else if (previewUrl && !previewUrl.startsWith('blob:')) {
-            formData.append("coverImageUrl", previewUrl);
-          }
-        } else {
-          if (formCoverImageUrl.trim()) {
-            formData.append("coverImageUrl", formCoverImageUrl.trim());
-          }
+        if (formCoverImageUrl.trim()) {
+          formData.append("coverImageUrl", formCoverImageUrl.trim());
         }
 
         if (modal.type === 'add') {
@@ -551,6 +561,7 @@ export function ZoneManagement() {
           stallId: Number(poiFormStallId),
           name: poiFormName.trim(),
           description: poiFormDescription.trim(),
+          coverUrl: poiFormCoverImageUrl,
           latitude: lat,
           longitude: lng,
           activationRadius: rad,
@@ -1087,6 +1098,8 @@ export function ZoneManagement() {
           setFormTourId={setPoiFormTourId}
           formDescription={poiFormDescription}
           setFormDescription={setPoiFormDescription}
+          formCoverImageUrl={poiFormCoverImageUrl}
+          setFormCoverImageUrl={setPoiFormCoverImageUrl}
           formLatitude={poiFormLatitude}
           setFormLatitude={setPoiFormLatitude}
           formLongitude={poiFormLongitude}

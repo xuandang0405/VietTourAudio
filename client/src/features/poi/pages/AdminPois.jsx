@@ -49,6 +49,7 @@ export function AdminPois() {
   const [formStallId, setFormStallId] = useState('');
   const [formTourId, setFormTourId] = useState('');
   const [formDescription, setFormDescription] = useState('');
+  const [formCoverImageUrl, setFormCoverImageUrl] = useState('');
   const [formLatitude, setFormLatitude] = useState('');
   const [formLongitude, setFormLongitude] = useState('');
   const [formRadius, setFormRadius] = useState('');
@@ -134,6 +135,7 @@ export function AdminPois() {
     setFormStallId(stalls[0]?.id ?? '1');
     setFormTourId(selectedTourId && selectedTourId !== 'approvals' ? String(selectedTourId) : (tours[0]?.id ?? ''));
     setFormDescription('');
+    setFormCoverImageUrl('');
     setFormLatitude('10.77582');
     setFormLongitude('106.70208');
     setFormRadius('25');
@@ -155,6 +157,7 @@ export function AdminPois() {
     setFormStallId(poi.stallId ?? (stalls[0]?.id ?? '1'));
     setFormTourId(poi.tourId ? String(poi.tourId) : (selectedTourId && selectedTourId !== 'approvals' ? String(selectedTourId) : (tours[0]?.id ?? '')));
     setFormDescription(poi.description ?? '');
+    setFormCoverImageUrl(poi.coverUrl ?? poi.coverImageUrl ?? '');
     setFormLatitude(String(poi.latitude ?? ''));
     setFormLongitude(String(poi.longitude ?? ''));
     setFormRadius(String(poi.activationRadius ?? '25'));
@@ -234,6 +237,7 @@ export function AdminPois() {
           stallId: Number(formStallId),
           name: formName.trim(),
           description: formDescription.trim(),
+          coverUrl: formCoverImageUrl,
           latitude: lat,
           longitude: lng,
           activationRadius: rad,
@@ -744,6 +748,8 @@ export function AdminPois() {
           setFormTourId={setFormTourId}
           formDescription={formDescription}
           setFormDescription={setFormDescription}
+          formCoverImageUrl={formCoverImageUrl}
+          setFormCoverImageUrl={setFormCoverImageUrl}
           formLatitude={formLatitude}
           setFormLatitude={setFormLatitude}
           formLongitude={formLongitude}

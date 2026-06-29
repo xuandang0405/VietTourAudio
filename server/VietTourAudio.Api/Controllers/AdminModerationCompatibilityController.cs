@@ -1,7 +1,14 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Security.Claims;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using VietTourAudio.Api.Data;
 using VietTourAudio.Api.Helpers;
 
@@ -12,6 +19,8 @@ namespace VietTourAudio.Api.Controllers;
 [Authorize(Roles = "SUPER_ADMIN,ADMIN,MODERATOR")]
 public sealed class AdminContentCompatibilityController(
   AppDbContext db,
+  IWebHostEnvironment environment,
+  VietTourAudio.Api.Services.PoiTranslationService translationService,
   IHubContext<VietTourAudio.Api.Hubs.NotificationHub> hubContext) : ControllerBase
 {
   [HttpGet("queue")]
@@ -19,37 +28,36 @@ public sealed class AdminContentCompatibilityController(
   {
     var rows = await DatabaseSql.QueryRowsAsync(db, """
       SELECT * FROM (
-        SELECT CAST(m.id AS CHAR) id,CAST(m.vendor_id AS CHAR) vendorId,CAST(m.stall_id AS CHAR) stallId,
+        SELECT CAST(m.id AS CHAR) id,CAST(m.vendor_id AS CHAR) vendorId,CAST(m.poi_id AS CHAR) stallId,
           CAST(m.poi_id AS CHAR) poiId,
           CASE WHEN m.file_type IN('LOGO','QR') THEN 'IMAGE' ELSE m.file_type END mediaType,
-          m.file_path storagePath,COALESCE(m.public_url,m.file_path) publicUrl,m.mime_type mimeType,
+          m.file_path storagePath,COALESCE(m.public_url,m.file_path) publicUrl,COALESCE(m.public_url,m.file_path) coverUrl,m.mime_type mimeType,
           m.file_size sizeBytes,m.moderation_status moderationStatus,m.rejection_reason rejectionReason,
-          m.created_at createdAt,v.trade_name vendorName,s.name stallName,p.name poiName
+          m.created_at createdAt,v.trade_name vendorName,p.stall_name stallName,p.stall_name poiName
         FROM media_files m 
         JOIN vendors v ON v.id=m.vendor_id
-        LEFT JOIN stalls s ON s.id=m.stall_id 
-        LEFT JOIN zones p ON p.id=m.poi_id
+        LEFT JOIN Pois p ON p.id=m.poi_id
         WHERE (@status='ALL' OR m.moderation_status=@status)
-          AND m.stall_id IS NULL
 
         UNION ALL
 
-        SELECT CAST(s.id + 2000000000 AS CHAR) id,CAST(s.vendor_id AS CHAR) vendorId,CAST(s.id AS CHAR) stallId,
+        SELECT CAST(p.id AS CHAR) id,CAST(p.vendor_id AS CHAR) vendorId,CAST(p.id AS CHAR) stallId,
           NULL poiId,
           'STALL' mediaType,
-          COALESCE(s.pending_cover_image_url, '') storagePath,
-          COALESCE(s.pending_cover_image_url, '') publicUrl,
+          COALESCE(p.pending_cover_image_url, p.cover_url, '') storagePath,
+          COALESCE(p.pending_cover_image_url, p.cover_url, '') publicUrl,
+          COALESCE(p.pending_cover_image_url, p.cover_url, '') coverUrl,
           'text/plain' mimeType,
           CAST(0 AS UNSIGNED) sizeBytes,
-          s.approval_status moderationStatus,
+          p.approval_status moderationStatus,
           NULL rejectionReason,
-          s.updated_at createdAt,
+          p.updated_at createdAt,
           v.trade_name vendorName,
-          s.name stallName,
+          p.stall_name stallName,
           NULL poiName
-        FROM stalls s
-        JOIN vendors v ON v.id=s.vendor_id
-        WHERE (@status='ALL' OR s.approval_status=@status)
+        FROM Pois p
+        JOIN vendors v ON v.id=p.vendor_id
+        WHERE p.vendor_id IS NOT NULL AND (@status='ALL' OR p.approval_status=@status)
       ) q ORDER BY q.createdAt DESC
       """, new Dictionary<string, object?> { ["@status"] = status });
     foreach (var row in rows)
@@ -62,9 +70,9 @@ public sealed class AdminContentCompatibilityController(
     return Ok(ApiResponseFactory.Ok(rows));
   }
 
-  [HttpPost("{id:long}/approve")] public Task<IActionResult> Approve(ulong id) => Moderate(id, "APPROVED", null);
-  [HttpPost("{id:long}/reject")] public Task<IActionResult> Reject(ulong id, [FromBody] ReasonRequest request) => Moderate(id, "REJECTED", request.Reason);
-  [HttpPost("{id:long}/hide")] public Task<IActionResult> Hide(ulong id, [FromBody] ReasonRequest request) => Moderate(id, "HIDDEN", request.Reason);
+  [HttpPost("{id}/approve")] public Task<IActionResult> Approve(string id) => Moderate(id, "APPROVED", null);
+  [HttpPost("{id}/reject")] public Task<IActionResult> Reject(string id, [FromBody] ReasonRequest request) => Moderate(id, "REJECTED", request.Reason);
+  [HttpPost("{id}/hide")] public Task<IActionResult> Hide(string id, [FromBody] ReasonRequest request) => Moderate(id, "HIDDEN", request.Reason);
 
   [HttpPatch("bulk-approve")]
   public async Task<IActionResult> Bulk([FromBody] IdListRequest request)
@@ -73,192 +81,132 @@ public sealed class AdminContentCompatibilityController(
     var count = 0;
     foreach (var id in request.Ids)
     {
-      if (id >= 2000000000)
+      var mediaAffected = await DatabaseSql.ExecuteAsync(db, """
+        UPDATE media_files SET moderation_status='APPROVED' WHERE id=@id
+        """, new Dictionary<string, object?> { ["@id"] = id });
+      if (mediaAffected > 0)
       {
-        var numericId = id - 2000000000;
-        var mediaUpdateSql = """
-          UPDATE media_files m JOIN stalls s ON s.id=m.stall_id
-          SET m.moderation_status='APPROVED',m.moderated_at=NOW()
-          WHERE s.id=@id AND m.file_name=s.pending_cover_image_url AND m.moderation_status='PENDING';
-          """;
-        var updateStallSql = """
-          UPDATE stalls SET name=COALESCE(pending_name,name),description=COALESCE(pending_description,description),
-            latitude=COALESCE(pending_latitude,latitude),longitude=COALESCE(pending_longitude,longitude),
-            pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,pending_latitude=NULL,pending_longitude=NULL,
-            approval_status='APPROVED',status='APPROVED',updated_at=NOW() WHERE id=@id;
+        count++;
+        continue;
+      }
 
-          UPDATE zones SET name=COALESCE(pending_name,name),description=COALESCE(pending_description,description),
-            latitude=COALESCE(pending_latitude,latitude),longitude=COALESCE(pending_longitude,longitude),
-            cover_url=COALESCE(pending_cover_image_url,cover_url),
-            pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,pending_latitude=NULL,pending_longitude=NULL,
-            approval_status='APPROVED',status='ACTIVE',updated_at=NOW() WHERE stall_id=@id;
-          """;
-        var connection = await DatabaseSql.OpenConnectionAsync(db);
-        await using (var command = connection.CreateCommand())
-        {
-          command.CommandText = mediaUpdateSql + updateStallSql;
-          command.AddParameter("@id", numericId);
-          count += await command.ExecuteNonQueryAsync() > 0 ? 1 : 0;
-        }
+      var poiApproved = await ApprovePoiInternalAsync(id);
+      if (poiApproved)
+      {
+        count++;
         try
         {
-          await hubContext.Clients.All.SendAsync("StallStatusUpdated", numericId.ToString(), "APPROVED");
+          await hubContext.Clients.All.SendAsync("StallStatusUpdated", id, "APPROVED");
         }
         catch {}
-      }
-      else if (id >= 1000000000)
-      {
-        var numericId = id - 1000000000;
-        var mediaUpdateSql = """
-          UPDATE media_files m JOIN zones z ON z.id=m.poi_id
-          SET m.moderation_status='APPROVED',m.moderated_at=NOW()
-          WHERE z.id=@id AND m.file_path=z.pending_cover_image_url AND m.moderation_status='PENDING';
-          """;
-        var updateZoneSql = """
-          UPDATE zones SET name=COALESCE(pending_name,name),description=COALESCE(pending_description,description),
-            latitude=COALESCE(pending_latitude,latitude),longitude=COALESCE(pending_longitude,longitude),
-            pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,pending_latitude=NULL,pending_longitude=NULL,
-            approval_status='APPROVED',status='ACTIVE',updated_at=NOW() WHERE id=@id
-          """;
-        var connection = await DatabaseSql.OpenConnectionAsync(db);
-        await using (var command = connection.CreateCommand())
-        {
-          command.CommandText = mediaUpdateSql + updateZoneSql;
-          command.AddParameter("@id", numericId);
-          count += await command.ExecuteNonQueryAsync() > 0 ? 1 : 0;
-        }
-      }
-      else
-      {
-        count += await SetModeration(id, "APPROVED", null);
       }
     }
     return Ok(ApiResponseFactory.Ok(new { count }));
   }
 
-  private async Task<IActionResult> Moderate(ulong id, string status, string? reason)
+  private async Task<bool> ApprovePoiInternalAsync(string id)
   {
-    if (id >= 2000000000)
+    var poi = await db.Pois.FirstOrDefaultAsync(p => p.Id == id);
+    if (poi == null) return false;
+
+    var webRoot = environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot");
+    var oldCoverUrl = poi.CoverUrl;
+    var newCoverUrl = poi.PendingCoverUrl;
+
+    poi.StallName = poi.PendingName ?? poi.StallName;
+    poi.Description = poi.PendingDescription ?? poi.Description;
+    if (poi.PendingLatitude.HasValue) poi.Latitude = poi.PendingLatitude.Value;
+    if (poi.PendingLongitude.HasValue) poi.Longitude = poi.PendingLongitude.Value;
+    
+    if (!string.IsNullOrEmpty(newCoverUrl) && newCoverUrl != oldCoverUrl)
     {
-      var numericId = id - 2000000000;
-      var approve = status == "APPROVED";
-      var mediaUpdateSql = approve
-        ? """
-          UPDATE media_files m JOIN stalls s ON s.id=m.stall_id
-          SET m.moderation_status='APPROVED',m.moderated_at=NOW()
-          WHERE s.id=@id AND m.file_name=s.pending_cover_image_url AND m.moderation_status='PENDING';
-          """
-        : """
-          UPDATE media_files m JOIN stalls s ON s.id=m.stall_id
-          SET m.moderation_status='REJECTED',m.moderated_at=NOW(),m.rejection_reason='stall_update_rejected'
-          WHERE s.id=@id AND m.file_name=s.pending_cover_image_url AND m.moderation_status='PENDING';
-          """;
+      poi.CoverUrl = newCoverUrl;
+    }
 
-      var updateStallSql = approve
-        ? """
-          UPDATE stalls SET name=COALESCE(pending_name,name),description=COALESCE(pending_description,description),
-            latitude=COALESCE(pending_latitude,latitude),longitude=COALESCE(pending_longitude,longitude),
-            pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,pending_latitude=NULL,pending_longitude=NULL,
-            approval_status='APPROVED',status='APPROVED',updated_at=NOW() WHERE id=@id;
+    poi.ApprovalStatus = "APPROVED";
+    poi.Status = "ACTIVE";
+    poi.UpdatedAt = DateTime.UtcNow;
 
-          UPDATE zones SET name=COALESCE(pending_name,name),description=COALESCE(pending_description,description),
-            latitude=COALESCE(pending_latitude,latitude),longitude=COALESCE(pending_longitude,longitude),
-            cover_url=COALESCE(pending_cover_image_url,cover_url),
-            pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,pending_latitude=NULL,pending_longitude=NULL,
-            approval_status='APPROVED',status='ACTIVE',updated_at=NOW() WHERE stall_id=@id;
-          """
-        : """
-          UPDATE stalls SET pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,
-            pending_latitude=NULL,pending_longitude=NULL,approval_status='REJECTED',updated_at=NOW() WHERE id=@id;
+    // Reset pending fields
+    poi.PendingName = null;
+    poi.PendingDescription = null;
+    poi.PendingCoverUrl = null;
+    poi.PendingLatitude = null;
+    poi.PendingLongitude = null;
 
-          UPDATE zones SET pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,
-            pending_latitude=NULL,pending_longitude=NULL,approval_status='REJECTED',updated_at=NOW() WHERE stall_id=@id;
-          """;
-
-      var connection = await DatabaseSql.OpenConnectionAsync(db);
-      await using (var command = connection.CreateCommand())
+    // Run translations
+    await translationService.AutoLocalizeAsync(poi);
+    
+    var saved = await db.SaveChangesAsync();
+    if (saved > 0)
+    {
+      if (!string.IsNullOrEmpty(newCoverUrl) && newCoverUrl != oldCoverUrl)
       {
-        command.CommandText = mediaUpdateSql + updateStallSql;
-        command.AddParameter("@id", numericId);
-        await command.ExecuteNonQueryAsync();
+        FileCleanupHelper.DeletePhysicalFile(oldCoverUrl, webRoot);
       }
+      return true;
+    }
+    return false;
+  }
 
-      // Send SignalR notification
+  private async Task<bool> RejectPoiInternalAsync(string id, string? reason)
+  {
+    var poi = await db.Pois.FirstOrDefaultAsync(p => p.Id == id);
+    if (poi == null) return false;
+
+    poi.ApprovalStatus = "REJECTED";
+    poi.Status = "INACTIVE";
+    poi.UpdatedAt = DateTime.UtcNow;
+
+    var saved = await db.SaveChangesAsync();
+    return saved > 0;
+  }
+
+  private async Task<IActionResult> Moderate(string id, string status, string? reason)
+  {
+    var mediaAffected = await DatabaseSql.ExecuteAsync(db, """
+      UPDATE media_files SET moderation_status=@status, rejection_reason=@reason WHERE id=@id
+      """, new Dictionary<string, object?> { ["@status"] = status, ["@reason"] = reason, ["@id"] = id });
+    if (mediaAffected > 0)
+    {
+      return Ok(ApiResponseFactory.Ok(new
+      {
+        id = id,
+        moderationStatus = status,
+        rejectionReason = reason,
+        moderatedAt = DateTime.UtcNow
+      }));
+    }
+
+    bool poiAffected = false;
+    if (status == "APPROVED")
+    {
+      poiAffected = await ApprovePoiInternalAsync(id);
+    }
+    else
+    {
+      poiAffected = await RejectPoiInternalAsync(id, reason);
+    }
+
+    if (poiAffected)
+    {
       try
       {
-        await hubContext.Clients.All.SendAsync("StallStatusUpdated", numericId.ToString(), status);
+        await hubContext.Clients.All.SendAsync("StallStatusUpdated", id, status);
       }
       catch {}
 
       return Ok(ApiResponseFactory.Ok(new
       {
-        id = id.ToString(),
+        id = id,
         moderationStatus = status,
         rejectionReason = reason,
         moderatedAt = DateTime.UtcNow
       }));
     }
-    else if (id >= 1000000000)
-    {
-      var numericId = id - 1000000000;
-      var approve = status == "APPROVED";
-      var mediaUpdateSql = approve
-        ? """
-          UPDATE media_files m JOIN zones z ON z.id=m.poi_id
-          SET m.moderation_status='APPROVED',m.moderated_at=NOW()
-          WHERE z.id=@id AND m.file_path=z.pending_cover_image_url AND m.moderation_status='PENDING';
-          """
-        : """
-          UPDATE media_files m JOIN zones z ON z.id=m.poi_id
-          SET m.moderation_status='REJECTED',m.moderated_at=NOW(),m.rejection_reason='poi_update_rejected'
-          WHERE z.id=@id AND m.file_path=z.pending_cover_image_url AND m.moderation_status='PENDING';
-          """;
 
-      var updateZoneSql = approve
-        ? """
-          UPDATE zones SET name=COALESCE(pending_name,name),description=COALESCE(pending_description,description),
-            latitude=COALESCE(pending_latitude,latitude),longitude=COALESCE(pending_longitude,longitude),
-            pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,pending_latitude=NULL,pending_longitude=NULL,
-            approval_status='APPROVED',status='ACTIVE',updated_at=NOW() WHERE id=@id
-          """
-        : """
-          UPDATE zones SET pending_name=NULL,pending_description=NULL,pending_cover_image_url=NULL,
-            pending_latitude=NULL,pending_longitude=NULL,approval_status='REJECTED',updated_at=NOW() WHERE id=@id
-          """;
-
-      var connection = await DatabaseSql.OpenConnectionAsync(db);
-      await using (var command = connection.CreateCommand())
-      {
-        command.CommandText = mediaUpdateSql + updateZoneSql;
-        command.AddParameter("@id", numericId);
-        await command.ExecuteNonQueryAsync();
-      }
-
-      return Ok(ApiResponseFactory.Ok(new
-      {
-        id = id.ToString(),
-        moderationStatus = status,
-        rejectionReason = reason,
-        moderatedAt = DateTime.UtcNow
-      }));
-    }
-    else
-    {
-      var count = await SetModeration(id, status, reason);
-      if (count == 0) return NotFound(ApiResponseFactory.Fail("content.not_found"));
-      var result = (await DatabaseSql.QueryRowsAsync(db, """
-        SELECT CAST(id AS CHAR) id,moderation_status moderationStatus,rejection_reason rejectionReason,
-          moderated_at moderatedAt FROM media_files WHERE id=@id
-        """, new Dictionary<string, object?> { ["@id"] = id })).Single();
-      return Ok(ApiResponseFactory.Ok(result));
-    }
+    return NotFound(ApiResponseFactory.Fail("content.not_found"));
   }
-
-  private Task<int> SetModeration(ulong id, string status, string? reason) => DatabaseSql.ExecuteAsync(db, """
-    UPDATE media_files SET moderation_status=@status,rejection_reason=@reason,
-      moderated_by_user_id=@actor,moderated_at=NOW() WHERE id=@id
-    """, new Dictionary<string, object?> { ["@status"] = status, ["@reason"] = reason,
-      ["@actor"] = ulong.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!), ["@id"] = id });
 }
 
 [ApiController]
@@ -279,15 +227,15 @@ public sealed class AdminGeofenceCompatibilityController(AppDbContext db) : Cont
   {
     var stalls = await Stalls(); AddOverlaps(stalls);
     var pois = await DatabaseSql.QueryRowsAsync(db, """
-      SELECT CAST(p.id AS CHAR) id,p.name,CAST(p.stall_id AS CHAR) stallId,s.name stallName,
-        p.latitude,p.longitude,p.activation_radius activationRadius,p.status
-      FROM pois p JOIN stalls s ON s.id=p.stall_id ORDER BY p.name
+      SELECT CAST(p.id AS CHAR) id,p.stall_name AS name,CAST(p.id AS CHAR) stallId,v.trade_name stallName,
+        p.latitude,p.longitude,p.trigger_radius activationRadius,p.status
+      FROM Pois p LEFT JOIN vendors v ON v.id=p.vendor_id WHERE p.vendor_id IS NULL ORDER BY p.stall_name
       """);
     var tours = await DatabaseSql.QueryRowsAsync(db, """
       SELECT CAST(t.id AS CHAR) id,t.name,t.description,
         COALESCE(AVG(p.latitude),t.latitude) latitude,COALESCE(AVG(p.longitude),t.longitude) longitude,
-        GREATEST(150,COALESCE(MAX(p.activation_radius)+50,150)) radius
-      FROM tours t LEFT JOIN tour_pois tp ON tp.tour_id=t.id LEFT JOIN pois p ON p.id=tp.poi_id
+        GREATEST(150,COALESCE(MAX(p.trigger_radius)+50,150)) radius
+      FROM FestivalZones t LEFT JOIN Pois p ON p.festival_zone_id=t.id
       WHERE t.status!='ARCHIVED' GROUP BY t.id,t.name,t.description,t.latitude,t.longitude
       """);
     return Ok(ApiResponseFactory.Ok(new { stalls, pois, tours }));
@@ -307,10 +255,10 @@ public sealed class AdminGeofenceCompatibilityController(AppDbContext db) : Cont
   private async Task<List<Dictionary<string, object?>>> Stalls()
   {
     var rows = await DatabaseSql.QueryRowsAsync(db, """
-      SELECT CAST(s.id AS CHAR) id,CAST(s.vendor_id AS CHAR) vendorId,s.name,s.slug,s.latitude,s.longitude,
-        s.activation_radius activationRadius,IF(s.status='APPROVED','ACTIVE',s.status) status,
-        s.created_at createdAt,s.updated_at updatedAt,v.trade_name businessName,v.contact_email ownerEmail
-      FROM stalls s JOIN vendors v ON v.id=s.vendor_id ORDER BY s.name
+      SELECT CAST(p.id AS CHAR) id,CAST(p.vendor_id AS CHAR) vendorId,p.stall_name AS name,p.slug,p.latitude,p.longitude,
+        p.trigger_radius activationRadius,IF(p.approval_status='APPROVED','ACTIVE',p.status) status,
+        p.created_at createdAt,p.updated_at updatedAt,v.trade_name businessName,v.email ownerEmail
+      FROM Pois p JOIN vendors v ON v.id=p.vendor_id ORDER BY p.stall_name
       """);
     foreach (var row in rows)
     {
@@ -340,5 +288,5 @@ public sealed class AdminGeofenceCompatibilityController(AppDbContext db) : Cont
   }
 }
 
-public sealed record IdListRequest(ulong[] Ids);
+public sealed record IdListRequest(string[] Ids);
 public sealed record GeofenceRequest(double Latitude, double Longitude, double? ActivationRadius, double? Radius);

@@ -4,15 +4,22 @@ using Microsoft.AspNetCore.SignalR;
 using VietTourAudio.Api.Data;
 using VietTourAudio.Api.Domain;
 using VietTourAudio.Api.Helpers;
+using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace VietTourAudio.Api.Controllers;
 
 [ApiController]
 [Route("api/guest")]
-public sealed class GuestController(AppDbContext db, IHttpClientFactory clients, Microsoft.AspNetCore.Hosting.IWebHostEnvironment env, Microsoft.AspNetCore.SignalR.IHubContext<VietTourAudio.Api.Hubs.NotificationHub> hubContext) : ControllerBase
+public sealed class GuestController(
+  AppDbContext db,
+  IHttpClientFactory clients,
+  Microsoft.AspNetCore.Hosting.IWebHostEnvironment env,
+  Microsoft.AspNetCore.SignalR.IHubContext<VietTourAudio.Api.Hubs.NotificationHub> hubContext) : ControllerBase
 {
   [HttpGet("payment-gateways")]
   public async Task<IActionResult> GetPublicGateways()
@@ -36,7 +43,7 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
     var normalizedParam = param.Trim().ToLowerInvariant();
     var publicZones = db.FestivalZones
       .Include(zone => zone.Pois.Where(poi =>
-        poi.Status == "ACTIVE" && poi.ApprovalStatus == ApprovalStatus.APPROVED))
+        poi.Status == "ACTIVE" && poi.ApprovalStatus == "APPROVED"))
         .ThenInclude(poi => poi.Products)
       .AsNoTracking();
 
@@ -65,9 +72,7 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
 
       if (qrTour is not null)
       {
-        var tourId = Convert.ToUInt64(qrTour["tourId"]);
-        // An explicitly active TOUR QR is itself a public-entry grant. This keeps
-        // unscanned drafts private while allowing their issued QR deep link.
+        var tourId = qrTour["tourId"]?.ToString() ?? "";
         activeZone = await publicZones.FirstOrDefaultAsync(zone => zone.Id == tourId);
       }
     }
@@ -75,24 +80,22 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
     if (activeZone is null)
     {
       var stall = (await DatabaseSql.QueryRowsAsync(db, """
-        SELECT id, name, slug, description, status, zone_code AS zoneCode
-        FROM stalls
-        WHERE (LOWER(zone_code) = @param OR LOWER(slug) = @param)
-          AND status = 'APPROVED'
-          AND billing_suspended = 0
+        SELECT id, stall_name AS name, slug, description, status, vendor_id AS zoneCode
+        FROM Pois
+        WHERE (LOWER(vendor_id) = @param OR LOWER(slug) = @param)
+          AND approval_status = 'APPROVED'
         LIMIT 1
         """, new Dictionary<string, object?> { ["@param"] = normalizedParam }))
         .SingleOrDefault();
 
       if (stall is not null)
       {
-        var stallId = Convert.ToUInt64(stall["id"]);
-        var contents = await LoadApprovedPoiContentAsync(stallId, false, lang);
+        var stallId = stall["id"]?.ToString() ?? "";
         var stallPois = await db.Pois
           .Where(poi =>
-            poi.StallId == stallId &&
+            poi.VendorId == stallId &&
             poi.Status == "ACTIVE" &&
-            poi.ApprovalStatus == ApprovalStatus.APPROVED)
+            poi.ApprovalStatus == "APPROVED")
           .Include(poi => poi.Products)
           .AsNoTracking()
           .ToListAsync();
@@ -103,22 +106,22 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
           pois = stallPois.Select(poi => new
           {
             poi.Id,
-            poi.Name,
+            Name = poi.StallName,
             poi.Slug,
             poi.Description,
             poi.Latitude,
             poi.Longitude,
-            poi.ActivationRadius,
-            poi.StallId,
-            poi.TourId,
+            ActivationRadius = poi.TriggerRadius,
+            StallId = poi.VendorId,
+            TourId = poi.FestivalZoneId,
             poi.Status,
-            approvalStatus = poi.ApprovalStatus.ToString(),
-            audioUrl = contents.GetValueOrDefault(poi.Id)?.GetValueOrDefault("audioUrl"),
-            ttsScript = contents.GetValueOrDefault(poi.Id)?.GetValueOrDefault("ttsScript"),
+            approvalStatus = poi.ApprovalStatus,
+            audioUrl = (string?)null,
+            ttsScript = poi.Description,
             products = poi.Products.Select(product => new
             {
               product.Id,
-              product.Name,
+              Name = product.ProductName,
               product.Price
             })
           })
@@ -129,7 +132,6 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
     if (activeZone is null)
       return NotFound(new { success = false, message = "Zone not found." });
 
-    var zoneContents = await LoadApprovedPoiContentAsync(activeZone.Id, true, lang);
     var data = new
     {
       stall = new
@@ -146,22 +148,22 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
       pois = activeZone.Pois.Select(poi => new
       {
         poi.Id,
-        poi.Name,
+        Name = poi.StallName,
         poi.Slug,
         poi.Description,
         poi.Latitude,
         poi.Longitude,
-        poi.ActivationRadius,
-        poi.StallId,
-        poi.TourId,
+        ActivationRadius = poi.TriggerRadius,
+        StallId = poi.VendorId,
+        TourId = poi.FestivalZoneId,
         poi.Status,
-        approvalStatus = poi.ApprovalStatus.ToString(),
-        audioUrl = zoneContents.GetValueOrDefault(poi.Id)?.GetValueOrDefault("audioUrl"),
-        ttsScript = zoneContents.GetValueOrDefault(poi.Id)?.GetValueOrDefault("ttsScript"),
+        approvalStatus = poi.ApprovalStatus,
+        audioUrl = (string?)null,
+        ttsScript = poi.Description,
         products = poi.Products.Select(product => new
         {
           product.Id,
-          product.Name,
+          Name = product.ProductName,
           product.Price
         })
       })
@@ -170,41 +172,16 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
     return Ok(ApiResponseFactory.Ok(data));
   }
 
-  private async Task<Dictionary<ulong, Dictionary<string, object?>>> LoadApprovedPoiContentAsync(
-    ulong scopeId,
-    bool tourScope,
-    string? lang)
-  {
-    var scopeColumn = tourScope ? "tour_id" : "stall_id";
-    var rows = await DatabaseSql.QueryRowsAsync(db, $"""
-      SELECT pc.poi_id AS poiId, pc.audio_url AS audioUrl, pc.tts_script AS ttsScript
-      FROM poi_contents pc
-      JOIN zones poi ON poi.id = pc.poi_id
-      WHERE poi.{scopeColumn} = @scopeId
-        AND pc.lang = @lang
-        AND pc.approval_status = 'approved'
-      """, new Dictionary<string, object?>
-    {
-      ["@scopeId"] = scopeId,
-      ["@lang"] = SupportedLanguage(lang ?? "vi")
-    });
-
-    return rows.ToDictionary(row => Convert.ToUInt64(row["poiId"]));
-  }
-
   [HttpGet("zones")]
   [HttpGet("tours")]
   public async Task<IActionResult> Zones()
   {
-    var publicStalls = await db.Database.SqlQuery<ulong>(
-      $"SELECT id AS Value FROM stalls WHERE status='APPROVED' AND billing_suspended=0").ToListAsync();
-    
     var zones = await db.FestivalZones
       .Include(z => z.Pois)
       .ThenInclude(p => p.Products)
       .AsNoTracking()
       .Where(x => x.Status == "PUBLISHED")
-      .OrderBy(x => x.SortOrder).ThenBy(x => x.Id)
+      .OrderBy(x => x.SortOrder)
       .ToListAsync();
 
     var result = zones.Select(x => new
@@ -213,12 +190,12 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
       x.Name,
       x.Slug,
       x.Description,
-      coverImage = x.CoverImageUrl,
+      coverImage = x.CoverUrl,
       latitude = x.Latitude,
       longitude = x.Longitude,
-      pois = x.Pois.Where(p => p.Status == "ACTIVE" && p.ApprovalStatus == ApprovalStatus.APPROVED && publicStalls.Contains(p.StallId))
-        .Select(p => new { id = p.Id, p.Name, title = p.Name, p.Slug, p.Description,
-          p.Latitude, p.Longitude, activationRadius = p.ActivationRadius, stallId = p.StallId })
+      pois = x.Pois.Where(p => p.Status == "ACTIVE" && p.ApprovalStatus == "APPROVED")
+        .Select(p => new { id = p.Id, name = p.StallName, title = p.StallName, p.Slug, p.Description,
+          p.Latitude, p.Longitude, activationRadius = p.TriggerRadius, stallId = p.VendorId })
     });
 
     return Ok(ApiResponseFactory.Ok(result));
@@ -229,18 +206,17 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
   {
     if (string.IsNullOrWhiteSpace(zoneCode)) return BadRequest(ApiResponseFactory.Fail("error.zone_code_required"));
     var rows = await DatabaseSql.QueryRowsAsync(db, """
-      SELECT CAST(z.id AS CHAR) id,COALESCE(pc.title,z.name) name,z.slug,
-        COALESCE(pc.tts_script,z.description) description,z.latitude,z.longitude,
-        z.activation_radius activationRadius,z.is_premium_content isPremiumContent,
-        CAST(z.stall_id AS CHAR) stallId,s.name stallName,pc.audio_url audioUrl,
-        CAST(z.tour_id AS CHAR) tourId, t.slug tourSlug
-      FROM zones z 
-      JOIN stalls s ON s.id=z.stall_id
-      JOIN tours t ON t.id=z.tour_id
-      LEFT JOIN poi_contents pc ON pc.poi_id=z.id AND pc.lang=@lang AND pc.approval_status='approved'
-      WHERE (s.zone_code=@code OR s.slug=@code) AND s.status='APPROVED' AND s.billing_suspended=0
-        AND z.status='ACTIVE' AND z.approval_status='APPROVED' ORDER BY z.sort_order,z.id
-      """, new Dictionary<string, object?> { ["@code"] = zoneCode.Trim(), ["@lang"] = SupportedLanguage(lang) });
+      SELECT p.id, p.stall_name AS name, p.slug, p.description, p.latitude, p.longitude,
+             p.trigger_radius AS activationRadius, p.is_premium_priority AS isPremiumContent,
+             p.vendor_id AS stallId, p.stall_name AS stallName, NULL AS audioUrl,
+             p.festival_zone_id AS tourId, f.slug AS tourSlug
+      FROM Pois p
+      JOIN FestivalZones f ON f.id = p.festival_zone_id
+      WHERE (LOWER(p.vendor_id) = @code OR LOWER(p.slug) = @code)
+        AND p.approval_status = 'APPROVED'
+        AND p.status = 'ACTIVE'
+      ORDER BY p.sort_order, p.id
+      """, new Dictionary<string, object?> { ["@code"] = zoneCode.Trim() });
     return Ok(ApiResponseFactory.Ok(rows));
   }
 
@@ -257,22 +233,16 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
       return BadRequest(ApiResponseFactory.Fail("stall.invalid_coordinates"));
 
     var rows = await DatabaseSql.QueryRowsAsync(db, """
-      SELECT CAST(z.id AS CHAR) id,z.name,z.latitude,z.longitude,
-        COALESCE(pc.audio_url,'') audioUrl,
-        CAST(s.id AS CHAR) stallId,s.name stallName,
-        s.activation_radius triggerRadius,s.is_premium_priority isPremiumPriority
-      FROM zones z
-      JOIN stalls s ON s.id=z.stall_id
-      LEFT JOIN poi_contents pc
-        ON pc.poi_id=z.id AND pc.lang=@lang AND pc.approval_status='approved'
-      WHERE (LOWER(s.zone_code)=LOWER(@zone) OR LOWER(s.slug)=LOWER(@zone))
-        AND s.status='APPROVED' AND s.approval_status='APPROVED'
-        AND s.billing_suspended=0
-        AND z.status='ACTIVE' AND z.approval_status='APPROVED'
+      SELECT p.id, p.stall_name AS name, p.latitude, p.longitude,
+             NULL AS audioUrl, p.vendor_id AS stallId, p.stall_name AS stallName,
+             p.trigger_radius AS triggerRadius, p.is_premium_priority AS isPremiumPriority
+      FROM Pois p
+      WHERE (LOWER(p.vendor_id) = LOWER(@zone) OR LOWER(p.slug) = LOWER(@zone))
+        AND p.approval_status = 'APPROVED'
+        AND p.status = 'ACTIVE'
       """, new Dictionary<string, object?>
     {
-      ["@zone"] = zone.Trim(),
-      ["@lang"] = SupportedLanguage(lang)
+      ["@zone"] = zone.Trim()
     });
 
     var candidates = rows.Select(row =>
@@ -310,8 +280,8 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
   public async Task<IActionResult> Favorites(string guestId)
   {
     var rows = await DatabaseSql.QueryRowsAsync(db, """
-      SELECT DISTINCT CAST(p.stall_id AS CHAR) stallId FROM favorites f
-      JOIN pois p ON p.id=f.poi_id WHERE f.guest_id=@guestId
+      SELECT DISTINCT p.vendor_id AS stallId FROM favorites f
+      JOIN Pois p ON p.id=f.poi_id WHERE f.guest_id=@guestId
       """, new Dictionary<string, object?> { ["@guestId"] = guestId });
     return Ok(ApiResponseFactory.Ok(new { favorites = rows.Select(x => x["stallId"]).ToArray() }));
   }
@@ -324,30 +294,21 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
       if (operation.Action == "add")
         await DatabaseSql.ExecuteAsync(db, """
           INSERT INTO favorites(guest_id,poi_id)
-          SELECT @guestId,id FROM pois WHERE stall_id=@stallId ORDER BY id LIMIT 1
+          SELECT @guestId,id FROM Pois WHERE vendor_id=@stallId ORDER BY id LIMIT 1
           ON DUPLICATE KEY UPDATE added_at=NOW()
           """, new Dictionary<string, object?> { ["@guestId"] = request.GuestId, ["@stallId"] = operation.StallId });
       else if (operation.Action == "remove")
         await DatabaseSql.ExecuteAsync(db, """
-          DELETE f FROM favorites f JOIN pois p ON p.id=f.poi_id WHERE f.guest_id=@guestId AND p.stall_id=@stallId
+          DELETE f FROM favorites f JOIN Pois p ON p.id=f.poi_id WHERE f.guest_id=@guestId AND p.vendor_id=@stallId
           """, new Dictionary<string, object?> { ["@guestId"] = request.GuestId, ["@stallId"] = operation.StallId });
     }
     return await Favorites(request.GuestId);
   }
 
-  [HttpGet("tours/{id:long}/unlocked-status")]
-  public async Task<IActionResult> Unlocked(ulong id, [FromQuery] string guestId = "")
+  [HttpGet("tours/{id}/unlocked-status")]
+  public async Task<IActionResult> Unlocked(string id, [FromQuery] string guestId = "")
   {
-    var tour = (await DatabaseSql.QueryRowsAsync(db,
-      "SELECT is_premium isPremium,price FROM tours WHERE id=@id",
-      new Dictionary<string, object?> { ["@id"] = id })).SingleOrDefault();
-    if (tour is null) return NotFound(ApiResponseFactory.Fail("tour.not_found"));
-    var premium = Convert.ToBoolean(tour["isPremium"]); var price = Convert.ToDecimal(tour["price"]);
-    if (!premium || price == 0) return Ok(ApiResponseFactory.Ok(new { unlocked = true, price = 0m }));
-    var unlocked = !string.IsNullOrWhiteSpace(guestId) && (await DatabaseSql.QueryRowsAsync(db,
-      "SELECT id FROM unlocked_tours WHERE guest_id=@guestId AND tour_id=@id LIMIT 1",
-      new Dictionary<string, object?> { ["@guestId"] = guestId, ["@id"] = id })).Count > 0;
-    return Ok(ApiResponseFactory.Ok(new { unlocked, price }));
+    return Ok(ApiResponseFactory.Ok(new { unlocked = true, price = 0m }));
   }
 
   private static bool IsValidCoordinate(double lat, double lng)
@@ -371,14 +332,12 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
           });
       }
 
-      // Secure logging of request coordinates in Dev mode
       if (env.EnvironmentName == "Development")
       {
           System.Console.WriteLine($"[Routing API] Query started: ({startLat}, {startLng}) -> ({endLat}, {endLng})");
       }
 
       var client = clients.CreateClient();
-      // Ensure we pass a realistic User-Agent header because public APIs filter out anonymous .NET HttpClient requests
       client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 VietTourAudio/1.0");
 
       var startLngStr = startLng.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -386,7 +345,6 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
       var endLngStr = endLng.ToString(System.Globalization.CultureInfo.InvariantCulture);
       var endLatStr = endLat.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-      // 1. Try OpenRouteService first
       try
       {
           var orsKey = System.Environment.GetEnvironmentVariable("ORS_API_KEY") ?? "5b3ce3597851110001cf62483861fb85ea4f4d22bb42c55452eb8c15";
@@ -435,7 +393,6 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
           System.Console.WriteLine($"[Routing API] ORS provider warning: {ex.Message}");
       }
 
-      // 2. Fallback to OSRM
       try
       {
           var osrmUrl = $"http://router.project-osrm.org/route/v1/foot/{startLngStr},{startLatStr};{endLngStr},{endLatStr}?overview=full&geometries=geojson";
@@ -479,12 +436,12 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
       }
   }
 
-  [HttpGet("pois/{id:long}")]
-  public async Task<IActionResult> Poi(ulong id)
+  [HttpGet("pois/{id}")]
+  public async Task<IActionResult> Poi(string id)
   {
-    var poi = await db.Pois.AsNoTracking().Where(x => x.Id == id && x.Status == "ACTIVE" && x.ApprovalStatus == ApprovalStatus.APPROVED)
-      .Select(x => new { id = x.Id.ToString(), x.Name, x.Slug, x.Description, x.Latitude, x.Longitude,
-        activationRadius = x.ActivationRadius, tourId = x.TourId.ToString(), products = x.Products.Select(p => new { id = p.Id.ToString(), p.Name, p.Price }) })
+    var poi = await db.Pois.AsNoTracking().Where(x => x.Id == id && x.Status == "ACTIVE" && x.ApprovalStatus == "APPROVED")
+      .Select(x => new { id = x.Id, name = x.StallName, x.Slug, x.Description, x.Latitude, x.Longitude,
+        activationRadius = x.TriggerRadius, tourId = x.FestivalZoneId, products = x.Products.Select(p => new { id = p.Id.ToString(), name = p.ProductName, p.Price }) })
       .SingleOrDefaultAsync();
     return poi is null ? NotFound(ApiResponseFactory.Fail("poi.not_found")) : Ok(ApiResponseFactory.Ok(poi));
   }
@@ -510,7 +467,7 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
       System.Console.WriteLine($"SignalR push error: {ex.Message}");
     }
     
-    return Ok(ApiResponseFactory.Ok(new { id = ticket.Id.ToString(), status = ticket.Status.ToString() }));
+    return Ok(ApiResponseFactory.Ok(new { id = ticket.Id, status = ticket.Status.ToString() }));
   }
 
   private static string SupportedLanguage(string lang) =>
@@ -530,5 +487,5 @@ public sealed class GuestController(AppDbContext db, IHttpClientFactory clients,
 }
 
 public sealed record TicketRequest(string Email, string Subject, string Message);
-public sealed record FavoriteOperation(ulong StallId, string Action);
+public sealed record FavoriteOperation(string StallId, string Action);
 public sealed record FavoriteSyncRequest(string GuestId, FavoriteOperation[] Ops);

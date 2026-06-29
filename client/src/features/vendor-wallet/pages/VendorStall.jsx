@@ -184,6 +184,8 @@ export function VendorStall() {
       setImageFile(null);
       setMessage({ type: 'success', text: 'Đã gửi yêu cầu cập nhật lên Admin phê duyệt và kích hoạt dịch tự động đa ngôn ngữ!' });
       await refetch();
+      // Reload translations after auto-translate pipeline completes
+      await loadTranslations();
     } catch (requestError) {
       setMessage({ type: 'error', text: requestError.response?.data?.error ?? t('stall.error_save') });
     } finally {

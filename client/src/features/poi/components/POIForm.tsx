@@ -4,6 +4,7 @@ import { Compass, Loader2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Circle, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { apiClient } from '../../../services/apiClient';
+import { adminApiClient } from '../../../admin/api/adminApi';
 import toast from 'react-hot-toast';
 
 const customIcon = new L.Icon({
@@ -44,6 +45,8 @@ interface POIFormProps {
   setFormTourId: (val: string) => void;
   formDescription: string;
   setFormDescription: (val: string) => void;
+  formCoverImageUrl: string;
+  setFormCoverImageUrl: (val: string) => void;
   formLatitude: string;
   setFormLatitude: (val: string) => void;
   formLongitude: string;
@@ -71,6 +74,8 @@ export function POIForm({
   setFormTourId,
   formDescription,
   setFormDescription,
+  formCoverImageUrl,
+  setFormCoverImageUrl,
   formLatitude,
   setFormLatitude,
   formLongitude,
@@ -430,6 +435,55 @@ export function POIForm({
             <label htmlFor="isPremiumContent" className="text-sm font-bold text-slate-700">
               {t('poi.premium_content')}
             </label>
+          </div>
+
+          <div className="border-t border-slate-100 pt-3">
+            <span className="text-xs font-black uppercase tracking-wider text-slate-500 block mb-1">
+              Ảnh bìa POI
+            </span>
+            <div className="mt-2 flex items-center gap-3">
+              {formCoverImageUrl ? (
+                <img
+                  src={formCoverImageUrl.startsWith('/') ? `${window.location.origin}${formCoverImageUrl}` : formCoverImageUrl}
+                  alt="Cover"
+                  className="h-16 w-16 rounded-xl border object-cover"
+                />
+              ) : (
+                <div className="grid h-16 w-16 place-items-center rounded-xl border-2 border-dashed text-slate-400 bg-slate-50">
+                  <span className="text-[10px]">No Img</span>
+                </div>
+              )}
+              <label className="cursor-pointer rounded-xl border px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
+                Chọn tệp ảnh từ thiết bị
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 5 * 1024 * 1024) {
+                        toast.error("Kích thước tệp vượt quá 5MB!");
+                        return;
+                      }
+                      const formData = new FormData();
+                      formData.append("file", file);
+                      try {
+                        const res = await adminApiClient.post("/uploads?folder=vendor", formData, {
+                          headers: { "Content-Type": "multipart/form-data" }
+                        });
+                        if (res.data?.data?.url) {
+                          setFormCoverImageUrl(res.data.data.url);
+                          toast.success("Tải ảnh lên thành công!");
+                        }
+                      } catch (err) {
+                        toast.error("Không thể tải ảnh lên.");
+                      }
+                    }
+                  }}
+                />
+              </label>
+            </div>
           </div>
         </div>
 

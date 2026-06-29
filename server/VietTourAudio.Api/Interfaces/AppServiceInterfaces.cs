@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using VietTourAudio.Api.DTOs;
 
 namespace VietTourAudio.Api.Interfaces;
@@ -13,35 +16,35 @@ public interface IAuthService
 public interface IUserService
 {
   Task<IReadOnlyList<UserResponseDto>> GetUsersAsync();
-  Task<UserResponseDto> GetByIdAsync(ulong id);
+  Task<UserResponseDto> GetByIdAsync(string id);
 }
 
 public interface IStallService
 {
   Task<IReadOnlyList<StallResponseDto>> GetStallsAsync();
-  Task<StallResponseDto> GetByIdAsync(ulong id);
+  Task<StallResponseDto> GetByIdAsync(string id);
   Task<StallResponseDto> CreateAsync(StallRequestDto request);
-  Task<StallResponseDto> UpdateStatusAsync(ulong id, string status);
+  Task<StallResponseDto> UpdateStatusAsync(string id, string status);
   Task<StallResponseDto?> GetByZoneCodeAsync(string zoneCode);
 }
 
 public interface IPoiService
 {
-  Task<IReadOnlyList<PoiResponseDto>> GetPoisAsync(ulong? stallId = null, ulong? tourId = null, string? tourSlug = null);
-  Task<PoiResponseDto> GetByIdAsync(ulong id);
-  Task<IReadOnlyList<PoiResponseDto>> GetNearbyAsync(decimal latitude, decimal longitude, int radiusMeters, ulong? tourId = null, string? tourSlug = null);
+  Task<IReadOnlyList<PoiResponseDto>> GetPoisAsync(string? stallId = null, string? tourId = null, string? tourSlug = null);
+  Task<PoiResponseDto> GetByIdAsync(string id);
+  Task<IReadOnlyList<PoiResponseDto>> GetNearbyAsync(decimal latitude, decimal longitude, int radiusMeters, string? tourId = null, string? tourSlug = null);
   Task<PoiResponseDto> CreateAsync(PoiRequestDto request);
 }
 
 public interface IPoiContentService
 {
-  Task<IReadOnlyList<PoiContentResponseDto>> GetByPoiAsync(ulong poiId);
+  Task<IReadOnlyList<PoiContentResponseDto>> GetByPoiAsync(string poiId);
   Task<PoiContentResponseDto> CreateAsync(PoiContentRequestDto request);
 }
 
 public interface IMediaStorageService
 {
-  Task<MediaUploadResponseDto> SaveAsync(IFormFile file, string fileType, ulong ownerId, ulong? stallId, ulong? poiId);
+  Task<MediaUploadResponseDto> SaveAsync(IFormFile file, string fileType, string ownerId, string? stallId, string? poiId);
 }
 
 public interface IQrTrackingService
@@ -67,13 +70,13 @@ public interface IPaymentService
 
 public interface ICommissionService
 {
-  Task<object> CalculateForPaymentAsync(ulong paymentId);
+  Task<object> CalculateForPaymentAsync(string paymentId);
 }
 
 public interface IAdminLogService
 {
   Task<IReadOnlyList<AdminLogResponseDto>> GetLogsAsync();
-  Task<object> WriteAsync(ulong adminId, string action, string targetType, ulong? targetId, string? description);
+  Task<object> WriteAsync(string adminId, string action, string targetType, string? targetId, string? description);
 }
 
 public interface IGeofenceService

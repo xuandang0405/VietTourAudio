@@ -1,7 +1,15 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using VietTourAudio.Api.Data;
 using VietTourAudio.Api.Domain;
 using VietTourAudio.Api.Helpers;
@@ -43,10 +51,20 @@ public sealed class AdminWalletController(
 
     if (request.QrCode is not null)
       config.QrCodeUrl = await SaveImageAsync(request.QrCode, "admin");
+    else if (!string.IsNullOrEmpty(request.QrCodeUrl))
+      config.QrCodeUrl = request.QrCodeUrl;
 
     if (config.Id == 0) db.AdminPaymentConfigs.Add(config);
     var affected = await db.SaveChangesAsync();
     if (affected == 0) return StatusCode(500, ApiResponseFactory.Fail("payment.config_not_saved"));
+
+    if (gateway == "BANK" && !string.IsNullOrEmpty(config.QrCodeUrl))
+    {
+      await DatabaseSql.ExecuteAsync(db, @"
+          INSERT INTO app_settings (kkey, vvalue) VALUES ('BANK_QR_URL', @url)
+          ON DUPLICATE KEY UPDATE vvalue=@url", new Dictionary<string, object?> { ["@url"] = config.QrCodeUrl });
+    }
+
     return Ok(ApiResponseFactory.Ok(config));
   }
 
@@ -56,8 +74,8 @@ public sealed class AdminWalletController(
       .Where(x => x.Status == "PENDING")
       .OrderByDescending(x => x.CreatedAt).ToListAsync()));
 
-  [HttpPost("transactions/{id:guid}/verify")]
-  public async Task<IActionResult> Verify(Guid id, [FromBody] VerifyPaymentRequest request)
+  [HttpPost("transactions/{id}/verify")]
+  public async Task<IActionResult> Verify(string id, [FromBody] VerifyPaymentRequest request)
   {
     var status = request.Status.Trim().ToUpperInvariant();
     if (status is not ("APPROVED" or "FAILED"))
@@ -83,7 +101,7 @@ public sealed class AdminWalletController(
     {
       await hubContext.Clients.All.SendAsync(
         "ReceivePaymentUpdate",
-        ledger.Id.ToString(),
+        ledger.Id,
         ledger.Status);
     }
     catch (Exception exception)
@@ -115,7 +133,8 @@ public sealed record PaymentConfigForm(
   string? AccountNumber,
   string? TransferMemoPattern,
   bool IsActive,
-  IFormFile? QrCode);
+  IFormFile? QrCode,
+  string? QrCodeUrl);
 public sealed record VerifyPaymentRequest(string Status);
 
 internal static class PaymentRules

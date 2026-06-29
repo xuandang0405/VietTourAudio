@@ -1,3 +1,5 @@
+using System;
+
 namespace VietTourAudio.Api.DTOs;
 
 public sealed record LoginRequestDto(string Email, string Password);
@@ -18,7 +20,7 @@ public sealed record AuthResponseDto(
 );
 
 public sealed record UserResponseDto(
-  ulong Id,
+  string Id,
   string FullName,
   string Email,
   string? Phone,
@@ -27,7 +29,7 @@ public sealed record UserResponseDto(
 );
 
 public sealed record StallRequestDto(
-  ulong OwnerId,
+  string OwnerId,
   string Name,
   string Slug,
   string? Description,
@@ -38,8 +40,8 @@ public sealed record StallRequestDto(
 );
 
 public sealed record StallResponseDto(
-  ulong Id,
-  ulong OwnerId,
+  string Id,
+  string OwnerId,
   string Name,
   string Slug,
   string? Description,
@@ -53,7 +55,7 @@ public sealed record StallResponseDto(
 );
 
 public sealed record PoiRequestDto(
-  ulong StallId,
+  string StallId,
   string Name,
   string? Description,
   decimal Latitude,
@@ -63,8 +65,8 @@ public sealed record PoiRequestDto(
 );
 
 public sealed record PoiResponseDto(
-  ulong Id,
-  ulong StallId,
+  string Id,
+  string StallId,
   string Slug,
   string Name,
   string? Description,
@@ -78,13 +80,13 @@ public sealed record PoiResponseDto(
   string Status,
   decimal? DistanceMeters,
   bool IsInsideGeofence,
-  ulong? QrCodeId = null,
-  ulong? TourId = null,
+  string? QrCodeId = null,
+  string? TourId = null,
   string? TourSlug = null
 );
 
 public sealed record PoiContentRequestDto(
-  ulong PoiId,
+  string PoiId,
   string LanguageCode,
   string Title,
   string? TtsScript,
@@ -93,8 +95,8 @@ public sealed record PoiContentRequestDto(
 );
 
 public sealed record PoiContentResponseDto(
-  ulong Id,
-  ulong PoiId,
+  string Id,
+  string PoiId,
   string LanguageCode,
   string Title,
   string? TtsScript,
@@ -103,7 +105,7 @@ public sealed record PoiContentResponseDto(
 );
 
 public sealed record MediaUploadResponseDto(
-  ulong Id,
+  string Id,
   string FileType,
   string FileName,
   string FilePath,
@@ -112,34 +114,34 @@ public sealed record MediaUploadResponseDto(
 );
 
 public sealed record QrCodeRequestDto(
-  ulong? StallId,
-  ulong? PoiId,
+  string? StallId,
+  string? PoiId,
   string QrType,
   string TargetUrl
 );
 
 public sealed record QrCodeResponseDto(
-  ulong Id,
-  ulong? StallId,
-  ulong? PoiId,
+  string Id,
+  string? StallId,
+  string? PoiId,
   string QrType,
   string QrCodeUrl,
   string TargetUrl
 );
 
 public sealed record QrScanRequestDto(
-  ulong QrCodeId,
-  ulong? StallId,
-  ulong? PoiId,
-  ulong? UserId,
+  string QrCodeId,
+  string? StallId,
+  string? PoiId,
+  string? UserId,
   string SessionId,
   string? CountryCode
 );
 
 public sealed record VisitEventRequestDto(
-  ulong StallId,
-  ulong? PoiId,
-  ulong? UserId,
+  string StallId,
+  string? PoiId,
+  string? UserId,
   string SessionId,
   decimal Latitude,
   decimal Longitude,
@@ -147,15 +149,15 @@ public sealed record VisitEventRequestDto(
 );
 
 public sealed record AudioPlayRequestDto(
-  ulong? UserId,
+  string? UserId,
   string SessionId,
-  ulong PoiId,
+  string PoiId,
   string LanguageCode
 );
 
 public sealed record PaymentRequestDto(
-  ulong? UserId,
-  ulong? StallId,
+  string? UserId,
+  string? StallId,
   decimal Amount,
   string Currency,
   string PaymentMethod,
@@ -164,9 +166,9 @@ public sealed record PaymentRequestDto(
 );
 
 public sealed record PaymentResponseDto(
-  ulong Id,
-  ulong? UserId,
-  ulong? StallId,
+  string Id,
+  string? UserId,
+  string? StallId,
   decimal Amount,
   string Currency,
   string PaymentMethod,
@@ -185,11 +187,11 @@ public sealed record AnalyticsSummaryDto(
 );
 
 public sealed record AdminLogResponseDto(
-  ulong Id,
-  ulong AdminId,
+  string Id,
+  string AdminId,
   string Action,
   string TargetType,
-  ulong? TargetId,
+  string? TargetId,
   string? Description,
   DateTime CreatedAt
 );

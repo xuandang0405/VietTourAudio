@@ -1,7 +1,15 @@
+using System;
+using System.IO;
+using System.Linq;
 using System.Security.Claims;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using VietTourAudio.Api.Data;
 using VietTourAudio.Api.Domain;
 using VietTourAudio.Api.Helpers;
@@ -40,8 +48,8 @@ public sealed class CheckoutPaymentController(
       .SingleOrDefaultAsync(x => x.GatewayType == method && x.IsActive);
     if (config is null) return NotFound(ApiResponseFactory.Fail("Payment gateway is not active."));
 
-    var amount = await ResolveAmountAsync(senderId, transactionType);
-    var id = Guid.NewGuid();
+    var amount = ResolveAmount(transactionType);
+    var id = Guid.NewGuid().ToString("N");
     var memo = BuildMemo(config.TransferMemoPattern, id, senderId, transactionType);
     var ledger = new PaymentTransaction
     {
@@ -94,8 +102,8 @@ public sealed class CheckoutPaymentController(
     return Ok(ApiResponseFactory.Ok(new { transaction = ledger, activated = true }));
   }
 
-  [HttpGet("/api/payment/status/{id:guid}")]
-  public async Task<IActionResult> Status(Guid id, CancellationToken cancellationToken)
+  [HttpGet("/api/payment/status/{id}")]
+  public async Task<IActionResult> Status(string id, CancellationToken cancellationToken)
   {
     var status = await db.PaymentTransactions
       .AsNoTracking()
@@ -131,18 +139,14 @@ public sealed class CheckoutPaymentController(
         return BadRequest(new { success = false, message = "Ảnh minh chứng không được vượt quá 8 MB." });
 
       var extension = Path.GetExtension(proofFile.FileName).ToLowerInvariant();
-      var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        { ".jpg", ".jpeg", ".png", ".webp" };
-      if (!allowedExtensions.Contains(extension) || !proofFile.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+      var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+      if (!allowedExtensions.Contains(extension) || (!proofFile.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) && !string.Equals(proofFile.ContentType, "application/octet-stream", StringComparison.OrdinalIgnoreCase)))
         return BadRequest(new { success = false, message = "Định dạng tệp không hỗ trợ. Chỉ nhận JPG, PNG, WEBP." });
 
-      PaymentTransaction? ledger;
-      if (Guid.TryParse(transactionId.Trim(), out var parsedId))
-      {
-        ledger = await db.PaymentTransactions
-          .SingleOrDefaultAsync(transaction => transaction.Id == parsedId, cancellationToken);
-      }
-      else
+      PaymentTransaction? ledger = await db.PaymentTransactions
+        .SingleOrDefaultAsync(transaction => transaction.Id == transactionId.Trim(), cancellationToken);
+
+      if (ledger is null)
       {
         var lookup = transactionId.Trim();
         ledger = await db.PaymentTransactions
@@ -237,24 +241,16 @@ public sealed class CheckoutPaymentController(
       : Unauthorized(ApiResponseFactory.Fail("Vendor identity does not match."));
   }
 
-  private async Task<decimal> ResolveAmountAsync(string senderId, string transactionType)
+  private static decimal ResolveAmount(string transactionType)
   {
     if (transactionType == "USER_PREMIUM") return 30_000m;
-    if (!ulong.TryParse(senderId, out var vendorId))
-      throw new InvalidOperationException("Invalid vendor.");
-    if (transactionType == "VENDOR_PREMIUM")
-      return await db.Database.SqlQuery<decimal>(
-        $"SELECT price AS Value FROM subscription_plans WHERE id=2 LIMIT 1").SingleOrDefaultAsync() is var premium && premium > 0
-        ? premium : 599_000m;
-    var fee = await db.Database.SqlQuery<decimal>(
-      $"SELECT price_snapshot AS Value FROM vendor_subscriptions WHERE vendor_id={vendorId} ORDER BY id DESC LIMIT 1")
-      .SingleOrDefaultAsync();
-    return fee > 0 ? fee : 299_000m;
+    if (transactionType == "VENDOR_PREMIUM") return 599_000m;
+    return 299_000m;
   }
 
-  private static string BuildMemo(string pattern, Guid id, string senderId, string type)
+  private static string BuildMemo(string pattern, string id, string senderId, string type)
   {
-    var uniqueId = id.ToString("N")[..10].ToUpperInvariant();
+    var uniqueId = id[..10].ToUpperInvariant();
     var memo = (string.IsNullOrWhiteSpace(pattern) ? "VTA [Type] [Id]" : pattern.Trim())
       .Replace("[Id]", uniqueId, StringComparison.OrdinalIgnoreCase)
       .Replace("[Type]", type, StringComparison.OrdinalIgnoreCase)
@@ -262,7 +258,6 @@ public sealed class CheckoutPaymentController(
       .Replace("[USER_ID]", senderId, StringComparison.OrdinalIgnoreCase)
       .Replace("[TÊN BẠN]", senderId, StringComparison.OrdinalIgnoreCase);
 
-    // Admin-defined templates are allowed, but the ledger memo must remain unique.
     if (!memo.Contains(uniqueId, StringComparison.OrdinalIgnoreCase))
       memo = $"{memo} {uniqueId}";
     return memo.Length <= 255 ? memo : $"{memo[..244]} {uniqueId}";
@@ -299,7 +294,7 @@ public sealed record CheckoutIntent(
   string PaymentMethod,
   string TransactionType);
 public sealed record VisaPaymentRequest(
-  Guid TransactionId,
+  string TransactionId,
   string CardholderName,
   string CardNumber,
   string Expiry,

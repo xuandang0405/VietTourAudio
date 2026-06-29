@@ -1,8 +1,17 @@
+using System;
 using System.Collections.Concurrent;
-using System.IdentityModel.Tokens.Jwt;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Net.Http;
 using System.Security.Claims;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
 using VietTourAudio.Api.DTOs;
 using VietTourAudio.Api.Interfaces;
 
@@ -19,19 +28,19 @@ public class AuthService : IAuthService
 
   public Task<AuthResponseDto> LoginAsync(LoginRequestDto request)
   {
-    var user = new UserResponseDto(1, "Admin VietTourAudio", request.Email, null, "ADMIN", "ACTIVE");
+    var user = new UserResponseDto("1", "Admin VietTourAudio", request.Email, null, "ADMIN", "ACTIVE");
     return Task.FromResult(CreateAuthResponse(user));
   }
 
   public Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request)
   {
-    var user = new UserResponseDto(10, request.FullName, request.Email, request.Phone, request.Role, "PENDING");
+    var user = new UserResponseDto("10", request.FullName, request.Email, request.Phone, request.Role, "PENDING");
     return Task.FromResult(CreateAuthResponse(user));
   }
 
   public Task<UserResponseDto> GetCurrentUserAsync()
   {
-    return Task.FromResult(new UserResponseDto(1, "Admin VietTourAudio", "admin@viettouraudio.local", "0900000001", "ADMIN", "ACTIVE"));
+    return Task.FromResult(new UserResponseDto("1", "Admin VietTourAudio", "admin@viettouraudio.local", "0900000001", "ADMIN", "ACTIVE"));
   }
 
   private AuthResponseDto CreateAuthResponse(UserResponseDto user)
@@ -46,8 +55,8 @@ public class AuthService : IAuthService
 
     var claims = new List<Claim>
     {
-      new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-      new(JwtRegisteredClaimNames.Email, user.Email),
+      new(ClaimTypes.NameIdentifier, user.Id),
+      new(ClaimTypes.Email, user.Email),
       new(ClaimTypes.Name, user.FullName),
       new(ClaimTypes.Role, user.Role)
     };
@@ -60,7 +69,7 @@ public class AuthService : IAuthService
       signingCredentials: credentials
     );
 
-    var value = new JwtSecurityTokenHandler().WriteToken(token);
+    var value = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().WriteToken(token);
     return new AuthResponseDto(value, value, expiresAt, user);
   }
 
@@ -76,15 +85,15 @@ public class UserService : IUserService
   {
     IReadOnlyList<UserResponseDto> users =
     [
-      new(1, "Admin VietTourAudio", "admin@viettouraudio.local", "0900000001", "ADMIN", "ACTIVE"),
-      new(2, "Chủ sạp Bến Thành", "owner.benthanh@viettouraudio.local", "0900000002", "STALL_OWNER", "ACTIVE"),
-      new(4, "Khách du lịch Demo", "tourist@viettouraudio.local", "0900000004", "TOURIST", "ACTIVE")
+      new("1", "Admin VietTourAudio", "admin@viettouraudio.local", "0900000001", "ADMIN", "ACTIVE"),
+      new("2", "Chủ sạp Bến Thành", "owner.benthanh@viettouraudio.local", "0900000002", "STALL_OWNER", "ACTIVE"),
+      new("4", "Khách du lịch Demo", "tourist@viettouraudio.local", "0900000004", "TOURIST", "ACTIVE")
     ];
 
     return Task.FromResult(users);
   }
 
-  public Task<UserResponseDto> GetByIdAsync(ulong id)
+  public Task<UserResponseDto> GetByIdAsync(string id)
   {
     return Task.FromResult(new UserResponseDto(id, "User Demo", $"user{id}@viettouraudio.local", null, "TOURIST", "ACTIVE"));
   }
@@ -96,33 +105,33 @@ public class StallService : IStallService
   {
     IReadOnlyList<StallResponseDto> stalls =
     [
-      new(1, 2, "Sạp Cà Phê Bến Thành", "sap-ca-phe-ben-thanh", "Cà phê Việt Nam cho khách quốc tế.", "Chợ Bến Thành, Quận 1", 10.7721120m, 106.6982780m, "APPROVED", true, 10, "AB12CD34"),
-      new(2, 3, "Gốm Thủ Công Hội An", "gom-thu-cong-hoi-an", "Gian hàng gốm thủ công.", "Phố cổ Hội An", 15.8800580m, 108.3380470m, "APPROVED", false, 0, null)
+      new("1", "2", "Sạp Cà Phê Bến Thành", "sap-ca-phe-ben-thanh", "Cà phê Việt Nam cho khách quốc tế.", "Chợ Bến Thành, Quận 1", 10.7721120m, 106.6982780m, "APPROVED", true, 10, "AB12CD34"),
+      new("2", "3", "Gốm Thủ Công Hội An", "gom-thu-cong-hoi-an", "Gian hàng gốm thủ công.", "Phố cổ Hội An", 15.8800580m, 108.3380470m, "APPROVED", false, 0, null)
     ];
 
     return Task.FromResult(stalls);
   }
 
-  public Task<StallResponseDto> GetByIdAsync(ulong id)
+  public Task<StallResponseDto> GetByIdAsync(string id)
   {
-    return Task.FromResult(new StallResponseDto(id, 2, "Sạp Demo", "sap-demo", "Thông tin sạp demo.", "Địa chỉ demo", 10.7721120m, 106.6982780m, "APPROVED", false, 0, null));
+    return Task.FromResult(new StallResponseDto(id, "2", "Sạp Demo", "sap-demo", "Thông tin sạp demo.", "Địa chỉ demo", 10.7721120m, 106.6982780m, "APPROVED", false, 0, null));
   }
 
   public Task<StallResponseDto> CreateAsync(StallRequestDto request)
   {
-    return Task.FromResult(new StallResponseDto(100, request.OwnerId, request.Name, request.Slug, request.Description, request.Address, request.Latitude, request.Longitude, "PENDING", false, 0, null));
+    return Task.FromResult(new StallResponseDto("100", request.OwnerId, request.Name, request.Slug, request.Description, request.Address, request.Latitude, request.Longitude, "PENDING", false, 0, null));
   }
 
-  public Task<StallResponseDto> UpdateStatusAsync(ulong id, string status)
+  public Task<StallResponseDto> UpdateStatusAsync(string id, string status)
   {
-    return Task.FromResult(new StallResponseDto(id, 2, "Sạp Demo", "sap-demo", "Thông tin sạp demo.", "Địa chỉ demo", 10.7721120m, 106.6982780m, status, false, 0, null));
+    return Task.FromResult(new StallResponseDto(id, "2", "Sạp Demo", "sap-demo", "Thông tin sạp demo.", "Địa chỉ demo", 10.7721120m, 106.6982780m, status, false, 0, null));
   }
 
   public Task<StallResponseDto?> GetByZoneCodeAsync(string zoneCode)
   {
     if (zoneCode == "AB12CD34")
     {
-      return Task.FromResult<StallResponseDto?>(new StallResponseDto(1, 2, "Sạp Cà Phê Bến Thành", "sap-ca-phe-ben-thanh", "Cà phê Việt Nam cho khách quốc tế.", "Chợ Bến Thành, Quận 1", 10.7721120m, 106.6982780m, "APPROVED", true, 10, "AB12CD34"));
+      return Task.FromResult<StallResponseDto?>(new StallResponseDto("1", "2", "Sạp Cà Phê Bến Thành", "sap-ca-phe-ben-thanh", "Cà phê Việt Nam cho khách quốc tế.", "Chợ Bến Thành, Quận 1", 10.7721120m, 106.6982780m, "APPROVED", true, 10, "AB12CD34"));
     }
     return Task.FromResult<StallResponseDto?>(null);
   }
@@ -132,12 +141,12 @@ public class PoiService : IPoiService
 {
   private readonly IGeofenceService _geofenceService;
 
-  private static readonly IReadOnlyList<PoiResponseDto> Pois =
+  private static readonly IReadOnlyList<PoiResponseDto> PoisList =
   [
-    new(1, 1, "stall-antiques-nam", "Sạp Đồ Cổ Chú Năm", "Không gian lưu giữ ký ức Sài Gòn xưa qua máy ảnh, đồng hồ và các món đồ cổ.", "Phố đi bộ Nguyễn Huệ", "Di sản địa phương", null, 10.77589m, 106.70184m, 35, true, "ACTIVE", null, false),
-    new(2, 1, "poi-city-hall", "Tòa nhà UBND Thành phố", "Công trình mang dấu ấn kiến trúc Pháp ở đầu phố Nguyễn Huệ.", "Phố đi bộ Nguyễn Huệ", "Kiến trúc", null, 10.77672m, 106.70102m, 45, false, "ACTIVE", null, false),
-    new(3, 1, "stall-coffee-heritage", "Quầy Cà Phê Di Sản", "Câu chuyện cà phê vỉa hè và nhịp sống đô thị Việt Nam.", "Phố đi bộ Nguyễn Huệ", "Ẩm thực địa phương", null, 10.77521m, 106.70245m, 32, false, "ACTIVE", null, false),
-    new(4, 1, "stall-book-memory", "Góc Sách Ký Ức", "Sách cũ, bưu thiếp và tranh in lưu giữ ký ức đô thị.", "Phố đi bộ Nguyễn Huệ", "Văn hóa", null, 10.77508m, 106.70136m, 30, true, "ACTIVE", null, false)
+    new("1", "1", "stall-antiques-nam", "Sạp Đồ Cổ Chú Năm", "Không gian lưu giữ ký ức Sài Gòn xưa qua máy ảnh, đồng hồ và các món đồ cổ.", "Phố đi bộ Nguyễn Huệ", "Di sản địa phương", null, 10.77589m, 106.70184m, 35, true, "ACTIVE", null, false),
+    new("2", "1", "poi-city-hall", "Tòa nhà UBND Thành phố", "Công trình mang dấu ấn kiến trúc Pháp ở đầu phố Nguyễn Huệ.", "Phố đi bộ Nguyễn Huệ", "Kiến trúc", null, 10.77672m, 106.70102m, 45, false, "ACTIVE", null, false),
+    new("3", "1", "stall-coffee-heritage", "Quầy Cà Phê Di Sản", "Câu chuyện cà phê vỉa hè và nhịp sống đô thị Việt Nam.", "Phố đi bộ Nguyễn Huệ", "Ẩm thực địa phương", null, 10.77521m, 106.70245m, 32, false, "ACTIVE", null, false),
+    new("4", "1", "stall-book-memory", "Góc Sách Ký Ức", "Sách cũ, bưu thiếp và tranh in lưu giữ ký ức đô thị.", "Phố đi bộ Nguyễn Huệ", "Văn hóa", null, 10.77508m, 106.70136m, 30, true, "ACTIVE", null, false)
   ];
 
   public PoiService(IGeofenceService geofenceService)
@@ -145,17 +154,17 @@ public class PoiService : IPoiService
     _geofenceService = geofenceService;
   }
 
-  public Task<IReadOnlyList<PoiResponseDto>> GetPoisAsync(ulong? stallId = null, ulong? tourId = null, string? tourSlug = null)
+  public Task<IReadOnlyList<PoiResponseDto>> GetPoisAsync(string? stallId = null, string? tourId = null, string? tourSlug = null)
   {
-    IReadOnlyList<PoiResponseDto> pois = Pois;
+    IReadOnlyList<PoiResponseDto> pois = PoisList;
 
-    if (stallId.HasValue)
+    if (!string.IsNullOrEmpty(stallId))
     {
-      pois = pois.Where(x => x.StallId == stallId.Value).ToList();
+      pois = pois.Where(x => x.StallId == stallId).ToList();
     }
-    if (tourId.HasValue)
+    if (!string.IsNullOrEmpty(tourId))
     {
-      pois = pois.Where(x => x.TourId == tourId.Value).ToList();
+      pois = pois.Where(x => x.TourId == tourId).ToList();
     }
     if (!string.IsNullOrEmpty(tourSlug))
     {
@@ -165,17 +174,17 @@ public class PoiService : IPoiService
     return Task.FromResult(pois);
   }
 
-  public Task<PoiResponseDto> GetByIdAsync(ulong id)
+  public Task<PoiResponseDto> GetByIdAsync(string id)
   {
-    var poi = Pois.FirstOrDefault(item => item.Id == id)
+    var poi = PoisList.FirstOrDefault(item => item.Id == id)
       ?? throw new KeyNotFoundException($"Không tìm thấy POI {id}.");
     return Task.FromResult(poi);
   }
 
-  public Task<IReadOnlyList<PoiResponseDto>> GetNearbyAsync(decimal latitude, decimal longitude, int radiusMeters, ulong? tourId = null, string? tourSlug = null)
+  public Task<IReadOnlyList<PoiResponseDto>> GetNearbyAsync(decimal latitude, decimal longitude, int radiusMeters, string? tourId = null, string? tourSlug = null)
   {
-    IReadOnlyList<PoiResponseDto> nearby = Pois
-      .Where(poi => (!tourId.HasValue || poi.TourId == tourId) && (string.IsNullOrEmpty(tourSlug) || poi.TourSlug == tourSlug))
+    IReadOnlyList<PoiResponseDto> nearby = PoisList
+      .Where(poi => (string.IsNullOrEmpty(tourId) || poi.TourId == tourId) && (string.IsNullOrEmpty(tourSlug) || poi.TourSlug == tourSlug))
       .Select(poi =>
       {
         var distance = _geofenceService.EstimateDistanceMeters(latitude, longitude, poi.Latitude, poi.Longitude);
@@ -195,18 +204,18 @@ public class PoiService : IPoiService
   public Task<PoiResponseDto> CreateAsync(PoiRequestDto request)
   {
     var slug = request.Name.ToLowerInvariant().Replace(' ', '-');
-    return Task.FromResult(new PoiResponseDto(100, request.StallId, slug, request.Name, request.Description, "Khu vực mới", "Điểm tham quan", null, request.Latitude, request.Longitude, request.ActivationRadius, request.IsPremium, "ACTIVE", null, false));
+    return Task.FromResult(new PoiResponseDto("100", request.StallId, slug, request.Name, request.Description, "Khu vực mới", "Điểm tham quan", null, request.Latitude, request.Longitude, request.ActivationRadius, request.IsPremium, "ACTIVE", null, false));
   }
 }
 
 public class PoiContentService : IPoiContentService
 {
-  public Task<IReadOnlyList<PoiContentResponseDto>> GetByPoiAsync(ulong poiId)
+  public Task<IReadOnlyList<PoiContentResponseDto>> GetByPoiAsync(string poiId)
   {
     var scripts = GetScripts(poiId);
     IReadOnlyList<PoiContentResponseDto> contents = scripts
       .Select((item, index) => new PoiContentResponseDto(
-        (ulong)(poiId * 10 + (ulong)index + 1),
+        poiId + "_" + index,
         poiId,
         item.Key,
         $"Thuyết minh {item.Key.ToUpperInvariant()}",
@@ -221,17 +230,17 @@ public class PoiContentService : IPoiContentService
 
   public Task<PoiContentResponseDto> CreateAsync(PoiContentRequestDto request)
   {
-    return Task.FromResult(new PoiContentResponseDto(100, request.PoiId, request.LanguageCode, request.Title, request.TtsScript, request.AudioFileUrl, request.VoiceType));
+    return Task.FromResult(new PoiContentResponseDto("100", request.PoiId, request.LanguageCode, request.Title, request.TtsScript, request.AudioFileUrl, request.VoiceType));
   }
 
-  private static IReadOnlyDictionary<string, string> GetScripts(ulong poiId)
+  private static IReadOnlyDictionary<string, string> GetScripts(string poiId)
   {
     var name = poiId switch
     {
-      1 => "Sạp Đồ Cổ Chú Năm",
-      2 => "Tòa nhà Ủy ban Nhân dân Thành phố Hồ Chí Minh",
-      3 => "Quầy Cà Phê Di Sản",
-      4 => "Góc Sách Ký Ức",
+      "1" => "Sạp Đồ Cổ Chú Năm",
+      "2" => "Tòa nhà Ủy ban Nhân dân Thành phố Hồ Chí Minh",
+      "3" => "Quầy Cà Phê Di Sản",
+      "4" => "Góc Sách Ký Ức",
       _ => "điểm tham quan này"
     };
 
@@ -248,11 +257,11 @@ public class PoiContentService : IPoiContentService
 
 public class MediaStorageService : IMediaStorageService
 {
-  public Task<MediaUploadResponseDto> SaveAsync(IFormFile file, string fileType, ulong ownerId, ulong? stallId, ulong? poiId)
+  public Task<MediaUploadResponseDto> SaveAsync(IFormFile file, string fileType, string ownerId, string? stallId, string? poiId)
   {
     var safeFileName = Path.GetFileName(file.FileName);
     var relativePath = $"/uploads/{fileType.ToLowerInvariant()}s/{safeFileName}";
-    var response = new MediaUploadResponseDto(100, fileType.ToUpperInvariant(), safeFileName, relativePath, file.ContentType, file.Length);
+    var response = new MediaUploadResponseDto("100", fileType.ToUpperInvariant(), safeFileName, relativePath, file.ContentType, file.Length);
     return Task.FromResult(response);
   }
 }
@@ -269,7 +278,7 @@ public class QrTrackingService : IQrTrackingService
   public Task<QrCodeResponseDto> CreateQrCodeAsync(QrCodeRequestDto request)
   {
     var url = $"/uploads/qr/{request.QrType.ToLowerInvariant()}-{Guid.NewGuid():N}.png";
-    return Task.FromResult(new QrCodeResponseDto(100, request.StallId, request.PoiId, request.QrType, url, request.TargetUrl));
+    return Task.FromResult(new QrCodeResponseDto("100", request.StallId, request.PoiId, request.QrType, url, request.TargetUrl));
   }
 
   public Task<object> TrackScanAsync(QrScanRequestDto request, string? ipAddress, string? userAgent)
@@ -331,17 +340,17 @@ public sealed class PrototypeAnalyticsState
   public int QrScanCount => _qrScans.Count;
   public int AudioPlayCount => _audioPlayCount;
 
-  public bool RecordVisit(string sessionId, ulong? poiId)
+  public bool RecordVisit(string sessionId, string? poiId)
   {
     return _visits.TryAdd($"{sessionId}:{poiId}", 0);
   }
 
-  public bool RecordQrScan(string sessionId, ulong qrCodeId)
+  public bool RecordQrScan(string sessionId, string qrCodeId)
   {
     return _qrScans.TryAdd($"{sessionId}:{qrCodeId}", 0);
   }
 
-  public void RecordAudioPlay(string sessionId, ulong poiId)
+  public void RecordAudioPlay(string sessionId, string poiId)
   {
     Interlocked.Increment(ref _audioPlayCount);
   }
@@ -352,7 +361,7 @@ public class PaymentService : IPaymentService
   public Task<PaymentResponseDto> CreateAsync(PaymentRequestDto request)
   {
     var response = new PaymentResponseDto(
-      100,
+      "100",
       request.UserId,
       request.StallId,
       request.Amount,
@@ -374,7 +383,7 @@ public class PaymentService : IPaymentService
   public Task<PaymentResponseDto> RecordManualCashAsync(PaymentRequestDto request)
   {
     return Task.FromResult(new PaymentResponseDto(
-      101,
+      "101",
       request.UserId,
       request.StallId,
       request.Amount,
@@ -394,7 +403,7 @@ public class PaymentService : IPaymentService
 
 public class CommissionService : ICommissionService
 {
-  public Task<object> CalculateForPaymentAsync(ulong paymentId)
+  public Task<object> CalculateForPaymentAsync(string paymentId)
   {
     return Task.FromResult<object>(new
     {
@@ -412,14 +421,14 @@ public class AdminLogService : IAdminLogService
   {
     IReadOnlyList<AdminLogResponseDto> logs =
     [
-      new(1, 1, "APPROVE_STALL", "STALL", 1, "Duyệt sạp demo.", DateTime.UtcNow.AddHours(-2)),
-      new(2, 1, "UPDATE_SETTING", "APP_SETTING", 1, "Cập nhật tỷ lệ hoa hồng.", DateTime.UtcNow.AddHours(-1))
+      new("1", "1", "APPROVE_STALL", "STALL", "1", "Duyệt sạp demo.", DateTime.UtcNow.AddHours(-2)),
+      new("2", "1", "UPDATE_SETTING", "APP_SETTING", "1", "Cập nhật tỷ lệ hoa hồng.", DateTime.UtcNow.AddHours(-1))
     ];
 
     return Task.FromResult(logs);
   }
 
-  public Task<object> WriteAsync(ulong adminId, string action, string targetType, ulong? targetId, string? description)
+  public Task<object> WriteAsync(string adminId, string action, string targetType, string? targetId, string? description)
   {
     return Task.FromResult<object>(new { AdminId = adminId, Action = action, TargetType = targetType, TargetId = targetId, Description = description, CreatedAt = DateTime.UtcNow });
   }

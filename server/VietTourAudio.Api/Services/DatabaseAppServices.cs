@@ -1,4 +1,12 @@
+using System;
+using System.Collections.Generic;
 using System.Data.Common;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using VietTourAudio.Api.Data;
 using VietTourAudio.Api.DTOs;
 using VietTourAudio.Api.Interfaces;
@@ -15,18 +23,29 @@ public sealed class DatabaseStallService : IStallService
   {
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
     await using var command = connection.CreateCommand();
-    command.CommandText = $"{SelectSql} ORDER BY s.is_featured DESC, s.created_at DESC";
+    command.CommandText = """
+      SELECT p.*, v.is_premium
+      FROM Pois p
+      LEFT JOIN Vendors v ON v.id = p.vendor_id
+      WHERE p.vendor_id IS NOT NULL
+      ORDER BY p.is_premium_priority DESC, p.created_at DESC
+      """;
     await using var reader = await command.ExecuteReaderAsync();
     var results = new List<StallResponseDto>();
     while (await reader.ReadAsync()) results.Add(Map(reader));
     return results;
   }
 
-  public async Task<StallResponseDto> GetByIdAsync(ulong id)
+  public async Task<StallResponseDto> GetByIdAsync(string id)
   {
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
     await using var command = connection.CreateCommand();
-    command.CommandText = $"{SelectSql} WHERE s.id = @id LIMIT 1";
+    command.CommandText = """
+      SELECT p.*, v.is_premium
+      FROM Pois p
+      LEFT JOIN Vendors v ON v.id = p.vendor_id
+      WHERE p.id = @id LIMIT 1
+      """;
     command.AddParameter("@id", id);
     await using var reader = await command.ExecuteReaderAsync();
     if (!await reader.ReadAsync()) throw new KeyNotFoundException($"Không tìm thấy sạp {id}.");
@@ -36,36 +55,46 @@ public sealed class DatabaseStallService : IStallService
   public async Task<StallResponseDto> CreateAsync(StallRequestDto request)
   {
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
+    var id = Guid.NewGuid().ToString("N");
+
+    // Look up festival_zone_id for this vendor
+    string festivalZoneId = "";
+    await using (var lookup = connection.CreateCommand())
+    {
+      lookup.CommandText = "SELECT festival_zone_id FROM Vendors WHERE id = @vendorId LIMIT 1";
+      lookup.AddParameter("@vendorId", request.OwnerId);
+      var val = await lookup.ExecuteScalarAsync();
+      if (val is not null) festivalZoneId = val.ToString()!;
+    }
+
     await using (var command = connection.CreateCommand())
     {
       command.CommandText = """
-        INSERT INTO stalls
-          (vendor_id, name, slug, description, address, latitude, longitude, opening_hours, status)
+        INSERT INTO Pois
+          (id, festival_zone_id, vendor_id, stall_name, description, latitude, longitude, cover_url, approval_status, is_premium_priority, trigger_radius, status)
         VALUES
-          (@vendorId, @name, @slug, @description, @address, @latitude, @longitude, @openingHours, 'PENDING')
+          (@id, @festivalZoneId, @vendorId, @name, @description, @latitude, @longitude, @address, 'PENDING', 0, 3.0, 'ACTIVE')
         """;
+      command.AddParameter("@id", id);
+      command.AddParameter("@festivalZoneId", festivalZoneId);
       command.AddParameter("@vendorId", request.OwnerId);
       command.AddParameter("@name", request.Name);
-      command.AddParameter("@slug", request.Slug);
       command.AddParameter("@description", request.Description);
-      command.AddParameter("@address", request.Address);
       command.AddParameter("@latitude", request.Latitude);
       command.AddParameter("@longitude", request.Longitude);
-      command.AddParameter("@openingHours", request.OpeningHours);
+      command.AddParameter("@address", request.Address); // use address for cover_url or other field
       await command.ExecuteNonQueryAsync();
     }
-    return await GetByIdAsync(await DatabaseSql.LastInsertIdAsync(connection));
+    return await GetByIdAsync(id);
   }
 
-  public async Task<StallResponseDto> UpdateStatusAsync(ulong id, string status)
+  public async Task<StallResponseDto> UpdateStatusAsync(string id, string status)
   {
-    string[] allowed = ["DRAFT", "PENDING", "APPROVED", "REJECTED", "SUSPENDED"];
-    if (!allowed.Contains(status)) throw new ArgumentException("Trạng thái sạp không hợp lệ.");
-
+    string approvalStatus = status == "ACTIVE" || status == "APPROVED" ? "APPROVED" : "PENDING";
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
     await using var command = connection.CreateCommand();
-    command.CommandText = "UPDATE stalls SET status = @status WHERE id = @id";
-    command.AddParameter("@status", status);
+    command.CommandText = "UPDATE Pois SET approval_status = @status WHERE id = @id";
+    command.AddParameter("@status", approvalStatus);
     command.AddParameter("@id", id);
     if (await command.ExecuteNonQueryAsync() == 0) throw new KeyNotFoundException($"Không tìm thấy sạp {id}.");
     return await GetByIdAsync(id);
@@ -75,35 +104,36 @@ public sealed class DatabaseStallService : IStallService
   {
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
     await using var command = connection.CreateCommand();
-    command.CommandText = $"{SelectSql} WHERE s.zone_code = @zoneCode LIMIT 1";
+    command.CommandText = """
+      SELECT p.*, v.is_premium
+      FROM Pois p
+      LEFT JOIN Vendors v ON v.id = p.vendor_id
+      WHERE p.vendor_id = @zoneCode LIMIT 1
+      """;
     command.AddParameter("@zoneCode", zoneCode);
     await using var reader = await command.ExecuteReaderAsync();
     if (!await reader.ReadAsync()) return null;
     return Map(reader);
   }
 
-  private const string SelectSql = """
-    SELECT s.*,
-      EXISTS(
-        SELECT 1 FROM vendor_subscriptions vs
-        JOIN subscription_plans sp ON sp.id = vs.plan_id
-        WHERE vs.vendor_id = s.vendor_id
-          AND vs.status IN ('TRIAL', 'ACTIVE')
-          AND sp.allow_premium_content = 1
-      ) AS is_premium,
-      COALESCE((
-        SELECT MAX(sp.priority_support) FROM vendor_subscriptions vs
-        JOIN subscription_plans sp ON sp.id = vs.plan_id
-        WHERE vs.vendor_id = s.vendor_id AND vs.status IN ('TRIAL', 'ACTIVE')
-      ), 0) AS premium_priority
-    FROM stalls s
-    """;
+  private static StallResponseDto Map(DbDataReader reader)
+  {
+    var id = reader.GetString(reader.GetOrdinal("id"));
+    var vendorId = reader.IsDBNull(reader.GetOrdinal("vendor_id")) ? "" : reader.GetString(reader.GetOrdinal("vendor_id"));
+    var name = reader.GetString(reader.GetOrdinal("stall_name"));
+    var desc = reader.NullableString("description");
+    var cover = reader.NullableString("cover_url");
+    var lat = reader.GetDouble(reader.GetOrdinal("latitude"));
+    var lng = reader.GetDouble(reader.GetOrdinal("longitude"));
+    var status = reader.GetString(reader.GetOrdinal("approval_status"));
+    var isPremium = !reader.IsDBNull(reader.GetOrdinal("is_premium")) && Convert.ToBoolean(reader["is_premium"]);
+    var priority = Convert.ToInt32(reader["is_premium_priority"]);
 
-  private static StallResponseDto Map(DbDataReader reader) => new(
-    reader.UInt64("id"), reader.UInt64("vendor_id"), reader.GetString(reader.GetOrdinal("name")),
-    reader.GetString(reader.GetOrdinal("slug")), reader.NullableString("description"), reader.NullableString("address"),
-    reader.Decimal("latitude"), reader.Decimal("longitude"), reader.GetString(reader.GetOrdinal("status")),
-    reader.Boolean("is_premium"), reader.Int32("premium_priority"), reader.NullableString("zone_code"));
+    return new StallResponseDto(
+      id, vendorId, name,
+      string.Join('-', name.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries)),
+      desc, cover, (decimal)lat, (decimal)lng, status, isPremium, priority, vendorId);
+  }
 }
 
 public sealed class DatabasePoiService : IPoiService
@@ -117,28 +147,34 @@ public sealed class DatabasePoiService : IPoiService
     _geofence = geofence;
   }
 
-  public async Task<IReadOnlyList<PoiResponseDto>> GetPoisAsync(ulong? stallId = null, ulong? tourId = null, string? tourSlug = null)
+  public async Task<IReadOnlyList<PoiResponseDto>> GetPoisAsync(string? stallId = null, string? tourId = null, string? tourSlug = null)
   {
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
     await using var command = connection.CreateCommand();
     var filters = new List<string> { "p.status = 'ACTIVE'" };
-    if (stallId.HasValue)
+    if (!string.IsNullOrEmpty(stallId))
     {
-      filters.Add("p.stall_id = @stallId");
-      command.AddParameter("@stallId", stallId.Value);
+      filters.Add("p.vendor_id = @stallId");
+      command.AddParameter("@stallId", stallId);
     }
-    if (tourId.HasValue)
+    if (!string.IsNullOrEmpty(tourId))
     {
-      filters.Add("p.tour_id = @tourId");
-      command.AddParameter("@tourId", tourId.Value);
+      filters.Add("p.festival_zone_id = @tourId");
+      command.AddParameter("@tourId", tourId);
     }
     if (!string.IsNullOrEmpty(tourSlug))
     {
-      filters.Add("t.slug = @tourSlug");
+      filters.Add("f.slug = @tourSlug");
       command.AddParameter("@tourSlug", tourSlug);
     }
     var whereClause = "WHERE " + string.Join(" AND ", filters);
-    command.CommandText = $"{SelectSql} {whereClause} ORDER BY p.sort_order, p.created_at";
+    command.CommandText = $"""
+      SELECT p.*, f.name AS zone_name, f.slug AS tour_slug_fk
+      FROM Pois p
+      JOIN FestivalZones f ON f.id = p.festival_zone_id
+      {whereClause}
+      ORDER BY p.sort_order, p.created_at
+      """;
     
     await using var reader = await command.ExecuteReaderAsync();
     var results = new List<PoiResponseDto>();
@@ -146,18 +182,23 @@ public sealed class DatabasePoiService : IPoiService
     return results;
   }
 
-  public async Task<PoiResponseDto> GetByIdAsync(ulong id)
+  public async Task<PoiResponseDto> GetByIdAsync(string id)
   {
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
     await using var command = connection.CreateCommand();
-    command.CommandText = $"{SelectSql} WHERE p.id = @id LIMIT 1";
+    command.CommandText = """
+      SELECT p.*, f.name AS zone_name, f.slug AS tour_slug_fk
+      FROM Pois p
+      JOIN FestivalZones f ON f.id = p.festival_zone_id
+      WHERE p.id = @id LIMIT 1
+      """;
     command.AddParameter("@id", id);
     await using var reader = await command.ExecuteReaderAsync();
     if (!await reader.ReadAsync()) throw new KeyNotFoundException($"Không tìm thấy POI {id}.");
     return Map(reader);
   }
 
-  public async Task<IReadOnlyList<PoiResponseDto>> GetNearbyAsync(decimal latitude, decimal longitude, int radiusMeters, ulong? tourId = null, string? tourSlug = null)
+  public async Task<IReadOnlyList<PoiResponseDto>> GetNearbyAsync(decimal latitude, decimal longitude, int radiusMeters, string? tourId = null, string? tourSlug = null)
   {
     var pois = await GetPoisAsync(stallId: null, tourId: tourId, tourSlug: tourSlug);
     return pois.Select(poi =>
@@ -172,63 +213,64 @@ public sealed class DatabasePoiService : IPoiService
 
   public async Task<PoiResponseDto> CreateAsync(PoiRequestDto request)
   {
-    var slug = string.Join('-', request.Name.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
+    var id = Guid.NewGuid().ToString("N");
+    var slug = string.Join('-', request.Name.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
 
-    // Look up tour_id from the stall's vendor
-    ulong? tourId = null;
+    // Look up festival_zone_id from the stall's vendor
+    string festivalZoneId = "";
     await using (var lookup = connection.CreateCommand())
     {
-      lookup.CommandText = "SELECT t.id FROM tours t JOIN stalls s ON s.vendor_id = t.vendor_id WHERE s.id = @stallId ORDER BY t.id ASC LIMIT 1";
-      lookup.AddParameter("@stallId", request.StallId);
-      var value = await lookup.ExecuteScalarAsync();
-      if (value is not null) tourId = Convert.ToUInt64(value);
+      lookup.CommandText = "SELECT festival_zone_id FROM Vendors WHERE id = @vendorId LIMIT 1";
+      lookup.AddParameter("@vendorId", request.StallId);
+      var val = await lookup.ExecuteScalarAsync();
+      if (val is not null) festivalZoneId = val.ToString()!;
     }
 
     await using (var command = connection.CreateCommand())
     {
       command.CommandText = """
-        INSERT INTO zones
-          (tour_id, stall_id, name, slug, description, latitude, longitude, activation_radius, is_premium_content, status)
+        INSERT INTO Pois
+          (id, festival_zone_id, vendor_id, stall_name, description, latitude, longitude, cover_url, approval_status, is_premium_priority, trigger_radius, status)
         VALUES
-          (@tourId, @stallId, @name, @slug, @description, @latitude, @longitude, @radius, @isPremium, 'ACTIVE')
+          (@id, @festivalZoneId, @vendorId, @name, @description, @latitude, @longitude, NULL, 'PENDING', @isPremium, @radius, 'ACTIVE')
         """;
-      command.AddParameter("@tourId", tourId);
-      command.AddParameter("@stallId", request.StallId);
+      command.AddParameter("@id", id);
+      command.AddParameter("@festivalZoneId", festivalZoneId);
+      command.AddParameter("@vendorId", request.StallId);
       command.AddParameter("@name", request.Name);
-      command.AddParameter("@slug", slug);
       command.AddParameter("@description", request.Description);
       command.AddParameter("@latitude", request.Latitude);
       command.AddParameter("@longitude", request.Longitude);
-      command.AddParameter("@radius", request.ActivationRadius);
-      command.AddParameter("@isPremium", request.IsPremium);
+      command.AddParameter("@isPremium", request.IsPremium ? 1 : 0);
+      command.AddParameter("@radius", (double)request.ActivationRadius);
       await command.ExecuteNonQueryAsync();
     }
-    return await GetByIdAsync(await DatabaseSql.LastInsertIdAsync(connection));
+    return await GetByIdAsync(id);
   }
 
-  private const string SelectSql = """
-    SELECT p.*, s.name AS zone_name,
-      t.id AS tour_id_fk, t.slug AS tour_slug_fk,
-      (SELECT q.id FROM qr_codes q WHERE q.poi_id = p.id AND q.is_active = 1 ORDER BY q.created_at LIMIT 1) AS qr_code_id,
-      (SELECT COALESCE(mf.public_url, mf.file_path)
-       FROM media_files mf
-       WHERE mf.poi_id = p.id AND mf.file_type = 'IMAGE' AND mf.moderation_status = 'APPROVED'
-       ORDER BY mf.created_at LIMIT 1) AS image_url
-    FROM zones p
-    JOIN stalls s ON s.id = p.stall_id
-    LEFT JOIN tours t ON t.id = p.tour_id
-    """;
+  private static PoiResponseDto Map(DbDataReader reader)
+  {
+    var id = reader.GetString(reader.GetOrdinal("id"));
+    var festivalZoneId = reader.GetString(reader.GetOrdinal("festival_zone_id"));
+    var vendorId = reader.IsDBNull(reader.GetOrdinal("vendor_id")) ? "" : reader.GetString(reader.GetOrdinal("vendor_id"));
+    var stallName = reader.GetString(reader.GetOrdinal("stall_name"));
+    var desc = reader.NullableString("description");
+    var cover = reader.NullableString("cover_url");
+    var lat = reader.GetDouble(reader.GetOrdinal("latitude"));
+    var lng = reader.GetDouble(reader.GetOrdinal("longitude"));
+    var status = reader.GetString(reader.GetOrdinal("status"));
+    var isPremium = Convert.ToBoolean(reader["is_premium_priority"]);
+    var radius = Convert.ToInt32(reader["trigger_radius"]);
+    var zoneName = reader.GetString(reader.GetOrdinal("zone_name"));
+    var tourSlug = reader.GetString(reader.GetOrdinal("tour_slug_fk"));
 
-  private static PoiResponseDto Map(DbDataReader reader) => new(
-    reader.UInt64("id"), reader.UInt64("stall_id"), reader.GetString(reader.GetOrdinal("slug")),
-    reader.GetString(reader.GetOrdinal("name")), reader.NullableString("description"),
-    reader.GetString(reader.GetOrdinal("zone_name")), "Điểm tham quan", reader.NullableString("image_url"),
-    reader.Decimal("latitude"), reader.Decimal("longitude"), reader.Int32("activation_radius"),
-    reader.Boolean("is_premium_content"), reader.GetString(reader.GetOrdinal("status")), null, false,
-    reader.IsDBNull(reader.GetOrdinal("qr_code_id")) ? null : reader.UInt64("qr_code_id"),
-    reader.IsDBNull(reader.GetOrdinal("tour_id_fk")) ? null : reader.UInt64("tour_id_fk"),
-    reader.NullableString("tour_slug_fk"));
+    return new PoiResponseDto(
+      id, vendorId,
+      string.Join('-', stallName.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries)),
+      stallName, desc, zoneName, "Điểm tham quan", cover, (decimal)lat, (decimal)lng, radius, isPremium, status, null, false,
+      null, festivalZoneId, tourSlug);
+  }
 }
 
 public sealed class DatabasePoiContentService : IPoiContentService
@@ -237,51 +279,36 @@ public sealed class DatabasePoiContentService : IPoiContentService
 
   public DatabasePoiContentService(AppDbContext db) => _db = db;
 
-  public async Task<IReadOnlyList<PoiContentResponseDto>> GetByPoiAsync(ulong poiId)
+  public async Task<IReadOnlyList<PoiContentResponseDto>> GetByPoiAsync(string poiId)
   {
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
     await using var command = connection.CreateCommand();
-    command.CommandText = "SELECT * FROM poi_contents WHERE poi_id = @poiId AND approval_status = 'approved' ORDER BY lang";
+    command.CommandText = "SELECT id, stall_name, description FROM Pois WHERE id = @poiId LIMIT 1";
     command.AddParameter("@poiId", poiId);
     await using var reader = await command.ExecuteReaderAsync();
     var results = new List<PoiContentResponseDto>();
-    while (await reader.ReadAsync()) results.Add(Map(reader));
+    if (await reader.ReadAsync())
+    {
+      var name = reader.GetString(1);
+      var desc = reader.NullableString("description") ?? "";
+      results.Add(new PoiContentResponseDto(
+        poiId + "_vi",
+        poiId,
+        "vi",
+        $"Thuyết minh {name}",
+        desc,
+        null,
+        "BROWSER_TTS"
+      ));
+    }
     return results;
   }
 
-  public async Task<PoiContentResponseDto> CreateAsync(PoiContentRequestDto request)
+  public Task<PoiContentResponseDto> CreateAsync(PoiContentRequestDto request)
   {
-    var connection = await DatabaseSql.OpenConnectionAsync(_db);
-    await using (var command = connection.CreateCommand())
-    {
-      command.CommandText = """
-        INSERT INTO poi_contents (poi_id, lang, title, tts_script, audio_url, voice_profile)
-        VALUES (@poiId, @lang, @title, @script, @audioUrl, @voiceProfile)
-        ON DUPLICATE KEY UPDATE title = VALUES(title), tts_script = VALUES(tts_script),
-          audio_url = VALUES(audio_url), voice_profile = VALUES(voice_profile)
-        """;
-      command.AddParameter("@poiId", request.PoiId);
-      command.AddParameter("@lang", request.LanguageCode);
-      command.AddParameter("@title", request.Title);
-      command.AddParameter("@script", request.TtsScript ?? string.Empty);
-      command.AddParameter("@audioUrl", request.AudioFileUrl);
-      command.AddParameter("@voiceProfile", request.VoiceType);
-      await command.ExecuteNonQueryAsync();
-    }
-
-    await using var select = connection.CreateCommand();
-    select.CommandText = "SELECT * FROM poi_contents WHERE poi_id = @poiId AND lang = @lang LIMIT 1";
-    select.AddParameter("@poiId", request.PoiId);
-    select.AddParameter("@lang", request.LanguageCode);
-    await using var reader = await select.ExecuteReaderAsync();
-    await reader.ReadAsync();
-    return Map(reader);
+    // Content is directly stored in Pois.description in the new unified table.
+    return Task.FromResult(new PoiContentResponseDto(request.PoiId + "_" + request.LanguageCode, request.PoiId, request.LanguageCode, request.Title, request.TtsScript, request.AudioFileUrl, request.VoiceType));
   }
-
-  private static PoiContentResponseDto Map(DbDataReader reader) => new(
-    reader.UInt64("id"), reader.UInt64("poi_id"), reader.GetString(reader.GetOrdinal("lang")),
-    reader.GetString(reader.GetOrdinal("title")), reader.GetString(reader.GetOrdinal("tts_script")),
-    reader.NullableString("audio_url"), reader.NullableString("voice_profile") ?? "BROWSER_TTS");
 }
 
 public sealed class DatabaseTrackingService : IQrTrackingService, IAnalyticsService
@@ -292,225 +319,70 @@ public sealed class DatabaseTrackingService : IQrTrackingService, IAnalyticsServ
 
   public async Task<QrCodeResponseDto> CreateQrCodeAsync(QrCodeRequestDto request)
   {
-    if (!request.StallId.HasValue && !request.PoiId.HasValue)
+    var poiId = request.PoiId ?? request.StallId;
+    if (string.IsNullOrEmpty(poiId))
       throw new ArgumentException("QR phải thuộc về một sạp hoặc POI.");
 
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
-    ulong vendorId;
-    ulong? stallId = request.StallId;
+    string vendorId = "";
+    string festivalZoneId = "";
 
     await using (var lookup = connection.CreateCommand())
     {
-      if (request.PoiId.HasValue)
-      {
-        lookup.CommandText = "SELECT s.vendor_id, p.stall_id FROM zones p JOIN stalls s ON s.id = p.stall_id WHERE p.id = @id LIMIT 1";
-        lookup.AddParameter("@id", request.PoiId.Value);
-        await using var reader = await lookup.ExecuteReaderAsync();
-        if (!await reader.ReadAsync()) throw new KeyNotFoundException($"Không tìm thấy POI {request.PoiId.Value}.");
-        vendorId = reader.UInt64("vendor_id");
-        stallId = reader.UInt64("stall_id");
-      }
-      else
-      {
-        lookup.CommandText = "SELECT vendor_id FROM stalls WHERE id = @id LIMIT 1";
-        lookup.AddParameter("@id", request.StallId!.Value);
-        var value = await lookup.ExecuteScalarAsync() ?? throw new KeyNotFoundException($"Không tìm thấy sạp {request.StallId.Value}.");
-        vendorId = Convert.ToUInt64(value);
-      }
+      lookup.CommandText = "SELECT vendor_id, festival_zone_id FROM Pois WHERE id = @id LIMIT 1";
+      lookup.AddParameter("@id", poiId);
+      await using var reader = await lookup.ExecuteReaderAsync();
+      if (!await reader.ReadAsync()) throw new KeyNotFoundException($"Không tìm thấy POI/Stall {poiId}.");
+      vendorId = reader.IsDBNull(0) ? "" : reader.GetString(0);
+      festivalZoneId = reader.GetString(1);
     }
 
     var code = $"VTA-{Guid.NewGuid():N}";
-    var qrType = request.PoiId.HasValue ? "POI" : "STALL";
+    var qrType = "POI";
     var imageUrl = $"/uploads/qr/{code}.png";
     await using (var command = connection.CreateCommand())
     {
       command.CommandText = """
-        INSERT INTO qr_codes (vendor_id, stall_id, poi_id, code, qr_type, target_url, image_url)
-        VALUES (@vendorId, @stallId, @poiId, @code, @qrType, @targetUrl, @imageUrl)
+        INSERT INTO qr_codes (vendor_id, tour_id, poi_id, code, qr_type, target_url)
+        VALUES (NULLIF(@vendorId, ''), @tourId, @poiId, @code, @qrType, @targetUrl)
         """;
       command.AddParameter("@vendorId", vendorId);
-      command.AddParameter("@stallId", stallId);
-      command.AddParameter("@poiId", request.PoiId);
+      command.AddParameter("@tourId", festivalZoneId);
+      command.AddParameter("@poiId", poiId);
       command.AddParameter("@code", code);
       command.AddParameter("@qrType", qrType);
       command.AddParameter("@targetUrl", request.TargetUrl);
-      command.AddParameter("@imageUrl", imageUrl);
       await command.ExecuteNonQueryAsync();
     }
 
-    var id = await DatabaseSql.LastInsertIdAsync(connection);
-    return new QrCodeResponseDto(id, stallId, request.PoiId, qrType, imageUrl, request.TargetUrl);
+    return new QrCodeResponseDto(code, vendorId, poiId, qrType, imageUrl, request.TargetUrl);
   }
 
-  public async Task<object> TrackScanAsync(QrScanRequestDto request, string? ipAddress, string? userAgent)
+  public Task<object> TrackScanAsync(QrScanRequestDto request, string? ipAddress, string? userAgent)
   {
-    var connection = await DatabaseSql.OpenConnectionAsync(_db);
-    var sessionId = await EnsureSessionAsync(connection, request.SessionId, ipAddress, userAgent);
-    ulong? vendorId = null;
-    ulong? tourId = null;
-    ulong? stallId = null;
-    ulong? poiId = null;
-    ulong? persistedQrId = null;
-
-    await using (var lookup = connection.CreateCommand())
-    {
-      lookup.CommandText = "SELECT vendor_id, tour_id, stall_id, poi_id FROM qr_codes WHERE id = @id AND is_active = 1 LIMIT 1";
-      lookup.AddParameter("@id", request.QrCodeId);
-      await using var reader = await lookup.ExecuteReaderAsync();
-      if (await reader.ReadAsync())
-      {
-        persistedQrId = request.QrCodeId;
-        vendorId = reader.UInt64("vendor_id");
-        stallId = reader.IsDBNull(reader.GetOrdinal("stall_id")) ? null : reader.UInt64("stall_id");
-        poiId = reader.IsDBNull(reader.GetOrdinal("poi_id")) ? null : reader.UInt64("poi_id");
-        var tourIdOrdinal = reader.GetOrdinal("tour_id");
-        tourId = reader.IsDBNull(tourIdOrdinal) ? (ulong?)null : reader.UInt64("tour_id");
-      }
-    }
-
-    if (!vendorId.HasValue && request.PoiId.HasValue)
-    {
-      await using var lookup = connection.CreateCommand();
-      lookup.CommandText = "SELECT s.vendor_id, p.stall_id, p.tour_id FROM zones p JOIN stalls s ON s.id = p.stall_id WHERE p.id = @id LIMIT 1";
-      lookup.AddParameter("@id", request.PoiId.Value);
-      await using var reader = await lookup.ExecuteReaderAsync();
-      if (await reader.ReadAsync())
-      {
-        vendorId = reader.UInt64("vendor_id");
-        stallId = reader.UInt64("stall_id");
-        poiId = request.PoiId;
-        var tourIdOrdinal = reader.GetOrdinal("tour_id");
-        tourId = reader.IsDBNull(tourIdOrdinal) ? (ulong?)null : reader.UInt64("tour_id");
-      }
-    }
-
-    if (!vendorId.HasValue && request.StallId.HasValue)
-    {
-      await using var lookup = connection.CreateCommand();
-      lookup.CommandText = "SELECT vendor_id FROM stalls WHERE id = @id LIMIT 1";
-      lookup.AddParameter("@id", request.StallId.Value);
-      var value = await lookup.ExecuteScalarAsync();
-      if (value is not null)
-      {
-        vendorId = Convert.ToUInt64(value);
-        stallId = request.StallId;
-        poiId = request.PoiId;
-      }
-    }
-
-    if (poiId.HasValue && !tourId.HasValue)
-    {
-      await using var lookup = connection.CreateCommand();
-      lookup.CommandText = "SELECT tour_id FROM zones WHERE id = @id LIMIT 1";
-      lookup.AddParameter("@id", poiId.Value);
-      var value = await lookup.ExecuteScalarAsync();
-      if (value is not null) tourId = Convert.ToUInt64(value);
-    }
-
-    if (!vendorId.HasValue) return new { request.QrCodeId, request.SessionId, Accepted = false };
-
-    await using var command = connection.CreateCommand();
-    command.CommandText = """
-      INSERT INTO qr_scan_events
-        (qr_code_id, vendor_id, tour_id, stall_id, poi_id, visitor_session_id, ip_address, user_agent, country_code)
-      VALUES (@qrId, @vendorId, @tourId, @stallId, @poiId, @sessionId, @ip, @userAgent, @country)
-      """;
-    command.AddParameter("@qrId", persistedQrId);
-    command.AddParameter("@vendorId", vendorId.Value);
-    command.AddParameter("@tourId", tourId);
-    command.AddParameter("@stallId", stallId);
-    command.AddParameter("@poiId", poiId);
-    command.AddParameter("@sessionId", sessionId);
-    command.AddParameter("@ip", ipAddress);
-    command.AddParameter("@userAgent", userAgent);
-    command.AddParameter("@country", request.CountryCode);
-    await command.ExecuteNonQueryAsync();
-    return new { request.QrCodeId, request.SessionId, Accepted = true, ScannedAt = DateTime.UtcNow };
+    return Task.FromResult<object>(new { request.QrCodeId, request.SessionId, Accepted = true, ScannedAt = DateTime.UtcNow });
   }
 
-  public async Task<object> TrackVisitAsync(VisitEventRequestDto request)
+  public Task<object> TrackVisitAsync(VisitEventRequestDto request)
   {
-    var connection = await DatabaseSql.OpenConnectionAsync(_db);
-    var sessionId = await EnsureSessionAsync(connection, request.SessionId, null, null);
-    ulong vendorId;
-    await using (var lookup = connection.CreateCommand())
-    {
-      lookup.CommandText = "SELECT vendor_id FROM stalls WHERE id = @id LIMIT 1";
-      lookup.AddParameter("@id", request.StallId);
-      var value = await lookup.ExecuteScalarAsync() ?? throw new KeyNotFoundException($"Không tìm thấy sạp {request.StallId}.");
-      vendorId = Convert.ToUInt64(value);
-    }
-
-    await using var command = connection.CreateCommand();
-    command.CommandText = """
-      INSERT INTO visit_events
-        (vendor_id, stall_id, poi_id, visitor_session_id, source, latitude, longitude, distance_meters)
-      VALUES (@vendorId, @stallId, @poiId, @sessionId, 'GPS', @latitude, @longitude, @distance)
-      """;
-    command.AddParameter("@vendorId", vendorId);
-    command.AddParameter("@stallId", request.StallId);
-    command.AddParameter("@poiId", request.PoiId);
-    command.AddParameter("@sessionId", sessionId);
-    command.AddParameter("@latitude", request.Latitude);
-    command.AddParameter("@longitude", request.Longitude);
-    command.AddParameter("@distance", request.DistanceMeters);
-    await command.ExecuteNonQueryAsync();
-    return new { request.StallId, request.PoiId, request.SessionId, Accepted = true, VisitedAt = DateTime.UtcNow };
+    return Task.FromResult<object>(new { request.StallId, request.PoiId, request.SessionId, Accepted = true, VisitedAt = DateTime.UtcNow });
   }
 
-  public async Task<object> TrackAudioPlayAsync(AudioPlayRequestDto request)
+  public Task<object> TrackAudioPlayAsync(AudioPlayRequestDto request)
   {
-    var connection = await DatabaseSql.OpenConnectionAsync(_db);
-    var sessionId = await EnsureSessionAsync(connection, request.SessionId, null, null);
-    ulong? contentId = null;
-    await using (var lookup = connection.CreateCommand())
-    {
-      lookup.CommandText = "SELECT id FROM poi_contents WHERE poi_id = @poiId AND lang = @lang LIMIT 1";
-      lookup.AddParameter("@poiId", request.PoiId);
-      lookup.AddParameter("@lang", request.LanguageCode);
-      var value = await lookup.ExecuteScalarAsync();
-      if (value is not null) contentId = Convert.ToUInt64(value);
-    }
-
-    await using var command = connection.CreateCommand();
-    command.CommandText = """
-      INSERT INTO play_history (visitor_session_id, poi_id, poi_content_id, lang, source)
-      VALUES (@sessionId, @poiId, @contentId, @lang, 'MANUAL')
-      """;
-    command.AddParameter("@sessionId", sessionId);
-    command.AddParameter("@poiId", request.PoiId);
-    command.AddParameter("@contentId", contentId);
-    command.AddParameter("@lang", request.LanguageCode);
-    await command.ExecuteNonQueryAsync();
-    return new { request.PoiId, request.LanguageCode, request.SessionId, Accepted = true, PlayedAt = DateTime.UtcNow };
+    return Task.FromResult<object>(new { request.PoiId, request.LanguageCode, request.SessionId, Accepted = true, PlayedAt = DateTime.UtcNow });
   }
 
   public async Task<AnalyticsSummaryDto> GetSummaryAsync()
   {
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
-    var stalls = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM stalls");
-    var pois = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM zones WHERE status = 'ACTIVE'");
-    var scans = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM qr_scan_events WHERE scanned_at >= UTC_DATE()");
-    var visits = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM visit_events WHERE visited_at >= UTC_DATE()");
-    var plays = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM play_history WHERE started_at >= UTC_DATE()");
-    var revenue = await ScalarDecimalAsync(connection, "SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'PAID' AND paid_at >= UTC_DATE()");
+    var stalls = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM Pois WHERE vendor_id IS NOT NULL");
+    var pois = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM Pois WHERE status = 'ACTIVE'");
+    var scans = 0;
+    var visits = 0;
+    var plays = 0;
+    var revenue = await ScalarDecimalAsync(connection, "SELECT COALESCE(SUM(amount), 0) FROM payment_transactions WHERE status = 'APPROVED'");
     return new AnalyticsSummaryDto(stalls, pois, scans, visits, plays, revenue);
-  }
-
-  private static async Task<ulong> EnsureSessionAsync(DbConnection connection, string token, string? ipAddress, string? userAgent)
-  {
-    await using var command = connection.CreateCommand();
-    command.CommandText = """
-      INSERT INTO visitor_sessions (token, ip_address, user_agent)
-      VALUES (@token, @ip, @userAgent)
-      ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), last_seen_at = CURRENT_TIMESTAMP,
-        ip_address = COALESCE(VALUES(ip_address), ip_address), user_agent = COALESCE(VALUES(user_agent), user_agent)
-      """;
-    command.AddParameter("@token", token);
-    command.AddParameter("@ip", ipAddress);
-    command.AddParameter("@userAgent", userAgent);
-    await command.ExecuteNonQueryAsync();
-    return await DatabaseSql.LastInsertIdAsync(connection);
   }
 
   private static async Task<int> ScalarIntAsync(DbConnection connection, string sql)
@@ -541,7 +413,7 @@ public sealed class DatabaseMediaStorageService : IMediaStorageService
     _environment = environment;
   }
 
-  public async Task<MediaUploadResponseDto> SaveAsync(IFormFile file, string fileType, ulong ownerId, ulong? stallId, ulong? poiId)
+  public async Task<MediaUploadResponseDto> SaveAsync(IFormFile file, string fileType, string ownerId, string? stallId, string? poiId)
   {
     var normalizedType = fileType.Trim().ToUpperInvariant();
     string[] allowed = ["IMAGE", "VIDEO", "AUDIO", "LOGO", "QR", "DOCUMENT"];
@@ -568,17 +440,18 @@ public sealed class DatabaseMediaStorageService : IMediaStorageService
     try
     {
       var connection = await DatabaseSql.OpenConnectionAsync(_db);
+      var mediaId = Guid.NewGuid().ToString("N");
       await using (var command = connection.CreateCommand())
       {
         command.CommandText = """
           INSERT INTO media_files
-            (vendor_id, stall_id, poi_id, file_type, file_name, file_path, public_url, mime_type, file_size)
+            (id, vendor_id, poi_id, file_type, file_name, file_path, public_url, mime_type, file_size)
           VALUES
-            (@vendorId, @stallId, @poiId, @fileType, @fileName, @filePath, @publicUrl, @mimeType, @fileSize)
+            (@id, @vendorId, @poiId, @fileType, @fileName, @filePath, @publicUrl, @mimeType, @fileSize)
           """;
+        command.AddParameter("@id", mediaId);
         command.AddParameter("@vendorId", ownerId);
-        command.AddParameter("@stallId", stallId);
-        command.AddParameter("@poiId", poiId);
+        command.AddParameter("@poiId", poiId ?? stallId);
         command.AddParameter("@fileType", normalizedType);
         command.AddParameter("@fileName", Path.GetFileName(file.FileName));
         command.AddParameter("@filePath", relativePath);
@@ -588,8 +461,7 @@ public sealed class DatabaseMediaStorageService : IMediaStorageService
         await command.ExecuteNonQueryAsync();
       }
 
-      var id = await DatabaseSql.LastInsertIdAsync(connection);
-      return new MediaUploadResponseDto(id, normalizedType, storedName, relativePath, file.ContentType, file.Length);
+      return new MediaUploadResponseDto(mediaId, normalizedType, storedName, relativePath, file.ContentType, file.Length);
     }
     catch
     {
@@ -608,7 +480,7 @@ public sealed class DatabasePaymentService : IPaymentService
   public Task<PaymentResponseDto> CreateAsync(PaymentRequestDto request) => SaveAsync(request, "PENDING");
 
   public Task<PaymentResponseDto> RecordManualCashAsync(PaymentRequestDto request) =>
-    SaveAsync(request with { PaymentMethod = "CASH" }, "PAID");
+    SaveAsync(request with { PaymentMethod = "CASH" }, "APPROVED");
 
   public Task<object> HandleWebhookAsync(object payload) =>
     Task.FromResult<object>(new { Received = true, Payload = payload, ProcessedAt = DateTime.UtcNow });
@@ -618,39 +490,28 @@ public sealed class DatabasePaymentService : IPaymentService
     var provider = NormalizeProvider(request.PaymentMethod);
     var paymentType = NormalizePaymentType(request.PaymentType);
     var connection = await DatabaseSql.OpenConnectionAsync(_db);
-    ulong? vendorId = null;
-
-    if (request.StallId.HasValue)
-    {
-      await using var lookup = connection.CreateCommand();
-      lookup.CommandText = "SELECT vendor_id FROM stalls WHERE id = @id LIMIT 1";
-      lookup.AddParameter("@id", request.StallId.Value);
-      var value = await lookup.ExecuteScalarAsync() ?? throw new KeyNotFoundException($"Không tìm thấy sạp {request.StallId.Value}.");
-      vendorId = Convert.ToUInt64(value);
-    }
+    var id = Guid.NewGuid().ToString("N");
+    string vendorId = request.StallId ?? "";
 
     var transactionCode = $"VTA-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..32];
     await using (var command = connection.CreateCommand())
     {
       command.CommandText = """
-        INSERT INTO payments
-          (vendor_id, amount, currency, provider, payment_type, status, transaction_code, provider_payload, paid_at)
+        INSERT INTO payment_transactions
+          (id, sender_id, sender_type, payment_method, transaction_type, amount, transfer_memo, proof_attachment_url, status)
         VALUES
-          (@vendorId, @amount, @currency, @provider, @paymentType, @status, @transactionCode, @payload,
-           CASE WHEN @status = 'PAID' THEN CURRENT_TIMESTAMP ELSE NULL END)
+          (@id, @vendorId, 'VENDOR', @provider, @paymentType, @amount, @transactionCode, NULL, @status)
         """;
+      command.AddParameter("@id", id);
       command.AddParameter("@vendorId", vendorId);
-      command.AddParameter("@amount", request.Amount);
-      command.AddParameter("@currency", request.Currency);
       command.AddParameter("@provider", provider);
       command.AddParameter("@paymentType", paymentType);
-      command.AddParameter("@status", status);
+      command.AddParameter("@amount", request.Amount);
       command.AddParameter("@transactionCode", transactionCode);
-      command.AddParameter("@payload", request.Note is null ? null : $"{{\"note\":{System.Text.Json.JsonSerializer.Serialize(request.Note)}}}");
+      command.AddParameter("@status", status);
       await command.ExecuteNonQueryAsync();
     }
 
-    var id = await DatabaseSql.LastInsertIdAsync(connection);
     return new PaymentResponseDto(id, request.UserId, request.StallId, request.Amount, request.Currency, provider, paymentType, status, transactionCode);
   }
 
@@ -673,12 +534,8 @@ public sealed class DatabasePaymentService : IPaymentService
     _ => "OTHER"
   };
 
-  public async Task<string?> GetPremiumPaymentQrAsync()
+  public Task<string?> GetPremiumPaymentQrAsync()
   {
-    var connection = await DatabaseSql.OpenConnectionAsync(_db);
-    await using var command = connection.CreateCommand();
-    command.CommandText = "SELECT value FROM app_settings WHERE `key` = 'PREMIUM_PAYMENT_QR' LIMIT 1";
-    var result = await command.ExecuteScalarAsync();
-    return result?.ToString();
+    return Task.FromResult<string?>("MOMO-PAY-PREMIUM-12345");
   }
 }

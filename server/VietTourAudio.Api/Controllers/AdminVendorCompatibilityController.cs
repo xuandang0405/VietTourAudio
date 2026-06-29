@@ -1,6 +1,10 @@
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,20 +21,15 @@ namespace VietTourAudio.Api.Controllers;
 public sealed class AdminVendorCompatibilityController(AppDbContext db) : ControllerBase
 {
   private const string VendorSelect = """
-    SELECT CAST(v.id AS CHAR) id,v.trade_name businessName,v.contact_email ownerEmail,
-      v.contact_name ownerDisplayName,v.phone contactPhone,v.status verificationStatus,v.created_at createdAt,
-      vw.balance walletBalance,vw.total_top_up totalTopUp,
-      vs.status subscriptionStatus,vs.period_end periodEnd,
-      CAST(sp.id AS CHAR) planId,sp.name planName,sp.price monthlyPrice,
-      (SELECT COUNT(*) FROM stalls s WHERE s.vendor_id=v.id) stallCount,
-      v.vendor_code vendorCode, CAST(v.assigned_tour_id AS CHAR) assignedTourId
+    SELECT CAST(v.id AS CHAR) id, v.trade_name businessName, v.email ownerEmail,
+      v.contact_name ownerDisplayName, v.phone contactPhone, v.status verificationStatus, v.created_at createdAt,
+      vw.balance walletBalance, vw.total_top_up totalTopUp,
+      'ACTIVE' AS subscriptionStatus, NULL AS periodEnd,
+      'VTA-PREMIUM' AS planId, 'VTA Premium' AS planName, 199000.00 AS monthlyPrice,
+      (SELECT COUNT(*) FROM Pois p WHERE p.vendor_id=v.id) stallCount,
+      v.vendor_code vendorCode, CAST(v.festival_zone_id AS CHAR) assignedTourId
     FROM vendors v
     LEFT JOIN vendor_wallets vw ON vw.vendor_id=v.id
-    LEFT JOIN vendor_subscriptions vs ON vs.id=(
-      SELECT latest_vs.id FROM vendor_subscriptions latest_vs
-      WHERE latest_vs.vendor_id=v.id ORDER BY latest_vs.id DESC LIMIT 1
-    )
-    LEFT JOIN subscription_plans sp ON sp.id=vs.plan_id
     """;
 
   [HttpGet]
@@ -38,7 +37,7 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
   {
     var rows = await DatabaseSql.QueryRowsAsync(db, VendorSelect + "\n" + """
       WHERE (@status='ALL' OR v.status=@status)
-        AND (@search='' OR v.trade_name LIKE CONCAT('%',@search,'%') OR v.contact_email LIKE CONCAT('%',@search,'%'))
+        AND (@search='' OR v.trade_name LIKE CONCAT('%',@search,'%') OR v.email LIKE CONCAT('%',@search,'%'))
       ORDER BY v.created_at DESC
       """, new Dictionary<string, object?> { ["@status"] = status, ["@search"] = search.Trim() });
     return Ok(ApiResponseFactory.Ok(rows.Select(MapVendor)));
@@ -46,10 +45,10 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
 
   [HttpGet("tours-list")]
   public async Task<IActionResult> Tours() => Ok(ApiResponseFactory.Ok(await DatabaseSql.QueryRowsAsync(db,
-    "SELECT CAST(id AS CHAR) id,name,slug,status FROM tours WHERE status!='ARCHIVED' ORDER BY name")));
+    "SELECT CAST(id AS CHAR) id,name,slug,status FROM FestivalZones WHERE status!='ARCHIVED' ORDER BY name")));
 
-  [HttpGet("{id:long}")]
-  public async Task<IActionResult> Detail(ulong id)
+  [HttpGet("{id}")]
+  public async Task<IActionResult> Detail(string id)
   {
     var row = (await DatabaseSql.QueryRowsAsync(db, VendorSelect + " WHERE v.id=@id LIMIT 1",
       new Dictionary<string, object?> { ["@id"] = id })).FirstOrDefault();
@@ -66,15 +65,15 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
       """, new Dictionary<string, object?> { ["@id"] = id });
     var topups = await DatabaseSql.QueryRowsAsync(db, """
       SELECT CAST(id AS CHAR) id,CAST(vendor_id AS CHAR) vendorId,amount,provider,status,
-        proof_url proofImageUrl,note rejectReason,created_at createdAt,updated_at updatedAt
+        proof_url proofImageUrl,note rejectReason,created_at createdAt,reviewed_at updatedAt
       FROM top_up_requests WHERE vendor_id=@id ORDER BY created_at DESC
       """, new Dictionary<string, object?> { ["@id"] = id });
     var stalls = (await DatabaseSql.QueryRowsAsync(db, """
-      SELECT CAST(id AS CHAR) id, name, description, latitude, longitude,
-        activation_radius activationRadius, status, approval_status approvalStatus,
-        zone_code zoneCode, is_premium isPremium,
-        is_premium_priority isPremiumPriority
-      FROM stalls WHERE vendor_id=@id ORDER BY id
+      SELECT CAST(id AS CHAR) id, stall_name AS name, description, latitude, longitude,
+        trigger_radius AS activationRadius, status, approval_status AS approvalStatus,
+        'STALL' AS zoneCode, 1 AS isPremium,
+        1 AS isPremiumPriority
+      FROM Pois WHERE vendor_id=@id ORDER BY id
       """, new Dictionary<string, object?> { ["@id"] = id })).Select(s => new Dictionary<string, object?>
       {
         ["id"] = s["id"],
@@ -105,67 +104,81 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
     var vendorCode = Optional(body, "vendorCode");
     if (string.IsNullOrWhiteSpace(vendorCode))
     {
-      var maxIdRow = await DatabaseSql.QueryRowsAsync(db, "SELECT MAX(id) AS maxId FROM vendors");
+      var countRow = await DatabaseSql.QueryRowsAsync(db, "SELECT COUNT(*) AS cnt FROM vendors");
       var nextId = 1ul;
-      if (maxIdRow.Count > 0 && maxIdRow[0]["maxId"] != null && maxIdRow[0]["maxId"] != DBNull.Value)
+      if (countRow.Count > 0 && countRow[0]["cnt"] != null)
       {
-        nextId = Convert.ToUInt64(maxIdRow[0]["maxId"]) + 1;
+        nextId = Convert.ToUInt64(countRow[0]["cnt"]) + 1;
       }
       vendorCode = $"VND-{nextId:D4}";
     }
-    var assignedTourId = OptionalUlong(body, "assignedTourId");
+    var assignedTourId = Optional(body, "assignedTourId");
+    if (string.IsNullOrWhiteSpace(assignedTourId))
+    {
+      // Fallback to the first active FestivalZone
+      var fallbackRow = await DatabaseSql.QueryRowsAsync(db, "SELECT CAST(id AS CHAR) id FROM FestivalZones WHERE status!='ARCHIVED' ORDER BY id LIMIT 1");
+      if (fallbackRow.Count > 0)
+      {
+        assignedTourId = fallbackRow[0]["id"] as string;
+      }
+      if (string.IsNullOrWhiteSpace(assignedTourId))
+      {
+        return BadRequest(ApiResponseFactory.Fail("assignedTourId.required"));
+      }
+    }
+
+    var vendorId = Guid.NewGuid().ToString("D");
+    var poiId = Guid.NewGuid().ToString("D");
+    var vpuId = Guid.NewGuid().ToString("D");
+    var walletId = Guid.NewGuid().ToString("D");
+    var uniqueSlug = await GetUniqueSlugAsync(tradeName);
+
     await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
     var connection = await DatabaseSql.OpenConnectionAsync(db);
     await using var insert = connection.CreateCommand();
     insert.Transaction = transaction.GetDbTransaction();
     insert.CommandText = """
-      INSERT INTO vendors(legal_name,trade_name,slug,vendor_code,assigned_tour_id,contact_name,contact_email,status)
-      VALUES(@name,@name,@slug,@code,@tour,@name,@email,'APPROVED')
+      INSERT INTO vendors(id,legal_name,trade_name,slug,vendor_code,festival_zone_id,contact_name,email,status)
+      VALUES(@vendorId,@name,@name,@slug,@code,@tour,@name,@email,'APPROVED')
       """;
-    insert.AddParameter("@name", tradeName); insert.AddParameter("@slug", Slugify(tradeName));
-    insert.AddParameter("@code", vendorCode); insert.AddParameter("@tour", assignedTourId); insert.AddParameter("@email", email);
+    insert.AddParameter("@vendorId", vendorId);
+    insert.AddParameter("@name", tradeName);
+    insert.AddParameter("@slug", uniqueSlug);
+    insert.AddParameter("@code", vendorCode);
+    insert.AddParameter("@tour", assignedTourId);
+    insert.AddParameter("@email", email);
+    
     var insertedVendorRows = await insert.ExecuteNonQueryAsync();
     if (insertedVendorRows == 0)
     {
       await transaction.RollbackAsync();
       return StatusCode(500, ApiResponseFactory.Fail("vendor.create_failed"));
     }
-    await using var identity = connection.CreateCommand();
-    identity.Transaction = transaction.GetDbTransaction();
-    identity.CommandText = "SELECT LAST_INSERT_ID()";
-    var id = Convert.ToUInt64(await identity.ExecuteScalarAsync());
 
     await using var provision = connection.CreateCommand();
     provision.Transaction = transaction.GetDbTransaction();
     provision.CommandText = """
-      INSERT INTO vendor_portal_users(vendor_id,email,pass_hash,full_name,status) VALUES(@id,@email,@hash,@name,'ACTIVE');
-      INSERT INTO vendor_wallets(vendor_id,balance,total_top_up,total_spent,total_commission) VALUES(@id,0,0,0,0);
-      INSERT INTO stalls
-        (vendor_id,name,slug,description,latitude,longitude,activation_radius,status,
-         is_premium,is_premium_priority,priority_score,zone_code,approval_status)
+      INSERT INTO vendor_portal_users(id,vendor_id,email,pass_hash,full_name,status) VALUES(@vpuId,@vendorId,@email,@hash,@name,'ACTIVE');
+      INSERT INTO vendor_wallets(id,vendor_id,balance,total_top_up,total_spent,promo_balance) VALUES(@walletId,@vendorId,0,0,0,0);
+      INSERT INTO Pois
+        (id,festival_zone_id,vendor_id,stall_name,slug,description,latitude,longitude,trigger_radius,status,
+         is_premium_priority,approval_status)
       VALUES
-        (@id,@name,@slug,'Vui lòng cập nhật mô tả sạp hàng của bạn.',
-         COALESCE((SELECT latitude FROM tours WHERE id=@tour),10.776076),
-         COALESCE((SELECT longitude FROM tours WHERE id=@tour),106.700948),
-         10,'PENDING',0,1,100,CONCAT('STALL-',@id),'PENDING');
-
-      SET @stallId = LAST_INSERT_ID();
-
-      INSERT INTO zones(tour_id,stall_id,name,slug,description,latitude,longitude,activation_radius,status,approval_status)
-      SELECT COALESCE(@tour,(SELECT id FROM tours WHERE status!='ARCHIVED' ORDER BY id LIMIT 1)),
-        @stallId,@name,@slug,'Vui lòng cập nhật mô tả sạp hàng của bạn.',
-        COALESCE(t.latitude,(SELECT AVG(z.latitude) FROM zones z WHERE z.tour_id=t.id)),
-        COALESCE(t.longitude,(SELECT AVG(z.longitude) FROM zones z WHERE z.tour_id=t.id)),
-        10,'ACTIVE','PENDING'
-      FROM tours t
-      WHERE t.id=COALESCE(@tour,(SELECT id FROM tours WHERE status!='ARCHIVED' ORDER BY id LIMIT 1));
+        (@poiId,@tour,@vendorId,@name,@slug,'Vui lòng cập nhật mô tả sạp hàng của bạn.',
+         COALESCE((SELECT latitude FROM FestivalZones WHERE id=@tour),10.776076),
+         COALESCE((SELECT longitude FROM FestivalZones WHERE id=@tour),106.700948),
+         10,'ACTIVE',1,'PENDING');
       """;
-    provision.AddParameter("@id", id);
+    provision.AddParameter("@vpuId", vpuId);
+    provision.AddParameter("@vendorId", vendorId);
+    provision.AddParameter("@walletId", walletId);
+    provision.AddParameter("@poiId", poiId);
     provision.AddParameter("@email", email);
     provision.AddParameter("@hash", BCrypt.Net.BCrypt.HashPassword(password, 12));
     provision.AddParameter("@name", tradeName);
-    provision.AddParameter("@slug", Slugify(tradeName));
+    provision.AddParameter("@slug", uniqueSlug);
     provision.AddParameter("@tour", assignedTourId);
+
     var provisionRows = await provision.ExecuteNonQueryAsync();
     if (provisionRows == 0)
     {
@@ -173,36 +186,36 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
       return StatusCode(500, ApiResponseFactory.Fail("vendor.provision_failed"));
     }
     await transaction.CommitAsync();
-    return await Detail(id);
+    return await Detail(vendorId);
   }
 
-  [HttpPut("{id:long}")]
-  public async Task<IActionResult> Update(ulong id, [FromBody] JsonElement body)
+  [HttpPut("{id}")]
+  public async Task<IActionResult> Update(string id, [FromBody] JsonElement body)
   {
     var affected = await DatabaseSql.ExecuteAsync(db, """
       UPDATE vendors SET legal_name=COALESCE(@legal,legal_name),trade_name=COALESCE(@trade,trade_name),
-        contact_email=COALESCE(@email,contact_email),vendor_code=COALESCE(@code,vendor_code),
-        assigned_tour_id=@tour WHERE id=@id
+        email=COALESCE(@email,email),vendor_code=COALESCE(@code,vendor_code),
+        festival_zone_id=@tour WHERE id=@id
       """, new Dictionary<string, object?> { ["@id"] = id, ["@legal"] = Optional(body, "legalName") ?? Optional(body, "tradeName"),
         ["@trade"] = Optional(body, "tradeName"), ["@email"] = Optional(body, "contactEmail"),
-        ["@code"] = Optional(body, "vendorCode"), ["@tour"] = OptionalUlong(body, "assignedTourId") });
+        ["@code"] = Optional(body, "vendorCode"), ["@tour"] = Optional(body, "assignedTourId") });
     if (affected == 0) return NotFound(ApiResponseFactory.Fail("vendor.not_found"));
     return await Detail(id);
   }
 
-  [HttpPost("{id:long}/approve")] public Task<IActionResult> Approve(ulong id) => SetStatus(id, "APPROVED", null);
-  [HttpPost("{id:long}/reject")] public Task<IActionResult> Reject(ulong id, [FromBody] ReasonRequest request) => SetStatus(id, "REJECTED", request.Reason);
-  [HttpPost("{id:long}/suspend")] public Task<IActionResult> Suspend(ulong id, [FromBody] ReasonRequest request) => SetStatus(id, "SUSPENDED", request.Reason);
-  [HttpPost("{id:long}/force-cancel")] public Task<IActionResult> Cancel(ulong id, [FromBody] ReasonRequest request) => SetStatus(id, "SUSPENDED", request.Reason);
-  [HttpPost("{id:long}/unsuspend")] public Task<IActionResult> Unsuspend(ulong id) => SetStatus(id, "APPROVED", null);
-  [HttpPut("{id:long}/status")]
-  public Task<IActionResult> Status(ulong id, [FromBody] VendorStatusRequest request) => SetStatus(id, request.Status, request.Reason);
+  [HttpPost("{id}/approve")] public Task<IActionResult> Approve(string id) => SetStatus(id, "APPROVED", null);
+  [HttpPost("{id}/reject")] public Task<IActionResult> Reject(string id, [FromBody] ReasonRequest request) => SetStatus(id, "REJECTED", request.Reason);
+  [HttpPost("{id}/suspend")] public Task<IActionResult> Suspend(string id, [FromBody] ReasonRequest request) => SetStatus(id, "SUSPENDED", request.Reason);
+  [HttpPost("{id}/force-cancel")] public Task<IActionResult> Cancel(string id, [FromBody] ReasonRequest request) => SetStatus(id, "SUSPENDED", request.Reason);
+  [HttpPost("{id}/unsuspend")] public Task<IActionResult> Unsuspend(string id) => SetStatus(id, "APPROVED", null);
+  [HttpPut("{id}/status")]
+  public Task<IActionResult> Status(string id, [FromBody] VendorStatusRequest request) => SetStatus(id, request.Status, request.Reason);
 
-  private async Task<IActionResult> SetStatus(ulong id, string status, string? reason)
+  private async Task<IActionResult> SetStatus(string id, string status, string? reason)
   {
     if (!new[] { "PENDING", "APPROVED", "REJECTED", "SUSPENDED" }.Contains(status))
       return BadRequest(ApiResponseFactory.Fail("vendor.invalid_status"));
-    var actor = ulong.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    var actor = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     var changed = await DatabaseSql.ExecuteAsync(db, """
       UPDATE vendors SET status=@status,rejection_reason=@reason,
         approved_by_user_id=IF(@status='APPROVED',@actor,approved_by_user_id),
@@ -226,14 +239,28 @@ public sealed class AdminVendorCompatibilityController(AppDbContext db) : Contro
     ["assignedTourId"] = row.GetValueOrDefault("assignedTourId")
   };
 
+  private async Task<string> GetUniqueSlugAsync(string name)
+  {
+    var baseSlug = Slugify(name);
+    var slug = baseSlug;
+    int suffix = 1;
+    while (true)
+    {
+      var rows = await DatabaseSql.QueryRowsAsync(db,
+        "SELECT COUNT(*) cnt FROM vendors WHERE slug = @slug",
+        new Dictionary<string, object?> { ["@slug"] = slug });
+      var exists = Convert.ToInt32(rows[0]["cnt"]) > 0;
+      if (!exists) return slug;
+      suffix++;
+      slug = $"{baseSlug}-{suffix}";
+    }
+  }
+
   private static string Required(JsonElement body, string key) =>
     body.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(value.GetString())
       ? value.GetString()! : throw new ArgumentException($"{key}.required");
   private static string? Optional(JsonElement body, string key) =>
     body.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
-  private static ulong? OptionalUlong(JsonElement body, string key) =>
-    body.TryGetProperty(key, out var value) && value.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined &&
-    ulong.TryParse(value.ToString(), out var result) ? result : null;
   private static string Slugify(string value) => StringHelpers.Slugify(value);
 }
 

@@ -1,9 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using VietTourAudio.Api.Data;
 using VietTourAudio.Api.Helpers;
-using VietTourAudio.Api.Entities;
 using VietTourAudio.Api.Domain;
 
 namespace VietTourAudio.Api.Controllers;
@@ -11,31 +16,33 @@ namespace VietTourAudio.Api.Controllers;
 [ApiController]
 [Route("api/admin/stalls")]
 [Authorize(Roles = "SUPER_ADMIN,ADMIN")]
-public sealed class AdminStallController(AppDbContext db) : ControllerBase
+public sealed class AdminStallController(
+  AppDbContext db,
+  IWebHostEnvironment environment,
+  VietTourAudio.Api.Services.PoiTranslationService translationService) : ControllerBase
 {
-  /// <summary>
-  /// Grant multi-premium to ALL stalls of a vendor (paid expansion pipeline).
-  /// Sets IsPremium=1, IsPremiumPriority=1, TriggerRadius=10, and 30-day expiry on all stalls.
-  /// </summary>
   [HttpPost("grant-multi-premium")]
   public async Task<IActionResult> GrantMultiPremium([FromBody] GrantMultiPremiumRequest request)
   {
-    if (request.VendorId <= 0)
+    if (string.IsNullOrWhiteSpace(request.VendorId))
       return BadRequest(ApiResponseFactory.Fail("vendor_id is required"));
 
-    var affected = await DatabaseSql.ExecuteAsync(db, """
-      UPDATE stalls
+    await DatabaseSql.ExecuteAsync(db, """
+      UPDATE Vendors
       SET is_premium = 1,
-          is_premium_priority = 1,
-          activation_radius = 10,
-          priority_score = 100,
           premium_activation_date = NOW(),
           premium_expiry_date = DATE_ADD(NOW(), INTERVAL 30 DAY),
           updated_at = NOW()
+      WHERE id = @vendorId
+      """, new Dictionary<string, object?> { ["@vendorId"] = request.VendorId });
+
+    var affected = await DatabaseSql.ExecuteAsync(db, """
+      UPDATE Pois
+      SET is_premium_priority = 1,
+          trigger_radius = 10.0,
+          updated_at = NOW()
       WHERE vendor_id = @vendorId
       """, new Dictionary<string, object?> { ["@vendorId"] = request.VendorId });
-    if (affected == 0)
-      return NotFound(ApiResponseFactory.Fail("stall.not_found"));
 
     return Ok(ApiResponseFactory.Ok(new
     {
@@ -45,118 +52,80 @@ public sealed class AdminStallController(AppDbContext db) : ControllerBase
     }));
   }
 
-  /// <summary>
-  /// Switch premium priority to a specific stall (and unset others for the same vendor).
-  /// The selected stall gets IsPremiumPriority=true + TriggerRadius=10.
-  /// </summary>
-  [HttpPut("{stallId:long}/premium-priority")]
-  public async Task<IActionResult> SetPremiumPriority(ulong stallId, [FromBody] PremiumPriorityRequest request)
+  [HttpPut("{stallId}/premium-priority")]
+  public async Task<IActionResult> SetPremiumPriority(string stallId, [FromBody] PremiumPriorityRequest request)
   {
-    // First, unset priority on all stalls for this vendor
-    var cleared = await DatabaseSql.ExecuteAsync(db, """
-      UPDATE stalls
+    await DatabaseSql.ExecuteAsync(db, """
+      UPDATE Pois
       SET is_premium_priority = 0,
-          activation_radius = 3,
+          trigger_radius = 3.0,
           updated_at = NOW()
       WHERE vendor_id = @vendorId
       """, new Dictionary<string, object?> { ["@vendorId"] = request.VendorId });
-    if (cleared == 0)
-      return NotFound(ApiResponseFactory.Fail("stall.not_found"));
 
-    // Then set priority on the selected stall
     var setPriority = await DatabaseSql.ExecuteAsync(db, """
-      UPDATE stalls
+      UPDATE Pois
       SET is_premium_priority = 1,
-          activation_radius = 10,
+          trigger_radius = 10.0,
           updated_at = NOW()
       WHERE id = @stallId AND vendor_id = @vendorId
       """, new Dictionary<string, object?>
-    {
-      ["@stallId"] = stallId,
-      ["@vendorId"] = request.VendorId
-    });
+      {
+        ["@stallId"] = stallId,
+        ["@vendorId"] = request.VendorId
+      });
     if (setPriority == 0)
       return NotFound(ApiResponseFactory.Fail("stall.not_found"));
 
     return Ok(ApiResponseFactory.Ok(new
     {
-      stallId = stallId.ToString(),
+      stallId = stallId,
       isPremiumPriority = true,
       triggerRadius = 10,
       message = "Đã chuyển đặc quyền phát Premium sang sạp được chọn."
     }));
   }
 
-  /// <summary>
-  /// Admin-only stall creation for a vendor, bypassing the standard premium/count blockers.
-  /// Max 3 stalls total per vendor.
-  /// </summary>
   [HttpPost("create-for-vendor")]
   public async Task<IActionResult> CreateStallForVendor([FromBody] AdminCreateStallRequest request)
   {
     if (string.IsNullOrWhiteSpace(request.Name))
       return BadRequest(ApiResponseFactory.Fail("Tên sạp không được để trống"));
 
-    var connection = await DatabaseSql.OpenConnectionAsync(db);
-
-    // Check current stall count
-    await using var countCmd = connection.CreateCommand();
-    countCmd.CommandText = "SELECT COUNT(*) FROM stalls WHERE vendor_id=@vendorId";
-    countCmd.AddParameter("@vendorId", request.VendorId);
-    var currentCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync());
-
+    var currentCount = await db.Pois.CountAsync(x => x.VendorId == request.VendorId);
     if (currentCount >= 3)
       return Conflict(ApiResponseFactory.Fail("Vendor đã đạt giới hạn tối đa 3 sạp hàng."));
 
+    var vendor = await db.Vendors.SingleOrDefaultAsync(x => x.Id == request.VendorId);
+    if (vendor == null) return NotFound(ApiResponseFactory.Fail("vendor.not_found"));
+
+    string tourId = vendor.FestivalZoneId ?? "";
+    if (string.IsNullOrEmpty(tourId))
+    {
+      var zone = await db.FestivalZones.FirstOrDefaultAsync();
+      tourId = zone?.Id ?? "";
+    }
+
     var slug = $"{Slugify(request.Name)}-{Guid.NewGuid():N}"[..Math.Min(80, Slugify(request.Name).Length + 33)];
-    var zoneCode = $"STALL-ADM-{Guid.NewGuid():N}"[..30];
-
-    await using var insert = connection.CreateCommand();
-    insert.CommandText = """
-      INSERT INTO stalls
-        (vendor_id,name,slug,description,latitude,longitude,activation_radius,status,
-         is_premium,is_premium_priority,priority_score,zone_code,approval_status)
-      VALUES
-        (@vendorId,@name,@slug,@description,@latitude,@longitude,3,'APPROVED',
-         0,0,0,@zoneCode,'APPROVED')
-      """;
-    insert.AddParameter("@vendorId", request.VendorId);
-    insert.AddParameter("@name", request.Name.Trim());
-    insert.AddParameter("@slug", slug);
-    insert.AddParameter("@description", request.Description ?? "Sạp phụ được Admin tạo.");
-    insert.AddParameter("@latitude", request.Latitude);
-    insert.AddParameter("@longitude", request.Longitude);
-    insert.AddParameter("@zoneCode", zoneCode);
-    var inserted = await insert.ExecuteNonQueryAsync();
-    if (inserted == 0)
+    var poi = new Poi
     {
-      return StatusCode(500, ApiResponseFactory.Fail("stall.create_failed"));
-    }
+      Id = Guid.NewGuid().ToString("N"),
+      FestivalZoneId = tourId,
+      VendorId = request.VendorId,
+      StallName = request.Name.Trim(),
+      Slug = slug,
+      Description = request.Description ?? "Sạp phụ được Admin tạo.",
+      Latitude = (double)request.Latitude,
+      Longitude = (double)request.Longitude,
+      TriggerRadius = 3.0,
+      ApprovalStatus = "APPROVED",
+      Status = "ACTIVE",
+      CreatedAt = DateTime.UtcNow,
+      UpdatedAt = DateTime.UtcNow
+    };
 
-    // Auto-create a POI (zone) for the new stall
-    await using var createPoi = connection.CreateCommand();
-    createPoi.CommandText = """
-      INSERT INTO zones
-        (tour_id,stall_id,name,slug,description,latitude,longitude,
-         activation_radius,status,approval_status)
-      SELECT COALESCE(v.assigned_tour_id,(SELECT id FROM tours WHERE status!='ARCHIVED' ORDER BY id LIMIT 1)),
-        LAST_INSERT_ID(),@name,CONCAT(@slug,'-poi'),@description,@latitude,@longitude,
-        3,'ACTIVE','APPROVED'
-      FROM vendors v
-      WHERE v.id=@vendorId
-        AND COALESCE(v.assigned_tour_id,(SELECT id FROM tours WHERE status!='ARCHIVED' ORDER BY id LIMIT 1)) IS NOT NULL
-      """;
-    createPoi.AddParameter("@vendorId", request.VendorId);
-    createPoi.AddParameter("@name", request.Name.Trim());
-    createPoi.AddParameter("@slug", slug);
-    createPoi.AddParameter("@description", request.Description ?? "Sạp phụ được Admin tạo.");
-    createPoi.AddParameter("@latitude", request.Latitude);
-    createPoi.AddParameter("@longitude", request.Longitude);
-    var poiCreated = await createPoi.ExecuteNonQueryAsync();
-    if (poiCreated == 0)
-    {
-      return StatusCode(500, ApiResponseFactory.Fail("poi.create_failed"));
-    }
+    db.Pois.Add(poi);
+    await db.SaveChangesAsync();
 
     return Ok(ApiResponseFactory.Ok(new
     {
@@ -167,74 +136,121 @@ public sealed class AdminStallController(AppDbContext db) : ControllerBase
     }));
   }
 
-  /// <summary>
-  /// Get all pending stalls/POIs for Admin review.
-  /// Queries from the same Pois table where ApprovalStatus == "PENDING".
-  /// </summary>
   [HttpGet("pending")]
   public async Task<IActionResult> GetPendingStallsForReview()
   {
     var pendingStalls = await db.Pois
-      .Where(p => p.ApprovalStatus == ApprovalStatus.PENDING)
+      .Where(p => p.ApprovalStatus == "PENDING")
       .AsNoTracking()
       .ToListAsync();
 
-    return Ok(ApiResponseFactory.Ok(pendingStalls));
+    return Ok(ApiResponseFactory.Ok(pendingStalls.Select(x => new
+    {
+      id = x.Id,
+      vendorId = x.VendorId,
+      name = x.StallName,
+      slug = x.Slug,
+      description = x.Description,
+      latitude = x.Latitude,
+      longitude = x.Longitude,
+      coverUrl = x.CoverUrl,
+      approvalStatus = x.ApprovalStatus,
+      isPremium = x.IsPremiumPriority,
+      triggerRadius = x.TriggerRadius,
+      status = x.Status,
+      createdAt = x.CreatedAt,
+      updatedAt = x.UpdatedAt
+    })));
   }
 
-  /// <summary>
-  /// Get detail of a specific stall/POI.
-  /// </summary>
-  [HttpGet("{id:long}")]
-  public async Task<IActionResult> GetStallDetailForAdminEdit([FromRoute] ulong id)
+  [HttpGet("{id}")]
+  public async Task<IActionResult> GetStallDetailForAdminEdit([FromRoute] string id)
   {
     var stall = await db.Pois.FirstOrDefaultAsync(p => p.Id == id);
     if (stall == null) 
       return NotFound(ApiResponseFactory.Fail("Không tìm thấy sạp hàng."));
-    return Ok(ApiResponseFactory.Ok(stall));
+    return Ok(ApiResponseFactory.Ok(new
+    {
+      id = stall.Id,
+      vendorId = stall.VendorId,
+      name = stall.StallName,
+      slug = stall.Slug,
+      description = stall.Description,
+      latitude = stall.Latitude,
+      longitude = stall.Longitude,
+      coverUrl = stall.CoverUrl,
+      approvalStatus = stall.ApprovalStatus,
+      isPremium = stall.IsPremiumPriority,
+      triggerRadius = stall.TriggerRadius,
+      status = stall.Status,
+      createdAt = stall.CreatedAt,
+      updatedAt = stall.UpdatedAt
+    }));
   }
 
-  /// <summary>
-  /// Approve a pending stall/POI request.
-  /// </summary>
-  [HttpPost("{id:long}/approve")]
-  public async Task<IActionResult> ApproveStall([FromRoute] ulong id)
+  [HttpPost("{id}/approve")]
+  public async Task<IActionResult> ApproveStall([FromRoute] string id)
   {
     var stall = await db.Pois.FirstOrDefaultAsync(p => p.Id == id);
     if (stall == null)
       return NotFound(ApiResponseFactory.Fail("Không tìm thấy sạp hàng."));
 
-    stall.ApprovalStatus = ApprovalStatus.APPROVED;
-    stall.UpdatedAt = DateTime.UtcNow;
-    var saved = await db.SaveChangesAsync();
-    if (saved == 0)
-      return StatusCode(500, ApiResponseFactory.Fail("stall.approve_failed"));
+    var webRoot = environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot");
+    var oldCoverUrl = stall.CoverUrl;
+    var newCoverUrl = stall.PendingCoverUrl;
 
-    return Ok(ApiResponseFactory.Ok(new { success = true, id = id.ToString(), approvalStatus = "APPROVED" }));
+    stall.StallName = stall.PendingName ?? stall.StallName;
+    stall.Description = stall.PendingDescription ?? stall.Description;
+    if (stall.PendingLatitude.HasValue) stall.Latitude = stall.PendingLatitude.Value;
+    if (stall.PendingLongitude.HasValue) stall.Longitude = stall.PendingLongitude.Value;
+    
+    if (!string.IsNullOrEmpty(newCoverUrl) && newCoverUrl != oldCoverUrl)
+    {
+      stall.CoverUrl = newCoverUrl;
+    }
+
+    stall.ApprovalStatus = "APPROVED";
+    stall.UpdatedAt = DateTime.UtcNow;
+
+    // Reset pending fields
+    stall.PendingName = null;
+    stall.PendingDescription = null;
+    stall.PendingCoverUrl = null;
+    stall.PendingLatitude = null;
+    stall.PendingLongitude = null;
+
+    // Run translations
+    await translationService.AutoLocalizeAsync(stall);
+
+    var saved = await db.SaveChangesAsync();
+    if (saved > 0)
+    {
+      if (!string.IsNullOrEmpty(newCoverUrl) && newCoverUrl != oldCoverUrl)
+      {
+        FileCleanupHelper.DeletePhysicalFile(oldCoverUrl, webRoot);
+      }
+    }
+
+    return Ok(ApiResponseFactory.Ok(new { success = true, id = id, approvalStatus = "APPROVED" }));
   }
 
-  /// <summary>
-  /// Reject a pending stall/POI request.
-  /// </summary>
-  [HttpPost("{id:long}/reject")]
-  public async Task<IActionResult> RejectStall([FromRoute] ulong id)
+  [HttpPost("{id}/reject")]
+  public async Task<IActionResult> RejectStall([FromRoute] string id)
   {
     var stall = await db.Pois.FirstOrDefaultAsync(p => p.Id == id);
     if (stall == null)
       return NotFound(ApiResponseFactory.Fail("Không tìm thấy sạp hàng."));
 
-    stall.ApprovalStatus = ApprovalStatus.REJECTED;
+    stall.ApprovalStatus = "REJECTED";
     stall.UpdatedAt = DateTime.UtcNow;
-    var saved = await db.SaveChangesAsync();
-    if (saved == 0)
-      return StatusCode(500, ApiResponseFactory.Fail("stall.reject_failed"));
+    await db.SaveChangesAsync();
 
-    return Ok(ApiResponseFactory.Ok(new { success = true, id = id.ToString(), approvalStatus = "REJECTED" }));
+    return Ok(ApiResponseFactory.Ok(new { success = true, id = id, approvalStatus = "REJECTED" }));
   }
 
   private static string Slugify(string value) => StringHelpers.Slugify(value);
 }
 
-public sealed record GrantMultiPremiumRequest(ulong VendorId);
-public sealed record PremiumPriorityRequest(ulong VendorId);
-public sealed record AdminCreateStallRequest(ulong VendorId, string Name, string? Description, decimal Latitude, decimal Longitude);
+public sealed record GrantMultiPremiumRequest(string VendorId);
+public sealed record PremiumPriorityRequest(string VendorId);
+public sealed record AdminCreateStallRequest(string VendorId, string Name, string? Description, decimal Latitude, decimal Longitude);

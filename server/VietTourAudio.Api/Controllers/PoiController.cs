@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using VietTourAudio.Api.DTOs;
 using VietTourAudio.Api.Helpers;
 using VietTourAudio.Api.Interfaces;
+using System.Threading.Tasks;
 
 namespace VietTourAudio.Api.Controllers;
 
@@ -17,21 +18,21 @@ public class PoiController : ControllerBase
   }
 
   [HttpGet]
-  public async Task<IActionResult> GetAll([FromQuery] ulong? stallId, [FromQuery] ulong? tourId, [FromQuery] string? tourSlug)
+  public async Task<IActionResult> GetAll([FromQuery] string? stallId, [FromQuery] string? tourId, [FromQuery] string? tourSlug)
   {
     var result = await _poiService.GetPoisAsync(stallId, tourId, tourSlug);
     return Ok(ApiResponseFactory.Ok(result, "Danh sách POI."));
   }
 
   [HttpGet("nearby")]
-  public async Task<IActionResult> GetNearby([FromQuery] decimal latitude, [FromQuery] decimal longitude, [FromQuery] int radiusMeters = 100, [FromQuery] ulong? tourId = null, [FromQuery] string? tourSlug = null)
+  public async Task<IActionResult> GetNearby([FromQuery] decimal latitude, [FromQuery] decimal longitude, [FromQuery] int radiusMeters = 100, [FromQuery] string? tourId = null, [FromQuery] string? tourSlug = null)
   {
     var result = await _poiService.GetNearbyAsync(latitude, longitude, radiusMeters, tourId, tourSlug);
     return Ok(ApiResponseFactory.Ok(result, "Danh sách POI gần vị trí GPS."));
   }
 
-  [HttpGet("{id:long}")]
-  public async Task<IActionResult> GetById(ulong id)
+  [HttpGet("{id}")]
+  public async Task<IActionResult> GetById(string id)
   {
     var result = await _poiService.GetByIdAsync(id);
     return Ok(ApiResponseFactory.Ok(result, "Chi tiết POI."));
