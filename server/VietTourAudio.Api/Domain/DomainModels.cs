@@ -35,6 +35,7 @@ public sealed class VendorProfile : IEntity
   public bool IsPremium { get; set; }
   public DateTime? PremiumActivationDate { get; set; }
   public DateTime? PremiumExpiryDate { get; set; }
+  public DateTime? SubscriptionExpiryDate { get; set; }
   public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
   // Navigation properties

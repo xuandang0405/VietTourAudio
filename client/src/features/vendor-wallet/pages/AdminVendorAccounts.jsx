@@ -24,6 +24,8 @@ import {
 } from '../../../admin/api/adminQueries';
 import { adminApiClient } from '../../../admin/api/adminApi';
 import { formatCurrency, formatDateTime, toNumber } from '../../../admin/utils/formatters';
+import { paymentApi } from '../../payment/paymentApi';
+import { resolveBackendMediaUrl } from '../../../utils/mediaUrl';
 
 const emptyForm = { amount: '', description: '', reason: '' };
 
@@ -42,16 +44,32 @@ export function AdminVendorAccounts() {
   const selectedWallet = useVendorWallet(selectedVendorId);
 
   // Topups Section Queries & Mutations
-  const [topupStatusFilter, setTopupStatusFilter] = useState('PENDING');
+  const [pendingTransactions, setPendingTransactions] = useState([]);
+  const [isTopupsLoading, setIsTopupsLoading] = useState(false);
   const [selectedTopupId, setSelectedTopupId] = useState('');
-  const [rejectTopupModal, setRejectTopupModal] = useState(null); // request object
+  const [rejectTopupModal, setRejectTopupModal] = useState(null); // transaction object
   const [rejectReason, setRejectReason] = useState('');
   const [topupError, setTopupError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const topupParams = useMemo(() => ({ status: topupStatusFilter }), [topupStatusFilter]);
-  const { data: topupRequests = [], isLoading: isTopupsLoading, error: topupsError, refetch: refetchTopups } = useTopUpRequests(topupParams);
-  const approveTopupMutation = useApproveTopUp();
-  const rejectTopupMutation = useRejectTopUp();
+  async function loadPendingVendorTransactions() {
+    setIsTopupsLoading(true);
+    setTopupError('');
+    try {
+      const data = await paymentApi.getPending({ senderType: 'VENDOR' });
+      setPendingTransactions(data ?? []);
+    } catch (err) {
+      setTopupError(err.response?.data?.error ?? "Không thể tải giao dịch của Vendor.");
+    } finally {
+      setIsTopupsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'topups') {
+      loadPendingVendorTransactions();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (!selectedVendorId && vendors.length) {
@@ -63,11 +81,11 @@ export function AdminVendorAccounts() {
   const selectedVendor = selectedWallet.data ?? vendors.find((vendor) => vendor.id === selectedVendorId);
   const walletTransactions = selectedVendor?.wallet?.transactions ?? [];
 
-  const selectedTopup = topupRequests.find((item) => item.id === selectedTopupId) ?? topupRequests[0];
+  const selectedTopup = pendingTransactions.find((item) => item.id === selectedTopupId) ?? pendingTransactions[0];
 
   const refreshAllData = () => {
     refetchWallets();
-    refetchTopups();
+    loadPendingVendorTransactions();
   };
 
   // Wallet Adjustments
@@ -108,30 +126,36 @@ export function AdminVendorAccounts() {
   async function handleApproveTopup(request) {
     setTopupError('');
     try {
-      await approveTopupMutation.mutateAsync(request.id);
+      await paymentApi.verify(request.id, 'APPROVED');
       toast.success("Đã phê duyệt yêu cầu nạp tiền!");
-      refetchTopups();
+      await loadPendingVendorTransactions();
       refetchWallets();
     } catch (err) {
-      setTopupError(err.response?.data?.error ?? t('admin_topup.error_approve'));
+      setTopupError(err.response?.data?.error ?? "Phê duyệt giao dịch thất bại.");
     }
   }
 
-  async function handleRejectTopup() {
-    if (!rejectTopupModal) return;
-    if (!rejectReason.trim()) {
-      setTopupError(t('admin_topup.error_reason_required'));
+  async function handleRejectTopup(request) {
+    setTopupError('');
+    try {
+      await paymentApi.verify(request.id, 'FAILED');
+      toast.success("Đã từ chối yêu cầu nạp tiền.");
+      await loadPendingVendorTransactions();
+    } catch (err) {
+      setTopupError(err.response?.data?.error ?? "Từ chối giao dịch thất bại.");
+    }
+  }
+
+  async function handleResetWallet(vendor) {
+    if (!window.confirm(`Bạn có chắc chắn muốn reset ví của sạp "${vendor.businessName}" về 0 và hủy Premium?`)) {
       return;
     }
-
     try {
-      await rejectTopupMutation.mutateAsync({ id: rejectTopupModal.id, reason: rejectReason.trim() });
-      toast.success("Đã từ chối yêu cầu nạp tiền.");
-      setRejectTopupModal(null);
-      setRejectReason('');
-      refetchTopups();
+      await adminApiClient.post(`/admin/wallets/${vendor.id}/reset`);
+      toast.success("Đã reset ví vendor về 0!");
+      refreshAllData();
     } catch (err) {
-      setTopupError(err.response?.data?.error ?? t('admin_topup.error_reject'));
+      toast.error(err.response?.data?.error ?? "Reset ví thất bại.");
     }
   }
 
@@ -256,6 +280,13 @@ export function AdminVendorAccounts() {
                               <ArrowDownCircle size={15} />
                               {t('vendor_wallet.btn_debit')}
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => handleResetWallet(vendor)}
+                              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                            >
+                              Reset ví
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -372,58 +403,48 @@ export function AdminVendorAccounts() {
 
       {activeTab === 'topups' && (
         <>
-          {(topupError || topupsError) && (
+          {topupError && (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
-              {topupError || topupsError?.response?.data?.error || t('admin_topup.error_load')}
+              {topupError}
             </div>
           )}
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-            <div className="flex gap-2 overflow-x-auto hide-scrollbar">
-              {topupTabs.map((tab) => (
-                <button
-                  key={tab.value}
-                  type="button"
-                  onClick={() => setTopupStatusFilter(tab.value)}
-                  className={topupStatusFilter === tab.value ? 'shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-sm font-black text-white' : 'shrink-0 rounded-xl bg-slate-100 px-3 py-2 text-sm font-black text-slate-600 transition hover:bg-slate-200'}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </section>
 
           <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
             <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-200 px-4 py-3">
                 <p className="text-sm font-black text-slate-950">
-                  {isTopupsLoading ? t('admin_topup.loading') : t('admin_topup.request_count', { count: topupRequests.length })}
+                  {isTopupsLoading ? "Đang tải dữ liệu..." : `Có ${pendingTransactions.length} yêu cầu nạp tiền`}
                 </p>
               </div>
               <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
-                {topupRequests.map((request) => (
-                  <button
-                    key={request.id}
-                    type="button"
-                    onClick={() => setSelectedTopupId(request.id)}
-                    className={selectedTopup?.id === request.id ? 'block w-full bg-blue-50/70 p-4 text-left' : 'block w-full p-4 text-left transition hover:bg-slate-50'}
-                  >
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-slate-950">{request.vendor?.businessName ?? `Vendor ${request.vendorId}`}</p>
-                        <p className="mt-1 truncate text-xs font-semibold text-slate-500">{request.vendor?.ownerEmail}</p>
+                {pendingTransactions.map((request) => {
+                  const vendorInfo = vendors.find((v) => v.id === request.senderId);
+                  const businessName = vendorInfo?.businessName ?? `Vendor ${request.senderId}`;
+                  const ownerEmail = vendorInfo?.ownerEmail ?? "";
+                  return (
+                    <button
+                      key={request.id}
+                      type="button"
+                      onClick={() => setSelectedTopupId(request.id)}
+                      className={selectedTopup?.id === request.id ? 'block w-full bg-blue-50/70 p-4 text-left' : 'block w-full p-4 text-left transition hover:bg-slate-50'}
+                    >
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black text-slate-950">{businessName}</p>
+                          <p className="mt-1 truncate text-xs font-semibold text-slate-500">{ownerEmail}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <AdminBadge status={request.paymentMethod} />
+                          <AdminBadge status={request.transactionType} />
+                          <span className="text-sm font-black text-slate-950">{formatCurrency(request.amount)}</span>
+                        </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <AdminBadge status={request.provider} />
-                        <AdminBadge status={request.status} />
-                        <span className="text-sm font-black text-slate-950">{formatCurrency(request.amount)}</span>
-                      </div>
-                    </div>
-                    <p className="mt-2 text-xs font-semibold text-slate-500">{formatDateTime(request.createdAt)}</p>
-                  </button>
-                ))}
-                {!isTopupsLoading && topupRequests.length === 0 && (
-                  <p className="p-10 text-center text-sm font-semibold text-slate-500">{t('admin_topup.no_requests')}</p>
+                      <p className="mt-2 text-xs font-semibold text-slate-500">{formatDateTime(request.createdAt)}</p>
+                    </button>
+                  );
+                })}
+                {!isTopupsLoading && pendingTransactions.length === 0 && (
+                  <p className="p-10 text-center text-sm font-semibold text-slate-500">Không có yêu cầu nạp tiền nào đang chờ duyệt.</p>
                 )}
               </div>
             </article>
@@ -433,17 +454,25 @@ export function AdminVendorAccounts() {
                 <>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-600">{t('admin_topup.proof_review')}</p>
-                      <h2 className="mt-1 truncate text-lg font-black text-slate-950">{selectedTopup.vendor?.businessName}</h2>
+                      <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-600">Minh chứng giao dịch</p>
+                      <h2 className="mt-1 truncate text-lg font-black text-slate-950">
+                        {vendors.find((v) => v.id === selectedTopup.senderId)?.businessName ?? `Vendor ${selectedTopup.senderId}`}
+                      </h2>
                       <p className="mt-1 text-sm font-semibold text-slate-500">{formatCurrency(selectedTopup.amount)}</p>
                     </div>
                     <AdminBadge status={selectedTopup.status} />
                   </div>
 
+                  <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-2 text-xs font-semibold text-slate-600">
+                    <p>Nội dung CK: <span className="font-mono font-bold text-slate-900 bg-white border px-1.5 py-0.5 rounded">{selectedTopup.transferMemo}</span></p>
+                    <p>Phương thức: <span className="font-bold text-slate-800">{selectedTopup.paymentMethod}</span></p>
+                    <p>Loại giao dịch: <span className="font-bold text-slate-800">{selectedTopup.transactionType}</span></p>
+                  </div>
+
                   <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                    {selectedTopup.proofImageUrl ? (
+                    {selectedTopup.proofAttachmentUrl ? (
                       <img
-                        src={selectedTopup.proofImageUrl}
+                        src={resolveBackendMediaUrl(selectedTopup.proofAttachmentUrl)}
                         alt="Top-up proof"
                         className="aspect-[4/3] w-full object-cover"
                         loading="lazy"
@@ -453,18 +482,11 @@ export function AdminVendorAccounts() {
                       <div className="grid aspect-[4/3] place-items-center text-slate-400">
                         <div className="text-center">
                           <ImageOff size={40} className="mx-auto mb-2 text-slate-300" />
-                          <p className="text-xs font-bold">{t('admin_topup.no_proof')}</p>
+                          <p className="text-xs font-bold">Chưa có ảnh chụp biên lai</p>
                         </div>
                       </div>
                     )}
                   </div>
-
-                  {selectedTopup.rejectReason && (
-                    <div className="mt-4 rounded-xl border border-red-100 bg-red-50/50 p-3.5 text-xs text-red-800">
-                      <p className="font-black">{t('admin_topup.reject_reason')}</p>
-                      <p className="mt-1 font-semibold leading-relaxed">{selectedTopup.rejectReason}</p>
-                    </div>
-                  )}
 
                   {selectedTopup.status === 'PENDING' && (
                     <div className="mt-5 flex gap-3">
@@ -474,45 +496,28 @@ export function AdminVendorAccounts() {
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-3 text-sm font-black text-white hover:bg-blue-700 transition"
                       >
                         <CheckCircle2 size={16} />
-                        {t('admin_topup.approve')}
+                        Duyệt nạp
                       </button>
                       <button
                         type="button"
                         onClick={() => {
-                          setRejectReason('');
-                          setRejectTopupModal(selectedTopup);
+                          if (window.confirm("Bạn có chắc muốn từ chối yêu cầu nạp tiền này?")) {
+                            handleRejectTopup(selectedTopup);
+                          }
                         }}
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 py-3 text-sm font-black text-red-700 hover:bg-red-50 transition"
                       >
                         <XCircle size={16} />
-                        {t('admin_topup.reject')}
+                        Từ chối
                       </button>
                     </div>
                   )}
                 </>
               ) : (
-                <p className="text-sm font-semibold text-slate-500">{t('admin_topup.select_request_hint')}</p>
+                <p className="text-sm font-semibold text-slate-500">Chọn một yêu cầu nạp tiền để xem biên lai và phê duyệt.</p>
               )}
             </aside>
           </section>
-
-          {/* Reject topup modal */}
-          <AdminModal
-            open={Boolean(rejectTopupModal)}
-            title={t('admin_topup.modal_reject_title')}
-            description={t('admin_topup.modal_reject_desc', { name: rejectTopupModal?.vendor?.businessName })}
-            confirmLabel={t('admin_topup.reject')}
-            tone="danger"
-            onClose={() => setRejectTopupModal(null)}
-            onConfirm={handleRejectTopup}
-          >
-            <textarea
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              className="h-28 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold outline-none focus:border-blue-500 resize-none"
-              placeholder={t('admin_topup.reason_placeholder')}
-            />
-          </AdminModal>
         </>
       )}
 

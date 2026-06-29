@@ -11,6 +11,7 @@ import {
   TrendingUp, 
   Headphones, 
   Users, 
+  User,
   CheckCircle2, 
   AlertTriangle,
   History,
@@ -21,8 +22,10 @@ import toast from 'react-hot-toast';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { downloadBlob, formatCurrency, formatDateTime, formatDate } from '../../admin/utils/formatters';
 import { useVendorRevenue, useVendorDashboard } from '../../vendor/api/vendorQueries';
-import { paySubscriptionFromWallet, requestPremiumUpgrade, submitWalletTopUp } from '../../vendor/api/vendorApi';
+import { paySubscriptionFromWallet, requestPremiumUpgrade } from '../../vendor/api/vendorApi';
 import { InsufficientBalanceModal } from '../../features/vendor-wallet/components/InsufficientBalanceModal';
+import { useVendorAuthStore } from '../../vendor/store/vendorAuthStore';
+import { CheckoutMatrix } from '../../features/payment/CheckoutMatrix';
 
 export function VendorFinance() {
   const { t } = useTranslation();
@@ -43,16 +46,27 @@ export function VendorFinance() {
     refetch: refetchDashboard 
   } = useVendorDashboard();
 
+  // Vendor Auth session
+  const user = useVendorAuthStore((state) => state.user);
+  const senderId = user?.vendorId ?? user?.id;
+  const [topUpAmount, setTopUpAmount] = useState('200000');
+
   // States
-  const [topUpAmount, setTopUpAmount] = useState('300000');
-  const [topUpNote, setTopUpNote] = useState('');
-  const [proof, setProof] = useState(null);
   const [busy, setBusy] = useState('');
   const [balanceError, setBalanceError] = useState('');
-  const [bankQrUrl, setBankQrUrl] = useState('/qr_fallback.svg');
   const [activeTab, setActiveTab] = useState('ledger'); // 'ledger' | 'topup_requests'
 
   const topUpFormRef = useRef(null);
+
+  const getRemainingTimeText = (expiryDate) => {
+    if (!expiryDate) return '';
+    const diff = new Date(expiryDate).getTime() - Date.now();
+    if (diff <= 0) return 'Đã hết hạn';
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days > 0) return `Còn ${days} ngày`;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    return `Còn ${hours} giờ`;
+  };
 
   // Extract revenue variables
   const transactions = revenueData?.transactions ?? [];
@@ -71,17 +85,6 @@ export function VendorFinance() {
     listeners: poi.audioPlays,
     visits: poi.visits
   }));
-
-  // Fetch VietQR bank code
-  useEffect(() => {
-    axios.get('/api/admin/wallets/bank-qr')
-      .then(res => {
-        if (res.data?.data?.url) {
-          setBankQrUrl(res.data.data.url);
-        }
-      })
-      .catch(err => console.error("Error fetching bank QR:", err));
-  }, []);
 
   const scrollToPaymentSection = () => {
     topUpFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -125,34 +128,6 @@ export function VendorFinance() {
       } else {
         toast.error(payload?.message || "Giao dịch thất bại. Vui lòng kiểm tra lại hệ thống.");
       }
-    } finally {
-      setBusy('');
-    }
-  };
-
-  // Submit deposit proof
-  const submitTopUp = async (event) => {
-    event.preventDefault();
-    if (!proof) {
-      toast.error(t('wallet.proof_required', { defaultValue: 'Vui lòng tải ảnh biên lai chuyển khoản!' }));
-      return;
-    }
-    setBusy('topup');
-    try {
-      const payload = new FormData();
-      payload.append('amount', topUpAmount);
-      payload.append('note', topUpNote.trim());
-      payload.append('proof', proof);
-      
-      await submitWalletTopUp(payload);
-      toast.success(t('wallet.topup_submitted', { defaultValue: 'Yêu cầu nạp tiền đã được gửi để duyệt!' }));
-      setProof(null);
-      setTopUpNote('');
-      await refetchRevenue();
-      await refetchDashboard();
-    } catch (error) {
-      const payload = error.response?.data;
-      toast.error(payload?.message ?? payload?.error ?? t('common.error'));
     } finally {
       setBusy('');
     }
@@ -207,16 +182,49 @@ export function VendorFinance() {
         }}
       />
 
-      {/* Header */}
+      {summary.subscriptionStatus === 'EXPIRED' && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs font-bold text-red-700 flex items-center gap-3">
+          <AlertTriangle className="text-red-600 shrink-0" size={20} />
+          <div>
+            Tài khoản sạp hàng của bạn đã tạm thời bị khóa do hết hạn thanh toán phí duy trì WebApp. Vui lòng thanh toán gia hạn phí thuê sạp để tiếp tục sử dụng dịch vụ.
+          </div>
+        </div>
+      )}
+
+      {/* Header & Dynamic Premium Status Badge */}
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <h2 className="text-2xl font-black text-slate-900">{t('vendor.finance_portal', { defaultValue: 'Không gian Tài chính & Ví tiền' })}</h2>
-          <p className="mt-1 text-slate-500">{t('vendor.finance_desc', { defaultValue: 'Quản lý số dư, kích hoạt gói dịch vụ sạp hàng và kiểm tra doanh số hoạt động.' })}</p>
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 font-sans tracking-tight">{t('vendor.finance_portal', { defaultValue: 'Không gian Tài chính & Ví tiền' })}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t('vendor.finance_desc', { defaultValue: 'Quản lý số dư, kích hoạt gói dịch vụ sạp hàng và kiểm tra doanh số hoạt động.' })}</p>
+          </div>
+          
+          {summary.isPremium ? (
+            <div className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-5 py-2 rounded-full shadow-lg shadow-orange-500/20 border border-orange-400">
+              <Crown className="w-4 h-4 animate-pulse" />
+              <span className="font-bold text-xs tracking-wide font-sans antialiased">
+                TÀI KHOẢN PREMIUM
+              </span>
+              <span className="text-xs opacity-90 border-l border-white/30 pl-3 ml-1 font-medium font-sans">
+                Hết hạn: {summary.premiumExpiryDate ? `${new Date(summary.premiumExpiryDate).toLocaleDateString('vi-VN')} (${getRemainingTimeText(summary.premiumExpiryDate)})` : 'N/A'}
+              </span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-3 bg-slate-100 text-slate-600 px-5 py-2 rounded-full border border-slate-200">
+              <User className="w-4 h-4" />
+              <span className="font-semibold text-xs tracking-wide font-sans antialiased">
+                Tài khoản Tiêu chuẩn
+              </span>
+              <span className="text-xs text-slate-400 border-l border-slate-300 pl-3 ml-1 font-medium font-sans">
+                Hãy nâng cấp để mở khóa sạp hàng VIP
+              </span>
+            </div>
+          )}
         </div>
         <button 
           type="button" 
           onClick={exportLedger} 
-          className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700 active:scale-[0.98] transition"
+          className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700 active:scale-[0.98] transition self-start"
         >
           <Download size={17} />
           {t('wallet.export', { defaultValue: 'Xuất sao kê (CSV)' })}
@@ -260,8 +268,8 @@ export function VendorFinance() {
               )}
             </div>
             <p className="mt-3 text-sm text-slate-500">Phí duy trì sạp hàng trên bản đồ du lịch VietTourAudio.</p>
-            <p className="mt-2 text-sm font-bold text-slate-800">
-              {t('wallet.next_billing', { defaultValue: 'Hạn thanh toán tiếp theo' })}: {summary.nextBillingDate ? new Date(summary.nextBillingDate).toLocaleDateString() : '-'}
+            <p className="mt-2 text-xs font-bold text-slate-800">
+              {t('wallet.next_billing', { defaultValue: 'Hạn thanh toán tiếp theo' })}: {summary.nextBillingDate ? `${new Date(summary.nextBillingDate).toLocaleDateString()} (${getRemainingTimeText(summary.nextBillingDate)})` : '-'}
             </p>
           </div>
           
@@ -277,33 +285,39 @@ export function VendorFinance() {
         </div>
 
         {/* Premium priority upgrades */}
-        <div className="flex flex-col justify-between rounded-2xl border border-amber-200 bg-amber-50/50 p-6 shadow-sm">
-          <div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Crown className="text-amber-600" size={20} />
-                <h3 className="font-bold text-amber-950">{t('wallet.premium_status', { defaultValue: 'Gói sạp ưu tiên Premium' })}</h3>
-              </div>
+        <div className="bg-gradient-to-b from-slate-900 via-slate-900 to-black rounded-2xl p-6 text-center shadow-md border border-slate-800 flex flex-col justify-between font-sans antialiased text-white">
+          <div className="flex flex-col items-center w-full">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-400/20 to-orange-600/20 flex items-center justify-center mb-4 border border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.25)]">
+              <Crown className="w-8 h-8 text-amber-500 animate-pulse" strokeWidth={2} />
+            </div>
+
+            <h3 className="text-lg font-black text-white tracking-tight mb-2">
+              {summary.isPremium ? "Đang sử dụng Premium" : "Nâng cấp Premium"}
+            </h3>
+            
+            <p className="text-slate-400 text-xs leading-relaxed mb-4 font-medium px-2">
+              {summary.isPremium 
+                ? "Gói dịch vụ đã được kích hoạt. Quyền quản lý sạp mở rộng đã sẵn sàng hoạt động trên hệ thống." 
+                : "Mở khóa toàn bộ tính năng thu hút khách hàng và phạm vi phát audio tự động lên 10m."}
+            </p>
+
+            <div className="text-xs font-bold text-amber-400 mb-2">
               {summary.isPremium ? (
-                <span className="rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-xs font-bold text-amber-700">★ ACTIVE</span>
+                <>Hết hạn: {summary.premiumExpiryDate ? `${new Date(summary.premiumExpiryDate).toLocaleDateString('vi-VN')} (${getRemainingTimeText(summary.premiumExpiryDate)})` : '-'}</>
               ) : (
-                <span className="rounded-full bg-slate-100 border border-slate-300 px-2.5 py-0.5 text-xs font-bold text-slate-500">NORMAL</span>
+                <>Đơn giá: {formatCurrency(summary.premiumPrice ?? 599000)} / 30 ngày</>
               )}
             </div>
-            <p className="mt-3 text-sm text-amber-900/80">Kích hoạt bán kính phát âm thanh rộng hơn và nổi bật trên bản đồ.</p>
-            <p className="mt-2 text-sm font-bold text-amber-950">
-              {t('wallet.premium_price', { defaultValue: 'Đơn giá' })}: {formatCurrency(summary.premiumPrice ?? 599000)} / 30 ngày
-            </p>
           </div>
 
           <button 
             type="button" 
             disabled={busy === 'premium' || summary.isPremium} 
             onClick={handleSpendWalletForPremium} 
-            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-black text-white hover:bg-amber-700 active:scale-[0.98] disabled:opacity-50 disabled:bg-slate-200 disabled:text-slate-400 transition"
+            className="w-full mt-4 font-bold text-xs tracking-wide bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-900 py-3 rounded-xl transition-all active:scale-95 shadow-lg shadow-amber-500/10 disabled:opacity-50 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 disabled:border disabled:border-slate-700"
           >
-            {busy === 'premium' && <Loader2 size={15} className="animate-spin" />}
-            {summary.isPremium ? t('wallet.premium_active', { defaultValue: 'Sạp Premium đã kích hoạt' }) : t('wallet.upgrade_now_price', { defaultValue: 'Nâng cấp Premium (599,000đ)' })}
+            {busy === 'premium' && <Loader2 size={12} className="animate-spin mr-1 inline-block" />}
+            {summary.isPremium ? "TÀI KHOẢN ĐÃ LÀ PREMIUM" : "MUA PREMIUM BẰNG VÍ"}
           </button>
         </div>
       </section>
@@ -461,24 +475,20 @@ export function VendorFinance() {
           </div>
         </section>
 
-        {/* SECTION 2: Core VietQR Deposit Flow */}
-        <aside className="space-y-6">
-          <form ref={topUpFormRef} onSubmit={submitTopUp} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        {/* SECTION 2: Unified Checkout Matrix (Momo, Bank, Visa) */}
+        <aside className="space-y-6" ref={topUpFormRef}>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
               <QrCode className="text-teal-600" />
-              <h3 className="font-black text-slate-900">{t('wallet.topup_title', { defaultValue: 'Nạp tiền qua VietQR' })}</h3>
+              <h3 className="font-black text-slate-900">Nạp tiền vào ví</h3>
             </div>
             
-            <p className="text-xs leading-5 text-slate-500">
-              Chuyển khoản chính xác số tiền cần nạp, sau đó chụp ảnh màn hình giao dịch chuyển khoản thành công làm bằng chứng.
+            <p className="text-xs leading-5 text-slate-500 font-normal text-slate-400">
+              Nhập số tiền muốn nạp vào ví sạp hàng dưới đây, sau đó chuyển khoản qua cổng Momo, Ngân hàng hoặc Visa của Admin.
             </p>
-            
-            <div className="flex justify-center rounded-xl bg-slate-50 p-4 border border-slate-100">
-              <img src={bankQrUrl} alt="VietQR bank transfer" className="h-44 w-44 object-contain shadow-sm rounded-lg" />
-            </div>
 
             <label className="block text-xs font-bold text-slate-600">
-              {t('wallet.transfer_amount', { defaultValue: 'Số tiền chuyển khoản (VND)' })}
+              Số tiền muốn nạp (VND)
               <input 
                 type="number" 
                 min="10000" 
@@ -489,66 +499,23 @@ export function VendorFinance() {
               />
             </label>
 
-            <label className="block text-xs font-bold text-slate-600">
-              {t('wallet.transfer_proof', { defaultValue: 'Ảnh biên lai / Hóa đơn thành công' })}
-              <span className="mt-1 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 p-4 bg-slate-50/50 hover:bg-slate-50 hover:border-teal-500 transition text-slate-500 font-normal">
-                <Upload size={20} className="text-teal-600" />
-                <span className="text-xs font-bold text-slate-700 truncate max-w-[280px]">
-                  {proof?.name ?? t('wallet.select_proof', { defaultValue: 'Chọn file ảnh biên lai' })}
-                </span>
-                <span className="text-[10px] text-slate-400">Chấp nhận JPG, PNG, WEBP tối đa 5MB</span>
-                <input 
-                  type="file" 
-                  required 
-                  accept="image/jpeg,image/png,image/webp,image/gif" 
-                  className="hidden" 
-                  onChange={(e) => setProof(e.target.files?.[0] ?? null)} 
-                />
-              </span>
-            </label>
-
-            <label className="block text-xs font-bold text-slate-600">
-              {t('wallet.notes', { defaultValue: 'Ghi chú nạp tiền' })}
-              <textarea 
-                rows={2} 
-                value={topUpNote} 
-                onChange={(e) => setTopUpNote(e.target.value)} 
-                className="mt-1 w-full rounded-xl border bg-slate-50 p-2.5 text-xs outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 transition font-normal" 
-                placeholder="Ghi mã giao dịch hoặc nội dung chuyển tiền..."
+            <div className="border-t border-slate-100 pt-4">
+              <CheckoutMatrix
+                senderId={senderId}
+                senderType="VENDOR"
+                transactionType="VENDOR_TOPUP"
+                amount={topUpAmount}
+                onSuccess={() => {
+                  refetchRevenue();
+                  refetchDashboard();
+                }}
+                onSuccessClose={() => {
+                  refetchRevenue();
+                  refetchDashboard();
+                }}
               />
-            </label>
-
-            <button 
-              type="submit" 
-              disabled={busy === 'topup'} 
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-3 text-sm font-black text-white hover:bg-teal-700 active:scale-[0.98] disabled:opacity-50 transition"
-            >
-              {busy === 'topup' && <Loader2 size={16} className="animate-spin" />}
-              {t('wallet.submit_topup', { defaultValue: 'Gửi biên nhận xác minh' })}
-            </button>
-          </form>
-
-          {/* Inline top-up requests checklist */}
-          {topUps.length > 0 && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
-              <p className="mb-2 font-black text-slate-900 flex items-center gap-1">
-                <Coins size={14} className="text-teal-600" />
-                Yêu cầu nạp gần đây
-              </p>
-              <div className="space-y-1.5">
-                {topUps.slice(0, 3).map((item) => (
-                  <div key={item.id} className="flex justify-between items-center border-t border-slate-100 py-1.5">
-                    <span className="font-bold text-slate-700">{formatCurrency(item.amount)}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black ${
-                      item.status === 'APPROVED' || item.status === 'SUCCESS' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-orange-50 text-orange-700 border border-orange-200'
-                    }`}>
-                      {item.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
             </div>
-          )}
+          </div>
         </aside>
       </div>
     </div>

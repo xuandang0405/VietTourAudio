@@ -40,7 +40,7 @@ public sealed class PaymentEntitlementService(
       {
         "USER" when transactionType == "USER_PREMIUM" =>
           await ApplyUserPremiumAsync(transaction.Id, senderId),
-        "VENDOR" when transactionType is "VENDOR_PREMIUM" or "VENDOR_SUBSCRIPTION" =>
+        "VENDOR" when transactionType is "VENDOR_PREMIUM" or "VENDOR_SUBSCRIPTION" or "VENDOR_TOPUP" =>
           await ApplyVendorEntitlementAsync(transaction.Id, senderId, transactionType),
         _ => RejectUnsupported(transaction.Id, senderType, transactionType)
       };
@@ -154,8 +154,51 @@ public sealed class PaymentEntitlementService(
       }
     }
 
-    // VENDOR_SUBSCRIPTION is represented by its approved ledger in the current
-    // unified schema; no legacy numeric vendor_subscriptions row is required.
+    if (transactionType == "VENDOR_SUBSCRIPTION")
+    {
+      var now = DateTime.UtcNow;
+      var currentExpiry = vendor.SubscriptionExpiryDate ?? now;
+      vendor.SubscriptionExpiryDate = (currentExpiry > now ? currentExpiry : now).AddDays(30);
+    }
+
+    if (transactionType == "VENDOR_TOPUP")
+    {
+      var transaction = await db.PaymentTransactions.SingleOrDefaultAsync(t => t.Id == transactionId);
+      if (transaction is null)
+      {
+        logger.LogError("[ENTITLEMENT REJECTED] Transaction {TransactionId} is missing.", transactionId);
+        return false;
+      }
+
+      var wallet = await db.Wallets.SingleOrDefaultAsync(x => x.VendorId == vendorId);
+      if (wallet is null)
+      {
+        wallet = new Wallet { Id = Guid.NewGuid().ToString("N"), VendorId = vendorId };
+        db.Wallets.Add(wallet);
+        await db.SaveChangesAsync();
+      }
+
+      var before = wallet.Balance;
+      wallet.Balance += transaction.Amount;
+      wallet.TotalTopUp += transaction.Amount;
+
+      db.WalletTransactions.Add(new WalletTransaction
+      {
+        Id = Guid.NewGuid().ToString("N"),
+        WalletId = wallet.Id,
+        VendorId = vendorId,
+        TransactionType = "TOP_UP",
+        TransactionCategory = "WALLET_TOP_UP",
+        Direction = "CREDIT",
+        Amount = transaction.Amount,
+        BalanceBefore = before,
+        BalanceAfter = wallet.Balance,
+        Description = "Nạp tiền vào ví qua cổng thanh toán Gateway",
+        CreatedAt = DateTime.UtcNow
+      });
+      await db.SaveChangesAsync();
+    }
+
     logger.LogInformation(
       "[ENTITLEMENT APPLIED] Vendor {VendorId} received {TransactionType} from transaction {TransactionId}.",
       vendorId,

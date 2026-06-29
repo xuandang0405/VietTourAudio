@@ -36,6 +36,6 @@ export const paymentApi = {
   updateConfig: (body) => adminApiClient.post('/admin/payment-config/update', body, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }).then(unwrap),
-  getPending: () => adminApiClient.get('/admin/transactions/pending').then(unwrap),
+  getPending: (params) => adminApiClient.get('/admin/transactions/pending', { params }).then(unwrap),
   verify: (id, status) => adminApiClient.post(`/admin/transactions/${id}/verify`, { status }).then(unwrap)
 };

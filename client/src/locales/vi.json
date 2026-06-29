@@ -306,7 +306,22 @@
     "image": "Hình ảnh",
     "audio": "Audio",
     "video": "Video",
-    "document": "Tài liệu"
+    "document": "Tài liệu",
+    "manual_adjustment": "Điều chỉnh thủ công",
+    "manual_debit": "Trừ tiền thủ công",
+    "manual_credit": "Cộng tiền thủ công",
+    "vendor_topup": "Nạp tiền Vendor",
+    "vendor_subscription": "Gia hạn sạp",
+    "vendor_premium": "Gói Premium",
+    "user_premium": "Premium User",
+    "momo": "Momo",
+    "bank": "Ngân hàng",
+    "visa": "Thẻ Visa",
+    "vnpay": "VNPay",
+    "stripe": "Stripe",
+    "bank_qr": "Chuyển khoản QR",
+    "cash": "Tiền mặt",
+    "manual": "Thủ công"
   },
   "dashboard": {
     "title": "Dashboard Vận Hành",
@@ -975,5 +990,9 @@
     "config_title": "Cấu hình Cổng Thanh toán Hệ thống", "config_desc": "Quản lý ví nhận tiền và duyệt giao dịch thủ công.", "pending_approvals": "Danh sách Duyệt Giao dịch Nạp tiền",
     "momo_tab": "Cấu hình Ví MoMo", "bank_tab": "Cấu hình Ngân hàng", "visa_tab": "Cổng Thẻ Visa", "qr_upload": "Ảnh QR nhận tiền", "active": "Đang kích hoạt", "saved": "Đã lưu cấu hình", "updated": "Đã cập nhật giao dịch",
     "sender": "Người gửi", "type": "Loại", "method": "Phương thức", "amount": "Số tiền", "memo": "Nội dung", "proof": "Hóa đơn", "actions": "Thao tác", "view_proof": "Xem hóa đơn", "no_pending": "Không có giao dịch chờ duyệt"
+  },
+  "vendor": {
+    "finance_portal": "Không gian Tài chính & Ví tiền",
+    "finance_desc": "Quản lý số dư, kích hoạt gói dịch vụ sạp hàng và kiểm tra doanh số hoạt động."
   }
 }

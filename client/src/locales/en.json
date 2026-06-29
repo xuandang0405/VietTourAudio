@@ -306,7 +306,22 @@
     "image": "Image",
     "audio": "Audio",
     "video": "Video",
-    "document": "Document"
+    "document": "Document",
+    "manual_adjustment": "Manual Adjustment",
+    "manual_debit": "Manual Debit",
+    "manual_credit": "Manual Credit",
+    "vendor_topup": "Vendor Top-Up",
+    "vendor_subscription": "Rent Subscription",
+    "vendor_premium": "Premium Upgrade",
+    "user_premium": "User Premium",
+    "momo": "Momo",
+    "bank": "Bank Transfer",
+    "visa": "Visa Card",
+    "vnpay": "VNPay",
+    "stripe": "Stripe",
+    "bank_qr": "QR Transfer",
+    "cash": "Cash",
+    "manual": "Manual"
   },
   "dashboard": {
     "title": "Operational Dashboard",
@@ -968,5 +983,9 @@
   },
   "admin_wallet": {
     "config_title": "System Payment Gateway Configuration", "config_desc": "Manage receiving accounts and manual approvals.", "pending_approvals": "Pending Payment Approvals", "momo_tab": "MoMo Wallet", "bank_tab": "Bank Account", "visa_tab": "Visa Gateway", "qr_upload": "Receiving QR image", "active": "Active", "saved": "Configuration saved", "updated": "Transaction updated", "sender": "Sender", "type": "Type", "method": "Method", "amount": "Amount", "memo": "Memo", "proof": "Proof", "actions": "Actions", "view_proof": "View proof", "no_pending": "No pending transactions"
+  },
+  "vendor": {
+    "finance_portal": "Finance Portal & Wallet",
+    "finance_desc": "Manage balance, activate booth priority services, and review operational revenue."
   }
 }

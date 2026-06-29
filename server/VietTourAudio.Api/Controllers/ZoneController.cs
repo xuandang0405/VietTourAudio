@@ -58,7 +58,7 @@ public sealed class ZoneController(AppDbContext db, IWebHostEnvironment env) : C
 
     // Load full POI data directly from Pois table
     var poiRows = await DatabaseSql.QueryRowsAsync(db,
-      "SELECT id, vendor_id AS stallId, festival_zone_id AS tourId, stall_name AS name, slug, description, latitude, longitude, trigger_radius AS activationRadius, is_premium_priority AS isPremiumContent, status, approval_status AS approvalStatus FROM Pois WHERE festival_zone_id = @tourId AND status != 'ARCHIVED' ORDER BY id",
+      "SELECT id, vendor_id AS stallId, festival_zone_id AS tourId, stall_name AS name, slug, description, latitude, longitude, trigger_radius AS activationRadius, is_premium_priority AS isPremiumContent, status, approval_status AS approvalStatus FROM Pois WHERE festival_zone_id = @tourId AND status != 'ARCHIVED' ORDER BY is_premium_priority DESC, id",
       new Dictionary<string, object?> { ["@tourId"] = id });
 
     var pois = poiRows.Select(p => new {

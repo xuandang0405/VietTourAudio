@@ -69,10 +69,16 @@ public sealed class AdminWalletController(
   }
 
   [HttpGet("transactions/pending")]
-  public async Task<IActionResult> Pending() =>
-    Ok(ApiResponseFactory.Ok(await db.PaymentTransactions.AsNoTracking()
-      .Where(x => x.Status == "PENDING")
-      .OrderByDescending(x => x.CreatedAt).ToListAsync()));
+  public async Task<IActionResult> Pending([FromQuery] string? senderType)
+  {
+    var query = db.PaymentTransactions.AsNoTracking().Where(x => x.Status == "PENDING");
+    if (!string.IsNullOrEmpty(senderType))
+    {
+      var norm = senderType.Trim().ToUpperInvariant();
+      query = query.Where(x => x.SenderType == norm);
+    }
+    return Ok(ApiResponseFactory.Ok(await query.OrderByDescending(x => x.CreatedAt).ToListAsync()));
+  }
 
   [HttpPost("transactions/{id}/verify")]
   public async Task<IActionResult> Verify(string id, [FromBody] VerifyPaymentRequest request)
@@ -183,5 +189,5 @@ internal static class PaymentRules
 {
   internal static readonly HashSet<string> Methods = ["MOMO", "BANK", "VISA"];
   internal static readonly HashSet<string> Types =
-    ["USER_PREMIUM", "VENDOR_SUBSCRIPTION", "VENDOR_PREMIUM"];
+    ["USER_PREMIUM", "VENDOR_SUBSCRIPTION", "VENDOR_PREMIUM", "VENDOR_TOPUP"];
 }

@@ -23,34 +23,137 @@ namespace VietTourAudio.Api.Controllers;
 public sealed class AdminWalletCompatibilityController(AppDbContext db, Microsoft.AspNetCore.SignalR.IHubContext<VietTourAudio.Api.Hubs.NotificationHub> hubContext) : ControllerBase
 {
   [HttpGet]
-  public async Task<IActionResult> List() => Ok(ApiResponseFactory.Ok(await DatabaseSql.QueryRowsAsync(db, """
-    SELECT CAST(v.id AS CHAR) id,v.trade_name businessName,v.email ownerEmail,
-      v.status verificationStatus,CAST(vw.id AS CHAR) walletId,vw.balance,vw.total_top_up totalTopUp,
-      'ACTIVE' AS subscriptionStatus, NULL AS periodEnd, 'VTA Premium' AS planName, 199000.00 AS monthlyPrice,
-      (SELECT COUNT(*) FROM Pois p WHERE p.vendor_id=v.id) stallCount
-    FROM Vendors v LEFT JOIN vendor_wallets vw ON vw.vendor_id=v.id ORDER BY v.created_at DESC
-    """)));
+  public async Task<IActionResult> List()
+  {
+    var rows = await DatabaseSql.QueryRowsAsync(db, """
+      SELECT CAST(v.id AS CHAR) id,v.trade_name businessName,v.email ownerEmail,
+        v.status verificationStatus,CAST(vw.id AS CHAR) walletId,vw.balance,vw.total_top_up totalTopUp,
+        v.subscription_expiry_date subscriptionExpiry, v.is_premium isPremium, v.premium_expiry_date premiumExpiry,
+        (SELECT COUNT(*) FROM Pois p WHERE p.vendor_id=v.id) stallCount
+      FROM Vendors v LEFT JOIN vendor_wallets vw ON vw.vendor_id=v.id ORDER BY v.created_at DESC
+      """);
+
+    return Ok(ApiResponseFactory.Ok(rows.Select(x => new {
+      id = x["id"],
+      businessName = x["businessName"],
+      ownerEmail = x["ownerEmail"],
+      verificationStatus = x["verificationStatus"],
+      stallCount = x["stallCount"],
+      wallet = new {
+        id = x["walletId"],
+        balance = x["balance"] != null ? Convert.ToDecimal(x["balance"]) : 0m,
+        totalTopUp = x["totalTopUp"] != null ? Convert.ToDecimal(x["totalTopUp"]) : 0m
+      },
+      subscription = new {
+        status = x["subscriptionExpiry"] != null && Convert.ToDateTime(x["subscriptionExpiry"]) < DateTime.UtcNow ? "EXPIRED" : "ACTIVE",
+        plan = new {
+          name = x["isPremium"] != null && Convert.ToBoolean(x["isPremium"]) ? "VTA Premium (VIP)" : "Gia hạn sạp thường"
+        }
+      }
+    })));
+  }
 
   [HttpGet("{vendorId}")]
   public async Task<IActionResult> Detail(string vendorId)
   {
-    var vendor = (await DatabaseSql.QueryRowsAsync(db, """
+    var rows = await DatabaseSql.QueryRowsAsync(db, """
       SELECT CAST(v.id AS CHAR) id,v.trade_name businessName,v.email ownerEmail,
         v.contact_name ownerDisplayName,v.status verificationStatus,CAST(vw.id AS CHAR) walletId,
-        vw.balance,vw.total_top_up totalTopUp, 'ACTIVE' AS subscriptionStatus, NULL AS periodEnd,
-        'VTA Premium' AS planName, 199000.00 AS monthlyPrice
+        vw.balance,vw.total_top_up totalTopUp, v.subscription_expiry_date subscriptionExpiry,
+        v.is_premium isPremium, v.premium_expiry_date premiumExpiry
       FROM Vendors v LEFT JOIN vendor_wallets vw ON vw.vendor_id=v.id WHERE v.id=@id
-      """, new Dictionary<string, object?> { ["@id"] = vendorId })).SingleOrDefault();
-    if (vendor is null) return NotFound(ApiResponseFactory.Fail("vendor.not_found"));
-    vendor["transactions"] = await DatabaseSql.QueryRowsAsync(db, """
+      """, new Dictionary<string, object?> { ["@id"] = vendorId });
+    
+    var raw = rows.SingleOrDefault();
+    if (raw is null) return NotFound(ApiResponseFactory.Fail("vendor.not_found"));
+
+    var transactions = await DatabaseSql.QueryRowsAsync(db, """
       SELECT CAST(id AS CHAR) id,transaction_category type,direction,amount,balance_after balanceAfter,
         description,created_at createdAt FROM wallet_transactions WHERE vendor_id=@id ORDER BY created_at DESC
       """, new Dictionary<string, object?> { ["@id"] = vendorId });
-    vendor["topUpRequests"] = await DatabaseSql.QueryRowsAsync(db, """
+
+    var topUpRequests = await DatabaseSql.QueryRowsAsync(db, """
       SELECT id,amount,provider,status,proof_url proofImageUrl,note rejectReason,created_at createdAt
       FROM top_up_requests WHERE vendor_id=@id ORDER BY created_at DESC
       """, new Dictionary<string, object?> { ["@id"] = vendorId });
+
+    var vendor = new {
+      id = raw["id"],
+      businessName = raw["businessName"],
+      ownerEmail = raw["ownerEmail"],
+      ownerDisplayName = raw["ownerDisplayName"],
+      verificationStatus = raw["verificationStatus"],
+      wallet = new {
+        id = raw["walletId"],
+        balance = raw["balance"] != null ? Convert.ToDecimal(raw["balance"]) : 0m,
+        totalTopUp = raw["totalTopUp"] != null ? Convert.ToDecimal(raw["totalTopUp"]) : 0m,
+        transactions,
+      },
+      topUpRequests,
+      subscription = new {
+        status = raw["subscriptionExpiry"] != null && Convert.ToDateTime(raw["subscriptionExpiry"]) < DateTime.UtcNow ? "EXPIRED" : "ACTIVE",
+        plan = new {
+          name = raw["isPremium"] != null && Convert.ToBoolean(raw["isPremium"]) ? "VTA Premium (VIP)" : "Gia hạn sạp thường"
+        }
+      }
+    };
+
     return Ok(ApiResponseFactory.Ok(vendor));
+  }
+
+  [HttpPost("{vendorId}/reset")]
+  public async Task<IActionResult> Reset(string vendorId)
+  {
+    await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+    var wallet = await db.Wallets.SingleOrDefaultAsync(x => x.VendorId == vendorId);
+    if (wallet is null)
+    {
+      wallet = new Wallet { Id = Guid.NewGuid().ToString("N"), VendorId = vendorId };
+      db.Wallets.Add(wallet);
+    }
+    
+    var before = wallet.Balance;
+    wallet.Balance = 0m;
+    wallet.TotalTopUp = 0m;
+    wallet.TotalSpent = 0m;
+    
+    var entry = new WalletTransaction
+    {
+      Id = Guid.NewGuid().ToString("N"),
+      WalletId = wallet.Id, VendorId = vendorId, TransactionType = "MANUAL",
+      TransactionCategory = "MANUAL_ADJUSTMENT", Direction = "DEBIT", Amount = before,
+      BalanceBefore = before, BalanceAfter = 0m, Description = "Reset ví về 0 (Admin reset)",
+      CreatedAt = DateTime.UtcNow
+    };
+    db.WalletTransactions.Add(entry); 
+    
+    var vendor = await db.Vendors.SingleOrDefaultAsync(x => x.Id == vendorId);
+    if (vendor != null)
+    {
+      vendor.IsPremium = false;
+      vendor.PremiumActivationDate = null;
+      vendor.PremiumExpiryDate = null;
+      vendor.SubscriptionExpiryDate = DateTime.UtcNow.AddDays(30);
+    }
+
+    await db.SaveChangesAsync(); 
+    await tx.CommitAsync();
+
+    try
+    {
+      await hubContext.Clients.All.SendAsync("ReceiveNotification", new
+      {
+        type = "WALLET_RESET",
+        title = "Reset ví vendor",
+        message = $"Ví của vendor {vendor?.TradeName} đã được thiết lập lại về 0."
+      });
+    }
+    catch (Exception ex)
+    {
+      System.Console.WriteLine($"SignalR push error: {ex.Message}");
+    }
+
+    return Ok(ApiResponseFactory.Ok(new { message = "Reset ví thành công!", balance = 0m }));
   }
 
   [HttpPost("{vendorId}/credit")]

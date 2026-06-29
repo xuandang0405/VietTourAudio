@@ -31,35 +31,32 @@ public sealed class PremiumExpiryMiddleware(RequestDelegate next)
           .SetProperty(user => user.UpdatedAt, now));
     }
 
-    if (role == "VENDOR" && ulong.TryParse(vendorIdClaim, out var vendorId))
+    if (role == "VENDOR" && !string.IsNullOrWhiteSpace(vendorIdClaim))
     {
       var now = DateTime.UtcNow;
 
-      var expiredStalls = await db.Database
-        .SqlQuery<ulong>($"""
-          SELECT id AS Value FROM stalls
-          WHERE vendor_id = {vendorId}
-            AND is_premium = 1
-            AND premium_expiry_date IS NOT NULL
-            AND premium_expiry_date < {now}
-          """)
-        .ToListAsync();
+      var expiredVendor = await db.Vendors
+        .Where(v => v.Id == vendorIdClaim &&
+          v.IsPremium &&
+          v.PremiumExpiryDate.HasValue &&
+          v.PremiumExpiryDate.Value < now)
+        .FirstOrDefaultAsync();
 
-      if (expiredStalls.Count > 0)
+      if (expiredVendor != null)
       {
-        var stallIds = string.Join(",", expiredStalls);
-#pragma warning disable EF1002
-        await db.Database.ExecuteSqlRawAsync($"""
-          UPDATE stalls
-          SET is_premium = 0,
-              is_premium_priority = 0,
-              activation_radius = 3,
-              premium_activation_date = NULL,
-              premium_expiry_date = NULL,
-              updated_at = NOW()
-          WHERE id IN ({stallIds})
-          """);
-#pragma warning restore EF1002
+        expiredVendor.IsPremium = false;
+        expiredVendor.PremiumActivationDate = null;
+        expiredVendor.PremiumExpiryDate = null;
+
+        var pois = await db.Pois.Where(p => p.VendorId == vendorIdClaim).ToListAsync();
+        foreach (var poi in pois)
+        {
+          poi.IsPremiumPriority = false;
+          poi.TriggerRadius = 3.0;
+          poi.UpdatedAt = now;
+        }
+
+        await db.SaveChangesAsync();
       }
     }
 

@@ -255,9 +255,10 @@ public sealed class VendorController(
           balance = wallet?.Balance ?? 0m,
           totalTopUp = wallet?.TotalTopUp ?? 0m,
           totalSpent = wallet?.TotalSpent ?? 0m,
-          subscriptionStatus = "ACTIVE",
-          nextBillingDate = vendor.PremiumExpiryDate,
+          subscriptionStatus = vendor.SubscriptionExpiryDate.HasValue && vendor.SubscriptionExpiryDate.Value < DateTime.UtcNow ? "EXPIRED" : "ACTIVE",
+          nextBillingDate = vendor.SubscriptionExpiryDate,
           isPremium = vendor.IsPremium,
+          premiumExpiryDate = vendor.PremiumExpiryDate,
           premiumPrice = 599000m
         },
         stats = new
@@ -935,6 +936,10 @@ public sealed class VendorController(
     {
       await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE Vendors SET is_premium=1, premium_activation_date=NOW(), premium_expiry_date=DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE id={VendorId}");
       await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE Pois SET is_premium_priority=1, trigger_radius=10.0 WHERE vendor_id={VendorId}");
+    }
+    else if (category == "WEBAPP_MONTHLY_RENT")
+    {
+      await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE Vendors SET subscription_expiry_date=DATE_ADD(COALESCE(subscription_expiry_date, NOW()), INTERVAL 30 DAY) WHERE id={VendorId}");
     }
     
     var saved = await db.SaveChangesAsync();

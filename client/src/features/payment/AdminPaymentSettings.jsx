@@ -18,7 +18,7 @@ export function AdminPaymentSettings() {
   const [busy, setBusy] = useState(false);
 
   async function load() {
-    const [configData, pendingData] = await Promise.all([paymentApi.getConfigs(), paymentApi.getPending()]);
+    const [configData, pendingData] = await Promise.all([paymentApi.getConfigs(), paymentApi.getPending({ senderType: 'USER' })]);
     setConfigs(configData ?? []);
     setPending(pendingData ?? []);
   }

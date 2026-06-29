@@ -52,6 +52,7 @@ public class AppDbContext : DbContext
       entity.Property(x => x.IsPremium).HasColumnName("is_premium");
       entity.Property(x => x.PremiumActivationDate).HasColumnName("premium_activation_date");
       entity.Property(x => x.PremiumExpiryDate).HasColumnName("premium_expiry_date");
+      entity.Property(x => x.SubscriptionExpiryDate).HasColumnName("subscription_expiry_date");
       entity.Property(x => x.CreatedAt).HasColumnName("created_at");
 
       entity.HasIndex(x => x.Email).IsUnique();

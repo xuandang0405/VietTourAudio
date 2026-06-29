@@ -127,10 +127,20 @@ export function useGeofenceAudio({ onToast }) {
 
   const selectedPoi = currentPoi;
   const activeAutoPoi = useMemo(() => {
-    const insidePois = enrichedPois.filter((poi) => poi.isInsideRadius);
+    const insidePois = enrichedPois.filter((poi) => {
+      const activeRadius = poi.isPremiumPoi ? 10.0 : 3.0;
+      return poi.distanceMeters <= activeRadius;
+    });
     if (insidePois.length === 0) return null;
-    const premiumInside = insidePois.find((poi) => poi.isPremiumStall);
-    return premiumInside ?? insidePois[0];
+    const sorted = [...insidePois].sort((a, b) => {
+      const priorityA = a.isPremiumPoi ? 1 : 0;
+      const priorityB = b.isPremiumPoi ? 1 : 0;
+      if (priorityB !== priorityA) {
+        return priorityB - priorityA;
+      }
+      return a.distanceMeters - b.distanceMeters;
+    });
+    return sorted[0];
   }, [enrichedPois]);
 
   // Sync selectedPoiId with URL search params changes

@@ -23,11 +23,26 @@ public sealed class AdminTopUpController(AppDbContext db, Microsoft.AspNetCore.S
   {
     var rows = await db.Database.SqlQuery<TopUpRow>($"""
       SELECT tur.id Id,tur.vendor_id VendorId,tur.wallet_id WalletId,tur.amount Amount,
-        tur.status Status,tur.proof_url ProofImageUrl,tur.note Note,tur.created_at CreatedAt
-      FROM top_up_requests tur WHERE ({status}='ALL' OR tur.status={status}) ORDER BY tur.created_at DESC
+        tur.status Status,tur.proof_url ProofImageUrl,tur.note Note,tur.created_at CreatedAt,
+        v.trade_name BusinessName,v.email OwnerEmail
+      FROM top_up_requests tur 
+      LEFT JOIN Vendors v ON v.id = tur.vendor_id
+      WHERE ({status}='ALL' OR tur.status={status}) 
+      ORDER BY tur.created_at DESC
       """).ToListAsync();
-    return Ok(ApiResponseFactory.Ok(rows.Select(x => new { id = x.Id, vendorId = x.VendorId,
-      x.Amount, x.Status, proofImageUrl = FileUrl(x.ProofImageUrl), x.Note, x.CreatedAt })));
+    return Ok(ApiResponseFactory.Ok(rows.Select(x => new { 
+      id = x.Id, 
+      vendorId = x.VendorId,
+      x.Amount, 
+      x.Status, 
+      proofImageUrl = FileUrl(x.ProofImageUrl), 
+      x.Note, 
+      x.CreatedAt,
+      vendor = new {
+        businessName = x.BusinessName ?? $"Vendor {x.VendorId}",
+        ownerEmail = x.OwnerEmail ?? ""
+      }
+    })));
   }
 
   [HttpPost("requests/{id}/approve")]
@@ -109,6 +124,8 @@ public sealed class TopUpRow
   public string? ProofImageUrl { get; set; }
   public string? Note { get; set; } 
   public DateTime CreatedAt { get; set; } 
+  public string? BusinessName { get; set; }
+  public string? OwnerEmail { get; set; }
 }
 
 public sealed record RejectRequest(string Reason);

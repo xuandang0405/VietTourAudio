@@ -49,7 +49,17 @@ public sealed class CheckoutPaymentController(
       .SingleOrDefaultAsync(x => x.GatewayType == method && x.IsActive);
     if (config is null) return NotFound(ApiResponseFactory.Fail("Payment gateway is not active."));
 
-    var amount = ResolveAmount(transactionType);
+    decimal amount;
+    if (transactionType == "VENDOR_TOPUP")
+    {
+      if (!request.Amount.HasValue || request.Amount.Value <= 0)
+        return BadRequest(ApiResponseFactory.Fail("Số tiền nạp không hợp lệ."));
+      amount = request.Amount.Value;
+    }
+    else
+    {
+      amount = ResolveAmount(transactionType);
+    }
     var id = Guid.NewGuid().ToString("N");
     var memo = BuildMemo(config.TransferMemoPattern, id, senderId, transactionType);
     var now = DateTime.UtcNow;
@@ -443,7 +453,8 @@ public sealed record CheckoutIntent(
   string SenderId,
   string SenderType,
   string PaymentMethod,
-  string TransactionType);
+  string TransactionType,
+  decimal? Amount);
 public sealed record VisaPaymentRequest(
   string TransactionId,
   string CardholderName,
