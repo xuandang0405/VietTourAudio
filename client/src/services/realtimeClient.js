@@ -1,4 +1,4 @@
-import { HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
+import { HubConnectionBuilder, HubConnectionState, HttpTransportType } from '@microsoft/signalr';
 import { appConfig } from '../config/appConfig';
 
 let accessToken = '';
@@ -6,9 +6,10 @@ let desiredZone = '';
 let wantsAdminDashboard = false;
 
 const connection = new HubConnectionBuilder()
-  .withUrl(`${appConfig.apiOrigin}/hub/notifications`, {
+  .withUrl(import.meta.env.VITE_SIGNALR_BASE_URL || `${appConfig.apiOrigin}/hub/notifications`, {
     accessTokenFactory: () => accessToken,
-    skipNegotiation: false
+    skipNegotiation: false,
+    transport: HttpTransportType.WebSockets
   })
   .withAutomaticReconnect({
     nextRetryDelayInMilliseconds: retryContext => {

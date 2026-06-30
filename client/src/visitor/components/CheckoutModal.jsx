@@ -2,10 +2,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, Copy, Crown, X, Loader2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import axios from 'axios';
 import { subscribeRealtime } from '../../services/realtimeClient';
 import { useTranslation } from 'react-i18next';
 import { appConfig } from '../../config/appConfig';
+import { apiClient } from '../../services/apiClient';
 import { getVisitorSessionId } from '../../utils/visitorSession';
 import toast from 'react-hot-toast';
 import { usePremiumStore } from '../../features/vendor-wallet/stores/premiumStore';
@@ -45,8 +45,8 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
     if (!open) return;
 
     setLoading(true);
-    axios
-      .get(`${appConfig.guestApiBaseUrl}/payment-gateways`)
+    apiClient
+      .get('/guest/payment-gateways')
       .then((res) => {
         setGateways(res.data?.data || []);
       })

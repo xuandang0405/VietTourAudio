@@ -8,7 +8,7 @@ import { languages, useLanguageStore } from '../../../stores/languageStore';
 import { useLocationStore } from '../../geofence-audio/stores/locationStore';
 import { usePremiumStore } from '../../vendor-wallet/stores/premiumStore';
 import { QrCameraScanner } from '../components/QrCameraScanner';
-import axios from 'axios';
+import { apiClient } from '../../../services/apiClient';
 import { appConfig } from '../../../config/appConfig';
 
 export function LandingPage({ onToast, onUpgrade }) {
@@ -47,7 +47,7 @@ export function LandingPage({ onToast, onUpgrade }) {
   useEffect(() => {
     let active = true;
     setToursLoading(true);
-    axios.get(`${appConfig.guestApiBaseUrl}/tours?lang=${i18n.language}`)
+    apiClient.get(`/guest/tours?lang=${i18n.language}`)
       .then(res => {
         if (!active) return;
         const data = res.data?.data ?? res.data ?? [];
@@ -103,7 +103,7 @@ export function LandingPage({ onToast, onUpgrade }) {
 
     setSupportLoading(true);
     try {
-      await axios.post(`${appConfig.guestApiBaseUrl}/tickets`, {
+      await apiClient.post('/guest/tickets', {
         email: supportEmail.trim(),
         subject: supportSubject.trim(),
         message: supportMessage.trim()

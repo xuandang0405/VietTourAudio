@@ -134,7 +134,7 @@ if (OperatingSystem.IsWindows())
 }
 
 var allowedOrigins = builder.Configuration
-  .GetSection("Cors:AllowedOrigins")
+  .GetSection("NetworkConfig:AllowedCorsOrigins")
   .Get<string[]>() ?? [];
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -157,16 +157,6 @@ if (jwtKey.Length < 32 || jwtRefreshKey.Length < 32 || jwtKey == jwtRefreshKey)
 
 if (builder.Environment.IsProduction())
 {
-  if (allowedOrigins.Length != 3 || allowedOrigins.Any(origin =>
-      !Uri.TryCreate(origin, UriKind.Absolute, out var uri) ||
-      uri.Scheme != Uri.UriSchemeHttps ||
-      !uri.IsDefaultPort ||
-      uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-      IPAddress.TryParse(uri.Host, out _)))
-  {
-    throw new InvalidOperationException(
-      "Production CORS must contain exactly three HTTPS domain origins without custom ports.");
-  }
 
   if (jwtKey.Contains("Development", StringComparison.OrdinalIgnoreCase) ||
       jwtKey.Contains("Change-Me", StringComparison.OrdinalIgnoreCase) ||
@@ -252,10 +242,11 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddCors(options =>
 {
-  options.AddPolicy("ProductionCorsPolicy", policy =>
+  options.AddPolicy("DynamicCorsPolicy", policy =>
   {
     policy
       .WithOrigins(allowedOrigins)
+      .SetIsOriginAllowedToAllowWildcardSubdomains()
       .AllowAnyHeader()
       .AllowAnyMethod()
       .AllowCredentials();
@@ -344,7 +335,7 @@ app.UseStaticFiles(new StaticFileOptions
 });
 app.UseStaticFiles();
 app.UseRouting();
-app.UseCors("ProductionCorsPolicy");
+app.UseCors("DynamicCorsPolicy");
 app.UseAuthentication();
 app.UseMiddleware<VietTourAudio.Api.Middlewares.VendorPasswordChangeMiddleware>();
 app.UseAuthorization();

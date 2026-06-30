@@ -4,7 +4,7 @@ import { useLanguageStore } from '../../stores/languageStore';
 import { useSearchParams } from 'react-router-dom';
 import logo from '../../assets/logo/logo.png';
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { apiClient } from '../../services/apiClient';
 
 const languages = [
   { code: 'vi', name: 'VI' },
@@ -27,7 +27,7 @@ export function TopBar({ title = 'VietTourAudio', compact = false }) {
 
   useEffect(() => {
     if (activeZoneGuidToken) {
-      axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/zones/${activeZoneGuidToken}`)
+      apiClient.get(`/admin/zones/${activeZoneGuidToken}`)
         .then(res => {
           if (res.data?.success && res.data?.data) {
             setZoneMetadata({

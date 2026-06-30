@@ -1,248 +1,103 @@
-# VietTourAudio
+# HƯỚNG DẪN CHẠY DỰ ÁN VIETTOURAUDIO
 
-VietTourAudio la ung dung web/PWA thuyet minh du lich theo GPS va QR. Du an gom giao dien khach, API .NET, Admin API Node.js va MySQL.
+VietTourAudio là ứng dụng Web/PWA thuyết minh du lịch tự động theo tọa độ GPS, mã QR và âm thanh đa ngôn ngữ. Dự án bao gồm các thành phần:
+1. **Backend API (.NET 8):** Xử lý nghiệp vụ chính, thanh toán và quản trị tập trung.
+2. **Frontend Client (React/Vite):** Giao diện cho khách du lịch (Visitor) và đối tác (Vendor).
+3. **Web-Admin (React/Vite):** Giao diện dành riêng cho quản trị viên (Admin).
+4. **Cơ sở dữ liệu (MySQL):** Lưu trữ dữ liệu hệ thống.
 
-Tren Windows, co the khoi dong nhanh stack cu bang `run.bat` va dung bang `stop.bat`.
+---
 
-Neu can chay tung thanh phan rieng le hoac dang lam viec tren macOS/Linux, dung cac lenh ben duoi.
+## 🛠️ YÊU CẦU HỆ THỐNG (PREREQUISITES)
 
-## Thanh phan du an
+Trước khi khởi động dự án, hãy đảm bảo máy tính của bạn đã cài đặt các công cụ sau:
+* **Node.js:** Phiên bản 18+ (Kèm theo `npm`)
+* **.NET SDK:** Phiên bản 8.0+
+* **MySQL:** Phiên bản 8.0+ (Khuyên dùng MySQL đi kèm trong **XAMPP** để tương thích cấu hình tự động).
 
-| Thanh phan | Thu muc | Cong mac dinh |
-| --- | --- | --- |
-| Frontend React/Vite | `client/` | `5173` |
-| API khach .NET | `server/VietTourAudio.Api/` | `5000` |
-| Admin API Node.js | `viettour-admin-api/` | `5001` |
-| MySQL | `database/` | `3306` |
+---
 
-## Yeu cau
+## ⚡ CÁCH KHỞI ĐỘNG NHANH TRÊN WINDOWS (KHUYÊN DÙNG)
 
-- Git
-- Node.js LTS va npm
-- .NET SDK 10
-- MySQL 8.x
-- Docker Desktop (tuy chon, neu muon chay MySQL bang Docker)
+Để thuận tiện nhất, dự án đã tích hợp sẵn 2 script tự động hóa: `run.bat` (khởi động) và `stop.bat` (tắt hệ thống).
 
-Kiem tra nhanh:
+### Bước 1: Khởi động hệ thống
+Bạn chỉ cần **nhấp đúp chuột** vào file [run.bat](file:///c:/Users/UNITY/Desktop/VietTourAudio-project-ready-database-integration/run.bat). Một giao diện điều khiển sẽ hiện ra với các lựa chọn:
 
+* **[1] Khởi động chế độ Staging (Tự động chọn sau 5s):**
+  * Chạy trên tên miền thực `bkpvp.top` (Cổng API: `8443` HTTPS qua Cloudflare, Client: Cổng `80`).
+  * Phù hợp khi muốn test môi trường thực tế hoặc kết nối thiết bị di động bên ngoài.
+* **[2] Khởi động chế độ Local (Phát triển):**
+  * Khởi chạy toàn bộ dịch vụ dưới dạng localhost cục bộ (Client: `5173`, API: `5000`, Web-Admin: `5174`).
+* **[3] Cài đặt / Cập nhật thư viện:**
+  * Tự động chạy `npm install` cho tất cả các thư mục frontend khi chạy lần đầu hoặc khi cập nhật mã nguồn.
+* **[4] Khởi tạo lại Cơ sở dữ liệu (Database Reset & Seed):**
+  * Tự động tạo cơ sở dữ liệu `viettuoraudio`, cài đặt cấu trúc bảng (schema) và nạp dữ liệu mẫu (seed). **Chọn mục này nếu đây là lần đầu tiên bạn chạy dự án.**
+* **[5] Tắt toàn bộ dịch vụ:** Gọi file tắt hệ thống.
+* **[6] Thoát.**
+
+*Sau khi các dịch vụ khởi động hoàn tất, chương trình sẽ tự động mở trình duyệt web dẫn đến giao diện sử dụng.*
+
+### Bước 2: Tắt hệ thống
+Khi không sử dụng nữa, bạn nhấp đúp chuột vào file [stop.bat](file:///c:/Users/UNITY/Desktop/VietTourAudio-project-ready-database-integration/stop.bat). Script sẽ tắt toàn bộ các cửa sổ lệnh CMD và các tiến trình chạy ngầm của dự án một cách an toàn.
+
+---
+
+## 💻 CÁCH KHỞI ĐỘNG THỦ CÔNG (CHO MACOS/LINUX HOẶC DEBUG)
+
+Nếu bạn không sử dụng Windows hoặc muốn chạy từng thành phần độc lập bằng dòng lệnh:
+
+### 1. Khởi tạo Cơ sở dữ liệu
+Đảm bảo dịch vụ MySQL đang chạy trên cổng `3306`.
 ```bash
-node --version
-npm --version
-dotnet --version
-mysql --version
+cd database
+npm install
+node apply_db.js
 ```
 
-## 1. Lay ma nguon
-
-```bash
-git clone https://github.com/xuandang0405/VietTourAudio.git
-cd VietTourAudio
-git switch project-ready-database-integration
-```
-
-## 2. Cai database
-
-### Cach A: MySQL da cai tren may
-
-Mo MySQL client tai thu muc goc cua du an:
-
-```bash
-mysql --default-character-set=utf8mb4 -u root -p
-```
-
-Sau khi dang nhap, chay:
-
-```sql
-SOURCE database/setup-local.sql;
-```
-
-Lenh nay se:
-
-- Tao database `viettuoraudio`.
-- Tao schema va du lieu mau UTF-8.
-- Tao user `viettour_user` cho moi truong local.
-
-Neu dang dung XAMPP MySQL tren Windows, stack local hien duoc canh chinh de chay truc tiep voi `root` va mat khau rong tren `localhost:3306`.
-
-Thong tin ket noi local mac dinh:
-
-```text
-Database: viettuoraudio
-Host: localhost
-Port: 3306
-User: viettour_user
-Password: viettour_password
-```
-
-Chi su dung mat khau mac dinh nay cho moi truong phat trien local.
-
-### Cach B: Docker Compose
-
-```bash
-docker compose up -d mysql phpmyadmin
-```
-
-MySQL chay tai `localhost:3306`. phpMyAdmin chay tai <http://localhost:8080>.
-
-Neu volume MySQL cu da ton tai va can tao lai du lieu mau:
-
-```bash
-docker compose down -v
-docker compose up -d mysql phpmyadmin
-```
-
-Lenh `down -v` xoa du lieu MySQL local trong Docker, chi dung khi chac chan muon reset.
-
-## 3. Cau hinh
-
-Repo co file `.env.example` tai thu muc goc va `viettour-admin-api/.env.example`.
-
-Tao file cau hinh local:
-
-```bash
-cp .env.example .env
-cp viettour-admin-api/.env.example viettour-admin-api/.env
-```
-
-Tren Windows PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-Copy-Item viettour-admin-api/.env.example viettour-admin-api/.env
-```
-
-Frontend co the tao `client/.env` nhu sau:
-
-```env
-VITE_DEV_PORT=5173
-VITE_API_BASE_URL=http://localhost:5000/api
-VITE_ADMIN_API_BASE_URL=http://localhost:5001/api
-VITE_VENDOR_API_BASE_URL=http://localhost:5001/api/vendor
-VITE_VENDOR_AUTH_API_BASE_URL=http://localhost:5001/api/vendor/auth
-VITE_DEFAULT_LANGUAGE=vi
-```
-
-Khong commit cac file `.env` chua secret hoac mat khau that.
-
-## 4. Chay API khach
-
-Mo terminal thu nhat:
-
+### 2. Khởi chạy Backend API (.NET)
 ```bash
 cd server/VietTourAudio.Api
 dotnet restore
-dotnet run --urls http://0.0.0.0:5000
+dotnet run --urls "http://*:5000"
 ```
+* Kiểm tra trạng thái API tại: <http://localhost:5000/health>
+* Tài liệu Swagger API tại: <http://localhost:5000/swagger>
 
-Kiem tra:
-
-- Health: <http://localhost:5000/health>
-- Swagger: <http://localhost:5000/swagger>
-- POI: <http://localhost:5000/api/pois>
-
-## 5. Chay Admin API
-
-Mo terminal thu hai:
-
-```bash
-cd viettour-admin-api
-npm install
-npm run build
-npm run dev
-```
-
-Kiem tra health tai <http://localhost:5001/health>.
-
-Tai khoan admin demo:
-
-```text
-Email: admin@viettouraudio.vn
-Password: Admin123
-```
-
-Tai khoan vendor demo:
-
-```text
-Email: an@heritagefoods.vn
-Password: Vendor123
-```
-
-Hai tai khoan nay chi dung cho du lieu phat trien.
-
-## 6. Chay frontend
-
-Mo terminal thu ba:
-
+### 3. Khởi chạy Frontend Client (Khách / Đối tác)
 ```bash
 cd client
 npm install
 npm run dev
 ```
+* Truy cập ứng dụng tại: <http://localhost:5173>
 
-Mo <http://localhost:5173>.
-
-Frontend can ca API khach va Admin API de su dung day du chuc nang.
-
-## Build kiem tra
-
-Frontend:
-
+### 4. Khởi chạy Web-Admin (Trang quản trị)
 ```bash
-cd client
-npm run build
+cd client/web-admin
+npm install
+npm run dev -- --port 5174
 ```
+* Truy cập trang quản trị tại: <http://localhost:5174>
 
-Backend:
+---
 
-```bash
-cd server/VietTourAudio.Api
-dotnet build
-```
+## 🔑 TÀI KHOẢN ĐĂNG NHẬP MẪU (DEMO ACCOUNTS)
 
-Admin API:
+Dữ liệu mẫu sau khi khởi tạo DB bao gồm các tài khoản thử nghiệm sau:
 
-```bash
-cd viettour-admin-api
-npm run build
-```
+| Vai trò | Email đăng nhập | Mật khẩu | Giao diện đăng nhập |
+|---|---|---|---|
+| **Super Admin** | `admin@viettouraudio.vn` | `Admin123` | `/admin/login` hoặc cổng `5174` |
+| **Vendor (Đối tác)** | `an@heritagefoods.vn` | `Vendor123` | `/vendor/login` |
 
-## Du lieu mau
+---
 
-File `database/seed.sql` tao du lieu phat trien, bao gom:
+## 🌐 DANH SÁCH ĐƯỜNG DẪN KHI CHẠY LOCAL
 
-- 4 tai khoan quan tri.
-- 8 vendor.
-- 8 sap.
-- 15 POI, trong do API khach chi tra cac POI `ACTIVE`.
-- Noi dung thuyet minh da ngon ngu, QR, analytics va payment mau.
-
-Trang ban do va trang danh sach khach lay POI/sap tu API va MySQL. Anh minh hoa mac dinh duoc dung khi database chua co media da duyet.
-
-## Cau truc chinh
-
-```text
-VietTourAudio/
-|-- client/                 # React/Vite frontend
-|-- server/                 # .NET API va uploads
-|-- viettour-admin-api/     # Admin API Node.js/TypeScript
-|-- database/               # schema, seed va setup local
-|-- docs/                   # tai lieu bo sung
-|-- scripts/                # script Node.js ho tro build/chay frontend
-|-- docker-compose.yml
-|-- .env.example
-`-- README.md
-```
-
-## Luu y bao mat
-
-- Doi tat ca mat khau va JWT secret truoc khi deploy.
-- Khong dua `.env`, backup database, log, `node_modules`, `bin`, `obj` hoac `dist` len Git.
-- Khong dung tai khoan va mat khau demo trong production.
-- File media duoc luu tren storage; MySQL chi luu duong dan va metadata.
-
-## Xu ly loi nhanh
-
-- Chu tieng Viet sai: import SQL voi `--default-character-set=utf8mb4` hoac dung `database/setup-local.sql`.
-- API khong ket noi MySQL: kiem tra service MySQL, cong `3306` va thong tin trong `.env`/connection string.
-- Frontend khong co du lieu: kiem tra <http://localhost:5000/health> va <http://localhost:5000/api/pois>.
-- Cong da duoc su dung: dung tien trinh cu hoac doi cong khi khoi dong service.
+* **Giao diện chính (Khách):** <http://localhost:5173>
+* **Giao diện Quản lý Đối tác:** <http://localhost:5173/vendor/login>
+* **Giao diện Quản trị viên (Cách 1):** <http://localhost:5173/admin/login>
+* **Giao diện Quản trị viên (Cách 2 - Standalone):** <http://localhost:5174>
+* **Tài liệu Backend Swagger:** <http://localhost:5000/swagger>
+* **Đường dẫn API chính:** <http://localhost:5000/api>

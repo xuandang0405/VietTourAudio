@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocationStore } from '../../features/geofence-audio/stores/locationStore';
-import axios from 'axios';
-import { appConfig } from '../../config/appConfig';
+import { apiClient } from '../../services/apiClient';
 import { resolveBackendMediaUrl } from '../../utils/mediaUrl';
 
 const CATEGORY_EMOJI = {
@@ -51,7 +50,7 @@ export function DiscoveryPanel() {
   useEffect(() => {
     if (!isOpen) return;
     setLoading(true);
-    axios.get(`${appConfig.guestApiBaseUrl}/tours?lang=${i18n.language}`)
+    apiClient.get(`/guest/tours?lang=${i18n.language}`)
       .then(res => {
         const data = res.data?.data ?? res.data ?? [];
         setTours(data);

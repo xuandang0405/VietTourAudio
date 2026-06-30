@@ -2,6 +2,7 @@ import axios from 'axios';
 import { appConfig } from '../../config/appConfig';
 import { useVendorAuthStore } from '../../vendor/store/vendorAuthStore';
 import { adminApiClient } from '../../admin/api/adminApi';
+import { apiClient } from '../../services/apiClient';
 import { getVisitorSessionId } from '../../utils/visitorSession';
 
 const paymentClient = axios.create({
@@ -19,7 +20,7 @@ paymentClient.interceptors.request.use((config) => {
 const unwrap = (response) => response.data?.data ?? response.data;
 
 export const paymentApi = {
-  getPublicGateways: () => axios.get(`${appConfig.apiBaseUrl}/guest/payment-gateways`).then(unwrap),
+  getPublicGateways: () => apiClient.get('/guest/payment-gateways').then(unwrap),
   initialize: (intent) => paymentClient.post('/initialize', intent).then(unwrap),
   processVisa: (payload) => paymentClient.post('/visa-process', payload).then(unwrap),
   uploadProof: (transactionId, proof) => {
@@ -31,7 +32,7 @@ export const paymentApi = {
     }).then(unwrap);
   },
   getStatus: (transactionId) =>
-    axios.get(`${appConfig.apiBaseUrl}/payment/status/${transactionId}`).then(unwrap),
+    apiClient.get(`/payment/status/${transactionId}`).then(unwrap),
   getConfigs: () => adminApiClient.get('/admin/payment-config').then(unwrap),
   updateConfig: (body) => adminApiClient.post('/admin/payment-config/update', body, {
     headers: { 'Content-Type': 'multipart/form-data' }
