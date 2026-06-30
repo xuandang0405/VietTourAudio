@@ -1,0 +1,51 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Node / React
+node_modules/
+dist/
+build/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# .NET
+bin/
+obj/
+.data-protection-keys/
+*.user
+*.suo
+*.rsuser
+.vs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# Local Codex workspace
+work/
+
+# Runtime uploads and generated files
+server/uploads/images/*
+server/uploads/videos/*
+server/uploads/audios/*
+server/uploads/qr/*
+server/uploads/temp/*
+!server/uploads/README.md
+
+# Database backup
+database/backup/*
+
+# OS
+.DS_Store
+Thumbs.db

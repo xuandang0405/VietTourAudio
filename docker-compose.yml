@@ -1,0 +1,32 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: viettouraudio-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-viettuoraudio}
+      MYSQL_USER: ${MYSQL_USER:-viettour_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-viettour_password}
+    ports:
+      - "3306:3306"
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: viettouraudio-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    ports:
+      - "${PHPMYADMIN_PORT:-8080}:80"
+    depends_on:
+      - mysql
+
+volumes:
+  mysql-data:

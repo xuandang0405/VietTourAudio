@@ -1,0 +1,87 @@
+import { Languages } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { useLanguageStore } from '../../stores/languageStore';
+import { useSearchParams } from 'react-router-dom';
+import logo from '../../assets/logo/logo.png';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+
+const languages = [
+  { code: 'vi', name: 'VI' },
+  { code: 'en', name: 'EN' },
+  { code: 'ja', name: 'JA' },
+  { code: 'ko', name: 'KO' },
+  { code: 'zh', name: 'ZH' },
+];
+
+export function TopBar({ title = 'VietTourAudio', compact = false }) {
+  const { t, i18n } = useTranslation();
+  const { currentLanguage, setLanguage } = useLanguageStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const activeZoneGuidToken = searchParams.get('zone');
+  const [zoneMetadata, setZoneMetadata] = useState({ 
+    name: title !== 'VietTourAudio' ? title : 'VietTourAudio', 
+    description: t('common.smartGuide', 'Hướng dẫn thông minh') 
+  });
+
+  useEffect(() => {
+    if (activeZoneGuidToken) {
+      axios.get(`${import.meta.env.VITE_API_BASE_URL}/guest/resolve-code/${activeZoneGuidToken}`)
+        .then(res => {
+          const zoneName = res.data?.data?.stall?.name || res.data?.data?.name;
+          if (zoneName) {
+            setZoneMetadata({
+              name: zoneName,
+              description: t('common.food_zone', 'Khu ẩm thực đặc sắc')
+            });
+          } else {
+            setZoneMetadata({ name: title, description: t('common.smartGuide', 'Hướng dẫn thông minh') });
+          }
+        })
+        .catch(() => {
+          setZoneMetadata({ name: title, description: t('common.smartGuide', 'Hướng dẫn thông minh') });
+        });
+    } else {
+      setZoneMetadata({ 
+        name: title, 
+        description: t('common.smartGuide', 'Hướng dẫn thông minh') 
+      });
+    }
+  }, [activeZoneGuidToken, title, t]);
+
+  const toggleLanguage = () => {
+    const currentIndex = languages.findIndex(l => l.code === currentLanguage);
+    const nextIndex = (currentIndex + 1) % languages.length;
+    const nextLang = languages[nextIndex].code;
+    i18n.changeLanguage(nextLang);
+    setLanguage(nextLang);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('lang', nextLang);
+    setSearchParams(newParams);
+  };
+
+  return (
+    <header className="absolute left-4 right-4 top-4 z-10">
+      <div className="flex items-center justify-between px-4 py-3 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-2xl">
+        <div className="flex min-w-0 items-center gap-3">
+          <img className="h-10 w-10 flex-shrink-0 rounded-xl border border-slate-100" src="/src/assets/logo/logo.png" alt="VietTourAudio" loading="lazy" decoding="async" />
+          <div className="min-w-0">
+            <p className="truncate font-display text-base font-bold text-slate-900">VietTourAudio</p>
+            <p className="text-xs font-medium text-slate-500">Hướng dẫn thông minh</p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={toggleLanguage}
+          className="flex h-10 flex-shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 text-sm font-bold uppercase text-slate-700 shadow-sm backdrop-blur transition duration-150 ease-out hover:bg-slate-100 active:scale-[0.98]"
+          aria-label="Đổi ngôn ngữ"
+        >
+          <Languages size={18} />
+          {i18n.language?.toUpperCase().substring(0, 2) || 'VI'}
+        </button>
+      </div>
+    </header>
+  );
+}
