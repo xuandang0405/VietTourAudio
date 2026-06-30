@@ -28,6 +28,18 @@ export function ZonePage({ onUpgrade, onToast }) {
   const [qrError, setQrError] = useState(false);
   const [qrVersion, setQrVersion] = useState(0);
 
+  // Defensive timeout safety net for loading spinner
+  useEffect(() => {
+    let safetyTimer;
+    if (loading) {
+      safetyTimer = setTimeout(() => {
+        setLoading(false);
+        console.warn("[PERFORMANCE EMERGENCY]: Spinner forced closed due to unresponsive background execution thread.");
+      }, 5000);
+    }
+    return () => clearTimeout(safetyTimer);
+  }, [loading]);
+
   // Fetch zone data from API
   useEffect(() => {
     if (!code) return;

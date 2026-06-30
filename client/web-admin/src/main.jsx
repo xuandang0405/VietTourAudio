@@ -5,6 +5,9 @@ import { Toaster } from 'react-hot-toast';
 import App from './App';
 import { AuthProvider } from './hooks/useAuth';
 import './index.css';
+import axios from 'axios';
+
+axios.defaults.headers.common['ngrok-skip-browser-warning'] = '69420';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

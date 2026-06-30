@@ -1,0 +1,10 @@
+{
+    "rootDomain":  "bkpvp.top",
+    "serverIp":  "183.81.57.253",
+    "hosts":  {
+                  "mobile":  "bkpvp.top",
+                  "api":  "api.bkpvp.top",
+                  "admin":  "admin.bkpvp.top",
+                  "vendor":  "vendor.bkpvp.top"
+              }
+}

@@ -382,7 +382,7 @@ public sealed class GuestController(
       try
       {
           var orsKey = System.Environment.GetEnvironmentVariable("ORS_API_KEY") ?? "5b3ce3597851110001cf62483861fb85ea4f4d22bb42c55452eb8c15";
-          var orsUrl = $"http://api.openrouteservice.org/v2/directions/foot-walking?api_key={orsKey}&start={startLngStr},{startLatStr}&end={endLngStr},{endLatStr}";
+          var orsUrl = $"https://api.openrouteservice.org/v2/directions/foot-walking?api_key={orsKey}&start={startLngStr},{startLatStr}&end={endLngStr},{endLatStr}";
 
           using var response = await client.GetAsync(orsUrl);
           if (response.IsSuccessStatusCode)

@@ -40,7 +40,7 @@ export const useFavoritesStore = create(
         const guestId = getVisitorSessionId();
 
         try {
-          const response = await axios.post(`${appConfig.guestApiBaseUrl}/favorites/sync`, {
+          const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/guest/favorites/sync`, {
             guestId,
             ops: queue
           });
@@ -57,7 +57,7 @@ export const useFavoritesStore = create(
       fetchFavorites: async () => {
         const guestId = getVisitorSessionId();
         try {
-          const response = await axios.get(`${appConfig.guestApiBaseUrl}/favorites/${guestId}`);
+          const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/guest/favorites/${guestId}`);
           const data = response.data?.data ?? response.data;
           if (data && Array.isArray(data.favorites)) {
             // Only update favorites from server if there is no local changes queued

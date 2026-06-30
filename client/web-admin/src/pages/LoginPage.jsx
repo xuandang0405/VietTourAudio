@@ -17,7 +17,7 @@ export function LoginPage() {
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
-    defaultValues: { username: 'admin', password: 'Admin@123' }
+    defaultValues: { username: '', password: '' }
   });
 
   return (

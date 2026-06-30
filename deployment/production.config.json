@@ -1,0 +1,13 @@
+{
+  "rootDomain": "bkpvp.top",
+  "serverIp": "183.81.57.253",
+  "subdomains": {
+    "api": "api",
+    "admin": "admin",
+    "vendor": "vendor"
+  },
+  "iis": {
+    "sitePrefix": "VietTourAudio",
+    "deployRoot": "C:\\inetpub\\VietTourAudio"
+  }
+}

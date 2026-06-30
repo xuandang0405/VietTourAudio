@@ -12,7 +12,7 @@ export function AdminLoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const setSession = useAdminAuthStore((state) => state.setSession);
-  const [form, setForm] = useState({ email: 'admin@viettouraudio.vn', password: 'Admin123' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const from = location.state?.from?.pathname ?? '/admin';

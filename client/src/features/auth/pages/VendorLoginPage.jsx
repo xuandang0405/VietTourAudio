@@ -11,7 +11,7 @@ export function VendorLoginPage() {
   const location = useLocation();
   const isAuthenticated = useVendorAuthStore((state) => state.isAuthenticated);
   const setSession = useVendorAuthStore((state) => state.setSession);
-  const [form, setForm] = useState({ vendorCode: 'bao@vinhkhanhfood.vn', password: 'Vendor123' });
+  const [form, setForm] = useState({ vendorCode: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const from = location.state?.from?.pathname ?? '/vendor';
@@ -128,7 +128,6 @@ export function VendorLoginPage() {
 
           <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50 p-3">
             <p className="text-xs font-bold text-slate-500">🔑 {t('auth.demo_account_hint')}</p>
-            <p className="mt-1 text-xs font-mono text-slate-600">{t('auth.vendor_email_short', { defaultValue: 'Email' })}: <span className="font-bold text-teal-600">bao@vinhkhanhfood.vn</span> / {t('auth.password')}: <span className="font-bold text-teal-600">Vendor123</span></p>
           </div>
         </section>
       </div>

@@ -1,89 +1,240 @@
 @echo off
+:: Set title and encoding
+title VietTourAudio - Control Center
 chcp 65001 >nul
-setlocal
+setlocal enabledelayedexpansion
 
 set "ROOT=%~dp0"
-set "CLIENT_PORT=5173"
-set "API_PORT=5000"
-set "API_BASE_URL=http://localhost:%API_PORT%/api"
+
+:: -------------------------------------------------------------
+:: DEFAULT SETTINGS
+:: -------------------------------------------------------------
+set "STAGING_CLIENT_PORT=80"
+set "STAGING_API_PORT=45200"
+set "STAGING_API_BASE_URL=http://bkpvp.top:45200/api"
+
+set "LOCAL_CLIENT_PORT=5173"
+set "LOCAL_API_PORT=5000"
+set "LOCAL_API_BASE_URL=http://localhost:5000/api"
+
 set "DOTNET_CONNECTION=server=localhost;port=3306;database=viettuoraudio;user=root;password=;SslMode=None;AllowPublicKeyRetrieval=True;"
 
+:MENU
+cls
+echo =======================================================================
+echo              VIETTOURAUDIO CONTROL CENTER (WINDOWS SCRIPT)
+echo =======================================================================
 echo.
-echo ============================================================
-echo   VietTourAudio - Run for Windows
-echo ============================================================
+echo  [1] Khởi động môi trường Staging (Mặc định)
+echo      - Giao diện Client: http://bkpvp.top (Cổng %STAGING_CLIENT_PORT%)
+echo      - Backend API:       http://bkpvp.top:%STAGING_API_PORT%/api
+echo.
+echo  [2] Khởi động môi trường Local (Phát triển)
+echo      - Giao diện Client: http://localhost:%LOCAL_CLIENT_PORT%
+echo      - Backend API:       http://localhost:%LOCAL_API_PORT%/api
+echo      - Web-Admin:        http://localhost:5174
+echo.
+echo  [3] Cài đặt / Cập nhật thư viện (npm install)
+echo.
+echo  [4] Khởi tạo lại Cơ sở dữ liệu (Database Reset & Seed)
+echo.
+echo  [5] Tắt toàn bộ dịch vụ đang chạy
+echo.
+echo  [6] Thoát
+echo.
+echo =======================================================================
 echo.
 
-echo Stopping existing .NET processes...
-taskkill /IM dotnet.exe /F >nul 2>&1
-echo   [OK]  Existing dotnet.exe processes cleared
-echo.
+:: Choice countdown: default to 1 (Staging) in 5 seconds
+choice /c 123456 /t 5 /d 1 /m "Nhập lựa chọn của bạn:"
 
-echo [1/3] Checking database on localhost:3306...
+if errorlevel 6 goto EXIT
+if errorlevel 5 goto STOP_ALL
+if errorlevel 4 goto SETUP_DB
+if errorlevel 3 goto INSTALL_DEPS
+if errorlevel 2 goto START_LOCAL
+if errorlevel 1 goto START_STAGING
+
+:START_STAGING
+set "MODE=Staging"
+set "CLIENT_PORT=%STAGING_CLIENT_PORT%"
+set "API_PORT=%STAGING_API_PORT%"
+set "API_BASE_URL=%STAGING_API_BASE_URL%"
+set "API_HOST_URL=http://*:%STAGING_API_PORT%"
+set "PUBLIC_BASE_URL=http://bkpvp.top:%STAGING_API_PORT%/uploads"
+goto CHECK_SERVICES
+
+:START_LOCAL
+set "MODE=Local"
+set "CLIENT_PORT=%LOCAL_CLIENT_PORT%"
+set "API_PORT=%LOCAL_API_PORT%"
+set "API_BASE_URL=%LOCAL_API_BASE_URL%"
+set "API_HOST_URL=http://*:%LOCAL_API_PORT%"
+set "PUBLIC_BASE_URL=http://localhost:%LOCAL_API_PORT%/uploads"
+goto CHECK_SERVICES
+
+:CHECK_SERVICES
+echo.
+echo =======================================================================
+echo  [Step 1/3] Đang kiểm tra Database (MySQL) tại cổng 3306...
+echo =======================================================================
 netstat -ano | findstr /R /C:":3306 .*LISTENING" >nul 2>&1
 if %ERRORLEVEL% equ 0 (
-  echo   [OK]  Local MySQL is listening on localhost:3306
+  echo   [OK] MySQL đang chạy bình thường tại cổng 3306.
 ) else (
-  echo   MySQL not detected on port 3306. Attempting to start...
+  echo   [WARN] Không tìm thấy MySQL hoạt động tại cổng 3306.
+  echo   Đang cố gắng khởi động XAMPP MySQL...
   if exist "C:\xampp\mysql\bin\mysqld.exe" (
-    echo   Starting XAMPP MySQL...
-    start /B "C:\xampp\mysql\bin\mysqld.exe" --defaults-file=C:\xampp\mysql\bin\my.ini
+    start /B "VietTourAudio - MySQL" "C:\xampp\mysql\bin\mysqld.exe" --defaults-file=C:\xampp\mysql\bin\my.ini
     timeout /t 5 /nobreak >nul
     netstat -ano | findstr /R /C:":3306 .*LISTENING" >nul 2>&1
-    if %ERRORLEVEL% equ 0 (
-      echo   [OK]  XAMPP MySQL started successfully
+    if !ERRORLEVEL! equ 0 (
+      echo   [OK] Khởi động XAMPP MySQL thành công.
     ) else (
-      echo   [WARN] XAMPP MySQL may still be starting. Continuing...
+      echo   [WARN] Chưa thể kết nối MySQL. Vui lòng tự khởi động MySQL trong XAMPP.
     )
   ) else (
     where docker >nul 2>&1
-    if %ERRORLEVEL% equ 0 (
-      echo   No local MySQL detected. Starting docker compose fallback...
-      cd /d "%ROOT%"
-      docker compose up -d
-      if %ERRORLEVEL% neq 0 (
-        echo   [WARN] Docker fallback failed. Start MySQL manually, then rerun run.bat.
-      ) else (
-        echo   [OK]  Docker MySQL/phpMyAdmin requested.
-      )
+    if !ERRORLEVEL! equ 0 (
+      echo   Không tìm thấy XAMPP, đang thử khởi động bằng Docker Compose...
+      docker compose up -d mysql
+      timeout /t 5 /nobreak >nul
     ) else (
-      echo   [WARN] No MySQL on localhost:3306 and docker is not available in PATH.
-      echo   [WARN] Start XAMPP MySQL or another local MySQL service before using the app.
+      echo   [LỖI] Không tìm thấy XAMPP MySQL hoặc Docker. Vui lòng cài đặt và chạy MySQL.
     )
   )
 )
 
 echo.
-echo [2/3] Starting unified ASP.NET Core API on port %API_PORT%...
-start "VietTourAudio - .NET API" cmd /k "pushd "%ROOT%server\VietTourAudio.Api" && set ASPNETCORE_ENVIRONMENT=Development && set ASPNETCORE_URLS=http://localhost:%API_PORT% && set ConnectionStrings__DefaultConnection=%DOTNET_CONNECTION% && set Storage__PublicBaseUrl=http://localhost:%API_PORT%/uploads && dotnet run --no-launch-profile"
-echo   [OK]  Unified API : http://localhost:%API_PORT%
-echo   [OK]  Swagger     : http://localhost:%API_PORT%/swagger
+echo =======================================================================
+echo  [Step 2/3] Đang chuẩn bị các file cấu hình môi trường (.env.local)...
+echo =======================================================================
+:: Ghi đè file .env.local cho Client
+echo # Generated by run.bat at %DATE% %TIME% > "%ROOT%client\.env.local"
+echo VITE_API_BASE_URL=%API_BASE_URL% >> "%ROOT%client\.env.local"
+echo VITE_DEV_PORT=%CLIENT_PORT% >> "%ROOT%client\.env.local"
+echo VITE_DEV_HOST=0.0.0.0 >> "%ROOT%client\.env.local"
+echo   [OK] Đã cấu hình client/.env.local
+
+:: Ghi đè file .env.local cho Web Admin
+echo # Generated by run.bat at %DATE% %TIME% > "%ROOT%client\web-admin\.env.local"
+echo VITE_ADMIN_API_URL=%API_BASE_URL% >> "%ROOT%client\web-admin\.env.local"
+echo VITE_API_BASE_URL=%API_BASE_URL% >> "%ROOT%client\web-admin\.env.local"
+echo   [OK] Đã cấu hình client/web-admin/.env.local
+
+:: Kiểm tra node_modules
+if not exist "%ROOT%client\node_modules" (
+  echo   [!] Không tìm thấy node_modules của Client. Đang tiến hành cài đặt...
+  pushd "%ROOT%client"
+  call npm install
+  popd
+)
+
+if "%MODE%"=="Local" (
+  if not exist "%ROOT%client\web-admin\node_modules" (
+    echo   [!] Không tìm thấy node_modules của Web Admin. Đang tiến hành cài đặt...
+    pushd "%ROOT%client\web-admin"
+    call npm install
+    popd
+  )
+)
 
 echo.
-echo [3/3] Starting React client on port %CLIENT_PORT%...
-if not exist "%ROOT%client\node_modules" (
-  echo   Installing client dependencies...
-  cd /d "%ROOT%client"
+echo =======================================================================
+echo  [Step 3/3] Đang khởi động các dịch vụ...
+echo =======================================================================
+
+:: Tắt các tiến trình cũ để tránh xung đột cổng
+taskkill /FI "WINDOWTITLE eq VietTourAudio - .NET API" /T /F >nul 2>&1
+taskkill /FI "WINDOWTITLE eq VietTourAudio - Frontend" /T /F >nul 2>&1
+taskkill /FI "WINDOWTITLE eq VietTourAudio - Web Admin" /T /F >nul 2>&1
+taskkill /IM dotnet.exe /F >nul 2>&1
+
+:: Khởi động Backend API
+echo 1. Khởi động Backend API (.NET)...
+start "VietTourAudio - .NET API" cmd /k "pushd "%ROOT%server\VietTourAudio.Api" && set ASPNETCORE_ENVIRONMENT=Development && set ASPNETCORE_URLS=%API_HOST_URL% && set ConnectionStrings__DefaultConnection=%DOTNET_CONNECTION% && set Storage__PublicBaseUrl=%PUBLIC_BASE_URL% && dotnet run --no-launch-profile"
+
+:: Khởi động Client
+echo 2. Khởi động Frontend Client...
+start "VietTourAudio - Frontend" cmd /k "pushd "%ROOT%client" && npm run dev"
+
+:: Khởi động Web Admin (Chỉ ở chế độ Local)
+if "%MODE%"=="Local" (
+  echo 3. Khởi động Web Admin...
+  start "VietTourAudio - Web Admin" cmd /k "pushd "%ROOT%client\web-admin" && npm run dev -- --port 5174 --host 0.0.0.0"
+)
+
+echo.
+echo =======================================================================
+echo  Khởi động hoàn tất! Các dịch vụ đang chạy trên các cổng sau:
+echo =======================================================================
+if "%MODE%"=="Staging" (
+  echo  [✓] Giao diện Client: http://bkpvp.top (Cổng %CLIENT_PORT%)
+  echo  [✓] Backend API:       http://bkpvp.top:%API_PORT%/api
+  echo  [✓] Swagger UI:        http://bkpvp.top:%API_PORT%/swagger
+  echo.
+  echo  Mở trình duyệt truy cập: http://bkpvp.top
+  start http://bkpvp.top
+) else (
+  echo  [✓] Giao diện Client: http://localhost:%CLIENT_PORT%
+  echo  [✓] Backend API:       http://localhost:%API_PORT%/api
+  echo  [✓] Web-Admin:        http://localhost:5174
+  echo  [✓] Swagger UI:        http://localhost:%API_PORT%/swagger
+  echo.
+  echo  Mở trình duyệt truy cập: http://localhost:%CLIENT_PORT%
+  timeout /t 3 /nobreak >nul
+  start http://localhost:%CLIENT_PORT%
+  start http://localhost:5174
+)
+echo.
+echo =======================================================================
+echo  Để tắt toàn bộ dịch vụ, chạy file 'stop.bat' hoặc chọn Option 5.
+echo =======================================================================
+pause
+goto MENU
+
+:INSTALL_DEPS
+echo.
+echo =======================================================================
+echo  Đang cài đặt thư viện cho toàn bộ dự án...
+echo =======================================================================
+echo.
+echo 1. Cài đặt thư viện Client...
+pushd "%ROOT%client"
+call npm install
+popd
+echo.
+echo 2. Cài đặt thư viện Web Admin...
+pushd "%ROOT%client\web-admin"
+call npm install
+popd
+echo.
+echo [OK] Cài đặt thư viện hoàn tất.
+pause
+goto MENU
+
+:SETUP_DB
+echo.
+echo =======================================================================
+echo  Đang khởi tạo lại Cơ sở dữ liệu (Database)...
+echo =======================================================================
+echo.
+pushd "%ROOT%database"
+if not exist "node_modules" (
+  echo Cài đặt thư viện hỗ trợ database...
   call npm install
 )
-start "VietTourAudio - Frontend" cmd /k "pushd "%ROOT%client" && set "VITE_DEV_PORT=%CLIENT_PORT%" && set "VITE_API_BASE_URL=%API_BASE_URL%" && npm run dev"
-echo   [OK]  Frontend    : http://localhost:%CLIENT_PORT%
-
+echo Đang chạy script tạo và chèn dữ liệu mẫu...
+node apply_db.js
+popd
 echo.
-echo ============================================================
-echo   All core services were started.
-echo ============================================================
-echo.
-echo   Frontend      : http://localhost:%CLIENT_PORT%
-echo   Unified API   : http://localhost:%API_PORT%
-echo   Swagger       : http://localhost:%API_PORT%/swagger
-echo   Admin API     : http://localhost:%API_PORT%/api/admin
-echo   Vendor login  : http://localhost:%CLIENT_PORT%/vendor/login
-echo   Admin login   : http://localhost:%CLIENT_PORT%/admin/login
-echo.
-echo   Demo admin    : admin@viettouraudio.vn / Admin123
-echo   Demo vendor   : an@heritagefoods.vn / Vendor123
-echo.
-echo   To stop the stack: run stop.bat
-echo.
+echo [OK] Đã hoàn tất cài đặt database.
 pause
+goto MENU
+
+:STOP_ALL
+call "%ROOT%stop.bat"
+goto MENU
+
+:EXIT
+exit

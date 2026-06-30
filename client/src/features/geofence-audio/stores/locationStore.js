@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+let lastGpsUpdateTime = 0;
+
 export const useLocationStore = create((set, get) => ({
   permissionStatus: 'idle',
   position: null,
@@ -116,6 +118,12 @@ export const useLocationStore = create((set, get) => ({
     };
 
     const handleSuccess = (pos) => {
+      const now = Date.now();
+      if (now - lastGpsUpdateTime < 3000) {
+        return;
+      }
+      lastGpsUpdateTime = now;
+
       const currentPos = get().position;
       const newLat = pos.coords.latitude;
       const newLng = pos.coords.longitude;

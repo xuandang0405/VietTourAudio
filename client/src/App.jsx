@@ -58,6 +58,8 @@ function AppRoutes() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
+  const isAdminBuild = appConfig.appRole === 'admin';
+  const isVendorBuild = appConfig.appRole === 'vendor';
 
   // Global SignalR presence connection — registers this tab as an active user
   useEffect(() => {
@@ -121,7 +123,16 @@ function AppRoutes() {
       <AppErrorBoundary resetKey={location.pathname}>
         <Routes location={location}>
           <Route element={<VisitorShell><Outlet /></VisitorShell>}>
-            <Route path="/" element={<LandingPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
+            <Route
+              path="/"
+              element={
+                isAdminBuild
+                  ? <Navigate to="/admin" replace />
+                  : isVendorBuild
+                    ? <Navigate to="/vendor" replace />
+                    : <LandingPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />
+              }
+            />
             <Route path="/zone/:code" element={<ZonePage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
             <Route path="/map" element={<MapPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
             <Route path="/list" element={<ListPage onUpgrade={() => setCheckoutOpen(true)} />} />

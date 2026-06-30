@@ -6,10 +6,16 @@ let desiredZone = '';
 let wantsAdminDashboard = false;
 
 const connection = new HubConnectionBuilder()
-  .withUrl(`${appConfig.apiBaseUrl.replace(/\/api\/?$/, '')}/hub/notifications`, {
-    accessTokenFactory: () => accessToken
+  .withUrl(`${appConfig.apiOrigin}/hub/notifications`, {
+    accessTokenFactory: () => accessToken,
+    skipNegotiation: false
   })
-  .withAutomaticReconnect()
+  .withAutomaticReconnect({
+    nextRetryDelayInMilliseconds: retryContext => {
+      if (retryContext.previousRetryCount > 5) return null; // Abort after 5 failed attempts
+      return [0, 5000, 10000, 30000][retryContext.previousRetryCount] || 30000;
+    }
+  })
   .build();
 
 let startPromise = null;

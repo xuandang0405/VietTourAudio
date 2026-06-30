@@ -49,7 +49,8 @@ public class AuthService : IAuthService
       ? minutes
       : 120;
     var expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutes);
-    var key = _configuration["Jwt:Key"] ?? "VietTourAudio-Development-Jwt-Key-Change-Me-At-Least-32-Chars";
+    var key = _configuration["Jwt:Key"]
+      ?? throw new InvalidOperationException("Jwt:Key is required.");
     var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
     var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
 

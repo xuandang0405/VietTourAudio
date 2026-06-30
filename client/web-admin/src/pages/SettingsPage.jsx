@@ -4,8 +4,8 @@ import { PageHeader } from '../components/PageHeader';
 import { fetchSettings, upsertSetting } from '../api/admin';
 
 export function SettingsPage() {
-  const [api, setApi] = useState(import.meta.env.VITE_ADMIN_API_URL || 'http://localhost:3001/api');
-  const [socket, setSocket] = useState(import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001');
+  const [api, setApi] = useState(import.meta.env.VITE_ADMIN_API_URL || '/api');
+  const [socket, setSocket] = useState(import.meta.env.VITE_SOCKET_URL || '');
 
   useEffect(() => {
     let active = true;

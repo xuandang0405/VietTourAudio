@@ -3,6 +3,10 @@
 .env.*
 !.env.example
 
+# Production secrets and deployment outputs
+deployment/secrets.production.psd1
+deployment/publish/
+
 # Node / React
 node_modules/
 dist/

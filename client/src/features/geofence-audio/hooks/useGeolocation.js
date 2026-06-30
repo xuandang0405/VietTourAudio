@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+let lastGpsUpdateTime = 0;
+
 export function useGeolocation(options = {}) {
   const [position, setPosition] = useState(null);
   const [error, setError] = useState(null);
@@ -11,7 +13,14 @@ export function useGeolocation(options = {}) {
     }
 
     const watchId = navigator.geolocation.watchPosition(
-      (nextPosition) => setPosition(nextPosition),
+      (nextPosition) => {
+        const now = Date.now();
+        if (now - lastGpsUpdateTime < 3000) {
+          return;
+        }
+        lastGpsUpdateTime = now;
+        setPosition(nextPosition);
+      },
       (nextError) => setError(nextError),
       {
         enableHighAccuracy: true,

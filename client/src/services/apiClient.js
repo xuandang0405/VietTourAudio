@@ -7,7 +7,7 @@ export const apiClient = axios.create({
   baseURL: appConfig.apiBaseUrl,
   timeout: 15000,
   headers: {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json'
   },
 });
 
@@ -107,5 +107,3 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-// Force Vite HMR reload to pick up the port 45200 configuration from appConfig.js

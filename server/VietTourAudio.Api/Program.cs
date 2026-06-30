@@ -1,6 +1,8 @@
+using System.Net;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.FileProviders;
@@ -122,17 +124,58 @@ builder.Logging.AddConsole();
 
 var dataProtectionPath = Path.Combine(builder.Environment.ContentRootPath, ".data-protection-keys");
 Directory.CreateDirectory(dataProtectionPath);
-builder.Services
+var dataProtectionBuilder = builder.Services
   .AddDataProtection()
   .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath))
   .SetApplicationName("VietTourAudio.Api");
+if (OperatingSystem.IsWindows())
+{
+  dataProtectionBuilder.ProtectKeysWithDpapi(protectToLocalMachine: true);
+}
 
 var allowedOrigins = builder.Configuration
   .GetSection("Cors:AllowedOrigins")
-  .Get<string[]>() ?? ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174", "http://localhost:5175", "http://127.0.0.1:5175", "http://localhost:5176", "http://127.0.0.1:5176", "http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"];
+  .Get<string[]>() ?? [];
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-  ?? "server=localhost;port=3306;database=viettuoraudio;user=root;password=;SslMode=None;AllowPublicKeyRetrieval=True;GuidFormat=None;";
+  ?? string.Empty;
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+  throw new InvalidOperationException(
+    "ConnectionStrings:DefaultConnection must be supplied by the active environment.");
+}
+
+var jwtKey = builder.Configuration["Jwt:Key"] ?? string.Empty;
+var jwtRefreshKey = builder.Configuration["Jwt:RefreshKey"] ?? string.Empty;
+
+if (jwtKey.Length < 32 || jwtRefreshKey.Length < 32 || jwtKey == jwtRefreshKey)
+{
+  throw new InvalidOperationException(
+    "Jwt:Key and Jwt:RefreshKey must be different secrets of at least 32 characters.");
+}
+
+if (builder.Environment.IsProduction())
+{
+  if (allowedOrigins.Length != 3 || allowedOrigins.Any(origin =>
+      !Uri.TryCreate(origin, UriKind.Absolute, out var uri) ||
+      uri.Scheme != Uri.UriSchemeHttps ||
+      !uri.IsDefaultPort ||
+      uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+      IPAddress.TryParse(uri.Host, out _)))
+  {
+    throw new InvalidOperationException(
+      "Production CORS must contain exactly three HTTPS domain origins without custom ports.");
+  }
+
+  if (jwtKey.Contains("Development", StringComparison.OrdinalIgnoreCase) ||
+      jwtKey.Contains("Change-Me", StringComparison.OrdinalIgnoreCase) ||
+      jwtRefreshKey.Contains("Development", StringComparison.OrdinalIgnoreCase) ||
+      jwtRefreshKey.Contains("Change-Me", StringComparison.OrdinalIgnoreCase))
+  {
+    throw new InvalidOperationException("Development JWT keys cannot be used in Production.");
+  }
+}
 
 if (!connectionString.Contains("GuidFormat=", StringComparison.OrdinalIgnoreCase))
 {
@@ -142,11 +185,7 @@ if (!connectionString.Contains("GuidFormat=", StringComparison.OrdinalIgnoreCase
 builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(connectionString, ServerVersion.Parse("10.4.32-mariadb")));
 
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddHttpClient(string.Empty)
-  .ConfigurePrimaryHttpMessageHandler(() => new System.Net.Http.HttpClientHandler
-  {
-    ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
-  });
+builder.Services.AddHttpClient(string.Empty);
 builder.Services.AddHostedService<MonthlyBillingWorker>();
 builder.Services.AddScoped<IAuthService, DatabaseIdentityService>();
 builder.Services.AddScoped<IUserService, DatabaseUserService>();
@@ -213,7 +252,7 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddCors(options =>
 {
-  options.AddPolicy("AllowReactClients", policy =>
+  options.AddPolicy("ProductionCorsPolicy", policy =>
   {
     policy
       .WithOrigins(allowedOrigins)
@@ -223,8 +262,6 @@ builder.Services.AddCors(options =>
   });
 });
 
-var jwtKey = builder.Configuration["Jwt:Key"]
-  ?? "VietTourAudio-Development-Jwt-Key-Change-Me-At-Least-32-Chars";
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
 builder.Services
@@ -258,6 +295,11 @@ builder.Services
   });
 
 var app = builder.Build();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+  ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 var supportedCultures = new[] { "vi", "en", "ja", "ko", "zh" }.Select(x => new CultureInfo(x)).ToArray();
 
 using (var schemaScope = app.Services.CreateScope())
@@ -290,8 +332,9 @@ if (app.Environment.IsDevelopment())
   app.UseSwaggerUI();
 }
 
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsProduction())
 {
+  app.UseHsts();
   app.UseHttpsRedirection();
 }
 app.UseStaticFiles(new StaticFileOptions
@@ -301,7 +344,7 @@ app.UseStaticFiles(new StaticFileOptions
 });
 app.UseStaticFiles();
 app.UseRouting();
-app.UseCors("AllowReactClients");
+app.UseCors("ProductionCorsPolicy");
 app.UseAuthentication();
 app.UseMiddleware<VietTourAudio.Api.Middlewares.VendorPasswordChangeMiddleware>();
 app.UseAuthorization();

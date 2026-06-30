@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import 'leaflet/dist/leaflet.css';
 import './i18n';
 import App from './App.jsx';
+
 import { adminQueryClient } from './admin/queryClient';
 import './styles/variables.css';
 import './styles/global.css';

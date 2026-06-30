@@ -515,7 +515,8 @@ public sealed class DatabaseMediaStorageService : IMediaStorageService
     }
 
     var relativePath = $"/uploads/{folderName}/{storedName}";
-    var publicBaseUrl = (_configuration["Storage:PublicBaseUrl"] ?? "http://localhost:5000/uploads").TrimEnd('/');
+    var publicBaseUrl = (_configuration["Storage:PublicBaseUrl"]
+      ?? throw new InvalidOperationException("Storage:PublicBaseUrl is required.")).TrimEnd('/');
     var publicUrl = $"{publicBaseUrl}/{folderName}/{storedName}";
 
     try
