@@ -11,4 +11,5 @@
 - `[x]` UI Cleanup: Remove Stall QR Code and Hiển thị QR components (Vendor & Visitor)
 - `[x]` Real-time performance metrics tracking (Visits & Audio listens)
 - `[x]` UI Visibility Cleanup: Hide specific KPI metrics cards and Locked Audio warnings
+- `[x]` Bug Fix: Col2AudioPlayer crash due to null pointer on currentPoi when audio is locked
 - `[x]` Production build verification (0 errors)

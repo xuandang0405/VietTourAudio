@@ -74,7 +74,7 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
     return `${m}:${s}`;
   };
 
-  if (!currentPoi && !audioLocked) {
+  if (!currentPoi) {
      return (
        <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center gap-3 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
          <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-xl bg-teal-100 text-teal-600">
