@@ -131,101 +131,14 @@ export function VendorDashboard() {
         </div>
       </div>
 
-      {/* QR Code Card */}
-      {(() => {
-        const zoneCode = qrData?.zoneCode;
-        const qrUrl = zoneCode
-          ? `${import.meta.env.VITE_GUEST_APP_URL || appConfig.publicAppUrl || window.location.origin}/zone/${zoneCode}`
-          : null;
 
-        function handleCopyQrCode() {
-          if (zoneCode) {
-            navigator.clipboard.writeText(zoneCode);
-            setCopiedQr(true);
-            setTimeout(() => setCopiedQr(false), 2000);
-          }
-        }
-
-        function downloadVendorQr() {
-          const canvas = document.getElementById('vendor-stall-qr-canvas');
-          if (!canvas) return;
-          const pngUrl = canvas.toDataURL('image/png');
-          const link = document.createElement('a');
-          link.href = pngUrl;
-          link.download = `stall-qr-${zoneCode ?? 'code'}.png`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
-
-        return (
-          <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600">
-                <QrCode size={22} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900">{t('vendor.stall_qr_title')}</p>
-                <p className="text-xs font-semibold text-slate-500">{t('vendor.stall_qr_desc')}</p>
-              </div>
-            </div>
-
-            {zoneCode ? (
-              <div className="flex flex-col items-center gap-4">
-                {/* Zone Code Text */}
-                <div className="text-center">
-                  <p className="text-xs font-black uppercase tracking-wider text-slate-400">{t('vendor.zone_code')}</p>
-                  <h3 className="text-2xl font-black text-slate-900 mt-1 select-all tracking-widest">
-                    {zoneCode}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={handleCopyQrCode}
-                    className="inline-flex items-center gap-1.5 mt-2 text-xs font-bold text-blue-600 hover:text-blue-700 transition"
-                  >
-                    {copiedQr ? <CheckCircle2 size={14} className="text-green-600" /> : <Copy size={14} />}
-                    {copiedQr ? t('vendor.copied') : t('vendor.copy_code')}
-                  </button>
-                </div>
-
-                {/* QR Code Image */}
-                <div className="p-3 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                  <QRCodeCanvas
-                    id="vendor-stall-qr-canvas"
-                    value={qrUrl}
-                    size={180}
-                    level="M"
-                    includeMargin
-                  />
-                </div>
-
-                {/* Download Button */}
-                <button
-                  type="button"
-                  onClick={downloadVendorQr}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 active:scale-[0.98]"
-                >
-                  <Download size={16} />
-                  {t('vendor.download_qr')}
-                </button>
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <p className="text-sm font-semibold text-slate-500">
-                  {t('vendor.qr_not_configured')}
-                </p>
-              </div>
-            )}
-          </div>
-        );
-      })()}
 
       <header className="mb-8">
         <h2 className="text-2xl font-black text-slate-900">{t('sidebar.dashboard')}</h2>
         <p className="text-slate-500 mt-1">{t('vendor.dashboard_desc', 'Tổng quan hoạt động của {{name}}.', { name: data?.vendor?.businessName ?? t('common.vendor', 'vendor') })}</p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-8">
         <KPICard
           icon={<MapPin />}
           label={t('stall.visitors_today')}
@@ -239,22 +152,6 @@ export function VendorDashboard() {
           trend={t('stall.premium_conversions', { count: data?.metrics?.totalPremiumConversions ?? 0 })}
           color="text-teal-600"
           bg="bg-teal-50"
-        />
-        <KPICard
-          icon={<QrCode />}
-          label={t('stall.qr_today')}
-          value={String(data?.metrics?.totalQrScans ?? 0)}
-          trend={t('stall.total', { count: data?.metrics?.totalQrScans ?? 0 })}
-          color="text-orange-600"
-          bg="bg-orange-50"
-        />
-        <KPICard
-          icon={<TrendingUp />}
-          label={t('stall.revenue')}
-          value={formatCurrency(data?.metrics?.totalRevenue ?? 0)}
-          trend={data?.vendor?.subscriptionPlan ?? subscription.planName}
-          color="text-green-600"
-          bg="bg-green-50"
         />
       </div>
 

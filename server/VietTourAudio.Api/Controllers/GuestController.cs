@@ -649,6 +649,35 @@ public sealed class GuestController(
       Math.Pow(Math.Sin(dLng / 2), 2);
     return earthRadius * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
   }
+
+  [HttpPost("pois/{id}/track")]
+  public async Task<IActionResult> TrackPoi(string id, [FromQuery] string action)
+  {
+    if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(action))
+      return BadRequest(ApiResponseFactory.Fail("POI ID and action are required."));
+
+    var poi = await db.Pois.FirstOrDefaultAsync(p => p.Id == id || p.Slug == id);
+    if (poi == null)
+      return NotFound(ApiResponseFactory.Fail("POI not found."));
+
+    var normalizedAction = action.ToLowerInvariant();
+    if (normalizedAction == "visit")
+    {
+      poi.TotalVisits++;
+    }
+    else if (normalizedAction == "listen")
+    {
+      poi.TotalListens++;
+    }
+    else
+    {
+      return BadRequest(ApiResponseFactory.Fail("Invalid action. Must be 'visit' or 'listen'."));
+    }
+
+    poi.UpdatedAt = DateTime.UtcNow;
+    await db.SaveChangesAsync();
+    return Ok(ApiResponseFactory.Ok(new { visits = poi.TotalVisits, listens = poi.TotalListens }));
+  }
 }
 
 public sealed record TicketRequest(string Email, string Subject, string Message);

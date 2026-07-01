@@ -1,5 +1,5 @@
 import { Circle, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { Crosshair, ImagePlus, Loader2, LocateFixed, MapPinned, Save, Plus, Music, HelpCircle, CheckCircle2, Trash2, Edit2, Check, X, Lock } from 'lucide-react';
+import { Crosshair, ImagePlus, Loader2, LocateFixed, MapPinned, Save, Plus, Music, HelpCircle, CheckCircle2, Trash2, Edit2, Check, X, Lock, TrendingUp } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
@@ -410,6 +410,24 @@ export function VendorStall() {
 
         {/* Right Column: Information & Media Streams */}
         <aside className="space-y-5">
+          {/* Real-time POI Metrics */}
+          <section className="rounded-2xl border border-slate-200 bg-teal-50/50 p-5 shadow-sm">
+            <h3 className="flex items-center gap-2 text-sm font-black text-slate-900 mb-3">
+              <TrendingUp size={17} className="text-teal-600" />
+              Hiệu suất Sạp Thuyết Minh
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl border border-teal-100 bg-white p-3 shadow-xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Lượt ghé thăm</span>
+                <span className="text-2xl font-black text-teal-600 mt-1 block">{stall?.totalVisits ?? 0}</span>
+              </div>
+              <div className="rounded-xl border border-teal-100 bg-white p-3 shadow-xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Lượt nghe</span>
+                <span className="text-2xl font-black text-teal-600 mt-1 block">{stall?.totalListens ?? 0}</span>
+              </div>
+            </div>
+          </section>
+
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <h3 className="flex items-center gap-2 text-sm font-black text-slate-900"><MapPinned size={17} />{t('poi.coordinates')}</h3>

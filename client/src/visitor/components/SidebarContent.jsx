@@ -25,7 +25,15 @@ export function SidebarContent({
   const [activeTab, setActiveTab] = useState('nearby');
   const favorites = useFavoritesStore((state) => state.favorites || []);
   const favoritePois = (enrichedPois || []).filter((poi) => {
-    return poi && poi.id && (favorites.includes(poi.id) || (poi.stallId && favorites.includes(poi.stallId)));
+    return poi && (favorites || []).some(favId => 
+      String(favId) === String(poi.id) ||
+      (poi.backendId && String(favId) === String(poi.backendId)) ||
+      (poi.slug && String(favId) === String(poi.slug)) ||
+      (poi.Slug && String(favId) === String(poi.Slug)) ||
+      (poi.Id && String(favId) === String(poi.Id)) ||
+      (poi.stallId && String(favId) === String(poi.stallId)) ||
+      (poi.StallId && String(favId) === String(poi.StallId))
+    );
   });
 
   const gpsLabels = {

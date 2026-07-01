@@ -45,7 +45,14 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
   const favorites = useFavoritesStore((state) => state.favorites || []);
   const stallId = currentPoi?.stallId || selectedStall?.id || currentPoi?.id;
-  const isFav = currentPoi?.id ? (favorites || []).some(favId => String(favId) === String(currentPoi.id) || (stallId && String(favId) === String(stallId))) : false;
+  const isFav = currentPoi ? (favorites || []).some(favId => 
+    String(favId) === String(currentPoi.id) ||
+    (currentPoi.backendId && String(favId) === String(currentPoi.backendId)) ||
+    (currentPoi.slug && String(favId) === String(currentPoi.slug)) ||
+    (currentPoi.Slug && String(favId) === String(currentPoi.Slug)) ||
+    (currentPoi.Id && String(favId) === String(currentPoi.Id)) ||
+    (stallId && String(favId) === String(stallId))
+  ) : false;
   const guestId = getVisitorSessionId();
   const handleToggleAudio = () => {
     if (!currentPoi) return;
@@ -81,28 +88,7 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
      );
   }
 
-  if (audioLocked) {
-    return (
-      <div className="p-4 border-t border-slate-200 bg-orange-50 flex flex-col gap-3 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
-        <div className="flex items-center gap-3">
-          <div className="relative grid h-12 w-12 flex-shrink-0 place-items-center rounded-xl bg-orange-200 text-orange-700 border border-orange-300">
-             <Headphones size={24} />
-             <Lock size={14} className="absolute bottom-1 right-1 text-orange-800" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-800">Audio bị khóa</p>
-            <p className="text-xs font-medium text-orange-600">Đã hết lượt nghe miễn phí</p>
-          </div>
-        </div>
-        <button
-          onClick={onUpgrade}
-          className="w-full rounded-xl bg-orange-500 py-3 text-sm font-bold text-white hover:bg-orange-600 transition shadow-sm active:scale-[0.98]"
-        >
-          Mở khóa toàn bộ
-        </button>
-      </div>
-    );
-  }
+
 
   return (
     <div className="p-4 border-t border-slate-200 bg-white shadow-[0_-8px_20px_rgba(0,0,0,0.04)]">
@@ -183,7 +169,15 @@ export function PCLayout({
   const [activeTab, setActiveTab] = useState('all');
   const favorites = useFavoritesStore((state) => state.favorites);
   const favoritePois = enrichedPois.filter(poi => {
-    return poi.id && (favorites || []).some(favId => String(favId) === String(poi.id) || (poi.stallId && String(favId) === String(poi.stallId)));
+    return poi && (favorites || []).some(favId => 
+      String(favId) === String(poi.id) ||
+      (poi.backendId && String(favId) === String(poi.backendId)) ||
+      (poi.slug && String(favId) === String(poi.slug)) ||
+      (poi.Slug && String(favId) === String(poi.Slug)) ||
+      (poi.Id && String(favId) === String(poi.Id)) ||
+      (poi.stallId && String(favId) === String(poi.stallId)) ||
+      (poi.StallId && String(favId) === String(poi.StallId))
+    );
   });
   
   const isPremium = usePremiumStore((state) => state.isPremium);

@@ -37,7 +37,15 @@ export function MobileLayout({
   const [activeTab, setActiveTab] = useState('all');
   const favorites = useFavoritesStore((state) => state.favorites || []);
   const favoritePois = visiblePois.filter(poi => {
-    return poi.id && (favorites || []).some(favId => String(favId) === String(poi.id) || (poi.stallId && String(favId) === String(poi.stallId)));
+    return poi && (favorites || []).some(favId => 
+      String(favId) === String(poi.id) ||
+      (poi.backendId && String(favId) === String(poi.backendId)) ||
+      (poi.slug && String(favId) === String(poi.slug)) ||
+      (poi.Slug && String(favId) === String(poi.Slug)) ||
+      (poi.Id && String(favId) === String(poi.Id)) ||
+      (poi.stallId && String(favId) === String(poi.stallId)) ||
+      (poi.StallId && String(favId) === String(poi.StallId))
+    );
   });
   const isCameraLocked = useLocationStore((state) => state.isCameraLocked);
   const setIsCameraLocked = useLocationStore((state) => state.setIsCameraLocked);

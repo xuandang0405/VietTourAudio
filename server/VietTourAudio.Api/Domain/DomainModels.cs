@@ -157,6 +157,10 @@ public sealed class Poi : IEntity
   public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
   [Column("updated_at")]
   public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+  [Column("total_visits")]
+  public int TotalVisits { get; set; } = 0;
+  [Column("total_listens")]
+  public int TotalListens { get; set; } = 0;
   [Column("pending_name_en")]
   public string? PendingNameEn { get; set; }
   [Column("pending_name_ja")]

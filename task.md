@@ -1,0 +1,14 @@
+- `[x]` Backend POI limit enforcement (Check IsPremium and currentCount >= 1 in VendorController)
+- `[x]` Frontend Premium Blocker & Lock Interception (VendorStall.jsx lock icon and alert)
+- `[x]` Backend Support Ticket GET endpoint (GET /api/vendor/tickets)
+- `[x]` Frontend Vendor API client ticket helpers (vendorApi.js)
+- `[x]` Frontend Support Ticket portal page (VendorSupport.jsx)
+- `[x]` Frontend layout sidebar navigation and route registration (VendorLayout.jsx & App.jsx)
+- `[x]` Security: Enforce account lockout on login (C# Backend & React Frontend)
+- `[x]` Business Logic: Hardcode POI radius by Premium status on creation & updates (C# Backend & React Frontend UI)
+- `[x]` Bug Fix: Favorites Synchronization & Visitor Session LocalStorage Crash
+- `[x]` Bug Fix: Slug vs GUID favorites comparison normalization
+- `[x]` UI Cleanup: Remove Stall QR Code and Hiển thị QR components (Vendor & Visitor)
+- `[x]` Real-time performance metrics tracking (Visits & Audio listens)
+- `[x]` UI Visibility Cleanup: Hide specific KPI metrics cards and Locked Audio warnings
+- `[x]` Production build verification (0 errors)

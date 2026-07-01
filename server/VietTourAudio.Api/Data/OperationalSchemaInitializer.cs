@@ -57,5 +57,10 @@ public static class OperationalSchemaInitializer
         ADD COLUMN IF NOT EXISTS must_change_password TINYINT(1) NOT NULL DEFAULT 0 AFTER pass_hash,
         ADD COLUMN IF NOT EXISTS password_reset_at DATETIME(6) NULL AFTER must_change_password
       """);
+    await db.Database.ExecuteSqlRawAsync("""
+      ALTER TABLE Pois
+        ADD COLUMN IF NOT EXISTS total_visits INT NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS total_listens INT NOT NULL DEFAULT 0
+      """);
   }
 }

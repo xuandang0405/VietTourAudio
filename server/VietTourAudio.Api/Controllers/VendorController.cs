@@ -325,7 +325,9 @@ public sealed class VendorController(
       activationRadius = (int)x.TriggerRadius,
       isPremiumContent = x.IsPremiumPriority,
       x.Status,
-      approvalStatus = x.ApprovalStatus
+      approvalStatus = x.ApprovalStatus,
+      totalVisits = x.TotalVisits,
+      totalListens = x.TotalListens
     })));
   }
 
@@ -430,7 +432,8 @@ public sealed class VendorController(
         p.stall_name_en, p.stall_name_ja, p.stall_name_ko, p.stall_name_zh,
         p.description_en, p.description_ja, p.description_ko, p.description_zh,
         p.pending_name_en, p.pending_name_ja, p.pending_name_ko, p.pending_name_zh,
-        p.pending_description_en, p.pending_description_ja, p.pending_description_ko, p.pending_description_zh
+        p.pending_description_en, p.pending_description_ja, p.pending_description_ko, p.pending_description_zh,
+        p.total_visits totalVisits, p.total_listens totalListens
       FROM Pois p JOIN vendors v ON v.id=p.vendor_id WHERE p.vendor_id=@vendorId
       """, new Dictionary<string, object?> { ["@vendorId"] = VendorId });
     return Ok(ApiResponseFactory.Ok(rows.Select(x => new
@@ -468,7 +471,9 @@ public sealed class VendorController(
       pendingDescriptionEn = x["pending_description_en"],
       pendingDescriptionJa = x["pending_description_ja"],
       pendingDescriptionKo = x["pending_description_ko"],
-      pendingDescriptionZh = x["pending_description_zh"]
+      pendingDescriptionZh = x["pending_description_zh"],
+      totalVisits = x["totalVisits"] != null ? Convert.ToInt32(x["totalVisits"]) : 0,
+      totalListens = x["totalListens"] != null ? Convert.ToInt32(x["totalListens"]) : 0
     })));
   }
 

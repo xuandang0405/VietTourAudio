@@ -29,7 +29,15 @@ export function PoiBottomSheet({
   const activeStallName = poi?.stall_name || selectedStall?.name || t('common.unknown_stall');
   const activeStallDescription = poi?.stall_description || selectedStall?.description || t('landing.no_description');
   const { favorites, toggleFavorite } = useFavoritesStore();
-  const isFavorited = poi?.id ? (favorites || []).some(favId => String(favId) === String(poi.id) || (poi.stallId && String(favId) === String(poi.stallId))) : false;
+  const isFavorited = poi ? (favorites || []).some(favId => 
+    String(favId) === String(poi.id) ||
+    (poi.backendId && String(favId) === String(poi.backendId)) ||
+    (poi.slug && String(favId) === String(poi.slug)) ||
+    (poi.Slug && String(favId) === String(poi.Slug)) ||
+    (poi.Id && String(favId) === String(poi.Id)) ||
+    (poi.stallId && String(favId) === String(poi.stallId)) ||
+    (poi.StallId && String(favId) === String(poi.StallId))
+  ) : false;
 
   const formatDistance = (meters) => {
     if (meters >= 1000) {
@@ -212,24 +220,7 @@ export function PoiBottomSheet({
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={() => setShowQr((value) => !value)}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition duration-150 ease-out hover:bg-slate-50 active:scale-[0.98]"
-              >
-                <QrCode size={18} />
-                {showQr ? t('landing.hideQr') : t('landing.showQr')}
-              </button>
 
-              {showQr && (
-                <section className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center">
-                  <div className="mx-auto w-fit rounded-2xl bg-white border border-slate-100 p-3 shadow-sm">
-                    <QRCodeSVG value={qrTarget} size={172} level="M" includeMargin={false} />
-                  </div>
-                  <p className="mt-3 text-sm font-bold text-slate-900">{t('landing.scanToOpen', { name: poi.title })}</p>
-                  <p className="mt-1 text-xs text-slate-500">{t('landing.qrTracking')}</p>
-                </section>
-              )}
 
               <section className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">

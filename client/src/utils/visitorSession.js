@@ -31,10 +31,21 @@ export function getVisitorSessionId() {
 
 export function markEventOnce(eventType, eventId) {
   const key = `${EVENT_PREFIX}:${getVisitorSessionId()}:${eventType}:${eventId}`;
-  if (window.sessionStorage.getItem(key)) {
-    return false;
+  try {
+    if (window.sessionStorage.getItem(key)) {
+      return false;
+    }
+    window.sessionStorage.setItem(key, new Date().toISOString());
+    return true;
+  } catch (e) {
+    console.warn('sessionStorage is blocked or disabled:', e);
+    if (!window.__trackedEvents) {
+      window.__trackedEvents = new Set();
+    }
+    if (window.__trackedEvents.has(key)) {
+      return false;
+    }
+    window.__trackedEvents.add(key);
+    return true;
   }
-
-  window.sessionStorage.setItem(key, new Date().toISOString());
-  return true;
 }
