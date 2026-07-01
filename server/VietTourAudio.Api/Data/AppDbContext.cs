@@ -19,8 +19,9 @@ public class AppDbContext : DbContext
   public DbSet<SystemTicket> SystemTickets => Set<SystemTicket>();
   public DbSet<VisitEvent> VisitEvents => Set<VisitEvent>();
   public DbSet<AudioPlayEvent> AudioPlayEvents => Set<AudioPlayEvent>();
-  public DbSet<AdminPaymentConfig> AdminPaymentConfigs => Set<AdminPaymentConfig>();
-  public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
+  public DbSet<CauHinhThanhToan> AdminPaymentConfigs => Set<CauHinhThanhToan>();
+  public DbSet<GiaoDichThanhToan> PaymentTransactions => Set<GiaoDichThanhToan>();
+  public DbSet<GuestFavorite> GuestFavorites => Set<GuestFavorite>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -228,7 +229,7 @@ public class AppDbContext : DbContext
       entity.HasIndex(x => new { x.SessionId, x.PlayedAt });
     });
 
-    modelBuilder.Entity<AdminPaymentConfig>(entity =>
+    modelBuilder.Entity<CauHinhThanhToan>(entity =>
     {
       entity.ToTable("admin_payment_configs");
       entity.HasKey(x => x.Id);
@@ -242,7 +243,7 @@ public class AppDbContext : DbContext
       entity.HasIndex(x => x.GatewayType).IsUnique();
     });
 
-    modelBuilder.Entity<PaymentTransaction>(entity =>
+    modelBuilder.Entity<GiaoDichThanhToan>(entity =>
     {
       entity.ToTable("payment_transactions");
       entity.HasKey(x => x.Id);
@@ -260,6 +261,17 @@ public class AppDbContext : DbContext
       entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
       entity.HasIndex(x => x.TransferMemo).IsUnique();
       entity.HasIndex(x => x.PendingKey).IsUnique();
+    });
+
+    modelBuilder.Entity<GuestFavorite>(entity =>
+    {
+      entity.ToTable("favorites");
+      entity.HasKey(x => x.Id);
+      entity.Property(x => x.Id).HasColumnName("id");
+      entity.Property(x => x.GuestId).HasColumnName("guest_id").HasMaxLength(255);
+      entity.Property(x => x.PoiId).HasColumnName("poi_id").HasMaxLength(36);
+      entity.Property(x => x.CreatedAt).HasColumnName("added_at");
+      entity.HasOne(x => x.Poi).WithMany().HasForeignKey(x => x.PoiId).OnDelete(DeleteBehavior.Cascade);
     });
   }
 }

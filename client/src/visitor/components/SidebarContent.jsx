@@ -23,10 +23,9 @@ export function SidebarContent({
   const [searchParams, setSearchParams] = useSearchParams();
   
   const [activeTab, setActiveTab] = useState('nearby');
-  const favorites = useFavoritesStore((state) => state.favorites);
-  const favoritePois = enrichedPois.filter((poi) => {
-    const idToCheck = poi.stallId || poi.id;
-    return idToCheck && favorites.includes(idToCheck);
+  const favorites = useFavoritesStore((state) => state.favorites || []);
+  const favoritePois = (enrichedPois || []).filter((poi) => {
+    return poi && poi.id && (favorites.includes(poi.id) || (poi.stallId && favorites.includes(poi.stallId)));
   });
 
   const gpsLabels = {

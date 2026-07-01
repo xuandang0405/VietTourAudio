@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 
 namespace VietTourAudio.Api.Controllers;
 
@@ -313,11 +314,12 @@ public sealed class GuestController(
   [HttpGet("favorites/{guestId}")]
   public async Task<IActionResult> Favorites(string guestId)
   {
-    var rows = await DatabaseSql.QueryRowsAsync(db, """
-      SELECT DISTINCT COALESCE(NULLIF(p.vendor_id, ''), p.id) AS stallId FROM favorites f
-      JOIN Pois p ON p.id=f.poi_id WHERE f.guest_id=@guestId
-      """, new Dictionary<string, object?> { ["@guestId"] = guestId });
-    return Ok(ApiResponseFactory.Ok(new { favorites = rows.Select(x => x["stallId"]?.ToString() ?? "").Where(s => !string.IsNullOrEmpty(s)).ToArray() }));
+    var favoriteIds = await db.GuestFavorites
+      .Where(f => f.GuestId == guestId)
+      .Select(f => f.PoiId.ToString())
+      .ToListAsync();
+
+    return Ok(favoriteIds);
   }
 
   [HttpPost("favorites/sync")]
@@ -325,19 +327,142 @@ public sealed class GuestController(
   {
     foreach (var operation in request.Ops)
     {
+      var poiId = operation.StallId;
+      var poi = await db.Pois.FirstOrDefaultAsync(p => p.Id == operation.StallId || p.Slug == operation.StallId || p.VendorId == operation.StallId);
+      if (poi != null)
+      {
+        poiId = poi.Id;
+      }
+
+      var existing = await db.GuestFavorites
+        .FirstOrDefaultAsync(f => f.GuestId == request.GuestId && f.PoiId == poiId);
+
       if (operation.Action == "add")
-        await DatabaseSql.ExecuteAsync(db, """
-          INSERT INTO favorites(guest_id,poi_id)
-          SELECT @guestId,id FROM Pois WHERE (vendor_id=@stallId OR id=@stallId) ORDER BY id LIMIT 1
-          ON DUPLICATE KEY UPDATE added_at=NOW()
-          """, new Dictionary<string, object?> { ["@guestId"] = request.GuestId, ["@stallId"] = operation.StallId });
+      {
+        if (existing == null)
+        {
+          db.GuestFavorites.Add(new GuestFavorite
+          {
+            GuestId = request.GuestId,
+            PoiId = poiId,
+            CreatedAt = DateTime.UtcNow
+          });
+        }
+      }
       else if (operation.Action == "remove")
-        await DatabaseSql.ExecuteAsync(db, """
-          DELETE f FROM favorites f JOIN Pois p ON p.id=f.poi_id WHERE f.guest_id=@guestId AND (p.vendor_id=@stallId OR p.id=@stallId)
-          """, new Dictionary<string, object?> { ["@guestId"] = request.GuestId, ["@stallId"] = operation.StallId });
+      {
+        if (existing != null)
+        {
+          db.GuestFavorites.Remove(existing);
+        }
+      }
     }
+
+    await db.SaveChangesAsync();
     return await Favorites(request.GuestId);
   }
+
+  [HttpPost("favorites")]
+  public async Task<IActionResult> AddFavorite([FromBody] AddFavoriteRequest request)
+  {
+    if (string.IsNullOrWhiteSpace(request.GuestId) || string.IsNullOrWhiteSpace(request.PoiId))
+      return BadRequest(ApiResponseFactory.Fail("GuestId and PoiId are required."));
+
+    var poiId = request.PoiId;
+    var poi = await db.Pois.FirstOrDefaultAsync(p => p.Id == request.PoiId || p.Slug == request.PoiId || p.VendorId == request.PoiId);
+    if (poi != null)
+    {
+      poiId = poi.Id;
+    }
+
+    var existing = await db.GuestFavorites
+      .FirstOrDefaultAsync(f => f.GuestId == request.GuestId && f.PoiId == poiId);
+
+    if (existing != null)
+    {
+      db.GuestFavorites.Remove(existing);
+    }
+    else
+    {
+      db.GuestFavorites.Add(new GuestFavorite
+      {
+        GuestId = request.GuestId,
+        PoiId = poiId,
+        CreatedAt = DateTime.UtcNow
+      });
+    }
+
+    await db.SaveChangesAsync();
+    return await Favorites(request.GuestId);
+  }
+
+  [HttpPost("favorites/toggle")]
+  public async Task<IActionResult> ToggleFavorite([FromBody] AddFavoriteRequest request)
+  {
+    if (string.IsNullOrWhiteSpace(request.GuestId) || string.IsNullOrWhiteSpace(request.PoiId))
+      return BadRequest("GuestId and PoiId are required.");
+
+    var resolvedPoiId = request.PoiId;
+    var poi = await db.Pois.FirstOrDefaultAsync(p => p.Id == request.PoiId || p.Slug == request.PoiId || p.VendorId == request.PoiId);
+    if (poi != null)
+    {
+      resolvedPoiId = poi.Id;
+    }
+
+    var existing = await db.GuestFavorites
+      .FirstOrDefaultAsync(f => f.GuestId == request.GuestId && f.PoiId == resolvedPoiId);
+
+    if (existing != null)
+    {
+      db.GuestFavorites.Remove(existing);
+    }
+    else
+    {
+      db.GuestFavorites.Add(new GuestFavorite
+      {
+        GuestId = request.GuestId,
+        PoiId = resolvedPoiId,
+        CreatedAt = DateTime.UtcNow
+      });
+    }
+
+    await db.SaveChangesAsync();
+
+    var favoriteIds = await db.GuestFavorites
+      .Where(f => f.GuestId == request.GuestId)
+      .Select(f => f.PoiId.ToString())
+      .ToListAsync();
+
+    return Ok(favoriteIds);
+  }
+
+  [HttpDelete("favorites/{guestId}/{poiId}")]
+  public async Task<IActionResult> DeleteFavorite(string guestId, string poiId)
+  {
+    if (string.IsNullOrWhiteSpace(guestId) || string.IsNullOrWhiteSpace(poiId))
+      return BadRequest(ApiResponseFactory.Fail("GuestId and PoiId are required."));
+
+    var resolvedPoiId = poiId;
+    var poi = await db.Pois.FirstOrDefaultAsync(p => p.Id == poiId || p.Slug == poiId || p.VendorId == poiId);
+    if (poi != null)
+    {
+      resolvedPoiId = poi.Id;
+    }
+
+    var existingList = await db.GuestFavorites
+      .Where(f => f.GuestId == guestId && f.PoiId == resolvedPoiId)
+      .ToListAsync();
+
+    if (existingList.Any())
+    {
+      db.GuestFavorites.RemoveRange(existingList);
+      await db.SaveChangesAsync();
+    }
+
+    return await Favorites(guestId);
+  }
+
+
 
   [HttpGet("tours/{id}/unlocked-status")]
   public async Task<IActionResult> Unlocked(string id, [FromQuery] string guestId = "")
@@ -527,5 +652,16 @@ public sealed class GuestController(
 }
 
 public sealed record TicketRequest(string Email, string Subject, string Message);
-public sealed record FavoriteOperation(string StallId, string Action);
-public sealed record FavoriteSyncRequest(string GuestId, FavoriteOperation[] Ops);
+public sealed record FavoriteOperation(
+  [property: JsonPropertyName("stallId")] string StallId,
+  [property: JsonPropertyName("action")] string Action
+);
+public sealed record FavoriteSyncRequest(
+  [property: JsonPropertyName("guestId")] string GuestId,
+  [property: JsonPropertyName("ops")] FavoriteOperation[] Ops
+);
+public sealed record AddFavoriteRequest(
+  [property: JsonPropertyName("guestId")] string GuestId,
+  [property: JsonPropertyName("poiId")] string PoiId
+);
+

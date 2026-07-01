@@ -25,6 +25,16 @@ public abstract class CompatibilityAuthController(IAuthService auth) : Controlle
       Console.WriteLine($"[AUTH FAILED]: Invalid login attempt for email: {request.Email}");
       Console.ResetColor();
 
+      if (ex.Message == "auth.account_locked")
+      {
+        return StatusCode(StatusCodes.Status403Forbidden, new { 
+          success = false, 
+          errorCode = "ACCOUNT_LOCKED", 
+          error = "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin.",
+          message = "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin." 
+        });
+      }
+
       return Unauthorized(new { 
         success = false, 
         errorCode = "INVALID_CREDENTIALS", 

@@ -22,12 +22,12 @@ namespace VietTourAudio.Api.Controllers;
 
 [ApiController]
 [Route("api/payment/checkout")]
-public sealed class CheckoutPaymentController(
+public sealed class ThanhToanDonHangController(
   AppDbContext db,
   IWebHostEnvironment environment,
-  PaymentEntitlementService entitlements,
+  DichVuKichHoatThanhToan entitlements,
   Microsoft.AspNetCore.SignalR.IHubContext<VietTourAudio.Api.Hubs.NotificationHub> hubContext,
-  ILogger<CheckoutPaymentController> logger) : ControllerBase
+  ILogger<ThanhToanDonHangController> logger) : ControllerBase
 {
   [HttpPost("initialize")]
   public async Task<IActionResult> Initialize([FromBody] CheckoutIntent request)
@@ -103,7 +103,7 @@ public sealed class CheckoutPaymentController(
       });
     }
 
-    var ledger = new PaymentTransaction
+    var ledger = new GiaoDichThanhToan
     {
       Id = id,
       SenderId = senderId,
@@ -227,7 +227,7 @@ public sealed class CheckoutPaymentController(
       if (!allowedExtensions.Contains(extension) || (!proofFile.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) && !string.Equals(proofFile.ContentType, "application/octet-stream", StringComparison.OrdinalIgnoreCase)))
         return BadRequest(new { success = false, message = "Định dạng tệp không hỗ trợ. Chỉ nhận JPG, PNG, WEBP." });
 
-      PaymentTransaction? ledger = await db.PaymentTransactions
+      GiaoDichThanhToan? ledger = await db.PaymentTransactions
         .SingleOrDefaultAsync(transaction => transaction.Id == transactionId.Trim(), cancellationToken);
 
       if (ledger is null)

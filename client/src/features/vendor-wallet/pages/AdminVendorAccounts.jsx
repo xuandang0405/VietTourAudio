@@ -24,7 +24,7 @@ import {
 } from '../../../admin/api/adminQueries';
 import { adminApiClient } from '../../../admin/api/adminApi';
 import { formatCurrency, formatDateTime, toNumber } from '../../../admin/utils/formatters';
-import { paymentApi } from '../../payment/paymentApi';
+import { apiThanhToan } from '../../payment/ApiThanhToan';
 import { resolveBackendMediaUrl } from '../../../utils/mediaUrl';
 
 const emptyForm = { amount: '', description: '', reason: '' };
@@ -56,7 +56,7 @@ export function AdminVendorAccounts() {
     setIsTopupsLoading(true);
     setTopupError('');
     try {
-      const data = await paymentApi.getPending({ senderType: 'VENDOR' });
+      const data = await apiThanhToan.getPending({ senderType: 'VENDOR' });
       setPendingTransactions(data ?? []);
     } catch (err) {
       setTopupError(err.response?.data?.error ?? "Không thể tải giao dịch của Vendor.");
@@ -126,7 +126,7 @@ export function AdminVendorAccounts() {
   async function handleApproveTopup(request) {
     setTopupError('');
     try {
-      await paymentApi.verify(request.id, 'APPROVED');
+      await apiThanhToan.verify(request.id, 'APPROVED');
       toast.success("Đã phê duyệt yêu cầu nạp tiền!");
       await loadPendingVendorTransactions();
       refetchWallets();
@@ -138,7 +138,7 @@ export function AdminVendorAccounts() {
   async function handleRejectTopup(request) {
     setTopupError('');
     try {
-      await paymentApi.verify(request.id, 'FAILED');
+      await apiThanhToan.verify(request.id, 'FAILED');
       toast.success("Đã từ chối yêu cầu nạp tiền.");
       await loadPendingVendorTransactions();
     } catch (err) {

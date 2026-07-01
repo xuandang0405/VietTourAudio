@@ -234,3 +234,11 @@ export async function updatePoiProduct(poiId, productId, data) {
 export async function deletePoiProduct(poiId, productId) {
   return unwrap(await vendorApiClient.delete(`/pois/${poiId}/products/${productId}`));
 }
+
+export async function createVendorTicket(data) {
+  return unwrap(await vendorApiClient.post('/tickets', data));
+}
+
+export async function fetchVendorTickets() {
+  return unwrap(await vendorApiClient.get('/tickets'));
+}

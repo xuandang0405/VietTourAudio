@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Building2, CreditCard, DollarSign, LayoutDashboard, LogOut, MapPinned } from 'lucide-react';
+import { Building2, CreditCard, DollarSign, LayoutDashboard, LogOut, MapPinned, HelpCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { vendorLogout } from '../api/vendorApi';
 import { useVendorAuthStore } from '../store/vendorAuthStore';
@@ -77,6 +77,10 @@ export function VendorLayout() {
           <NavLink to="/vendor/finance" className={navLinkClass}>
             <DollarSign size={20} />
             {t('vendor.wallet_title', { defaultValue: 'Tài chính & Ví tiền' })}
+          </NavLink>
+          <NavLink to="/vendor/support" className={navLinkClass}>
+            <HelpCircle size={20} />
+            Hỗ trợ & Gửi Ticket
           </NavLink>
         </nav>
         

@@ -356,11 +356,11 @@ public sealed class PrototypeAnalyticsState
   }
 }
 
-public class PaymentService : IPaymentService
+public class DichVuThanhToan : IDichVuThanhToan
 {
-  public Task<PaymentResponseDto> CreateAsync(PaymentRequestDto request)
+  public Task<PhanHoiThanhToanDto> CreateAsync(YeuCauThanhToanDto request)
   {
-    var response = new PaymentResponseDto(
+    var response = new PhanHoiThanhToanDto(
       "100",
       request.UserId,
       request.StallId,
@@ -380,9 +380,9 @@ public class PaymentService : IPaymentService
     return Task.FromResult<object>(new { Received = true, Payload = payload, ProcessedAt = DateTime.UtcNow });
   }
 
-  public Task<PaymentResponseDto> RecordManualCashAsync(PaymentRequestDto request)
+  public Task<PhanHoiThanhToanDto> RecordManualCashAsync(YeuCauThanhToanDto request)
   {
-    return Task.FromResult(new PaymentResponseDto(
+    return Task.FromResult(new PhanHoiThanhToanDto(
       "101",
       request.UserId,
       request.StallId,

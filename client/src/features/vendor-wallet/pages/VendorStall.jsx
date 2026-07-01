@@ -1,5 +1,5 @@
 import { Circle, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { Crosshair, ImagePlus, Loader2, LocateFixed, MapPinned, Save, Plus, Music, HelpCircle, CheckCircle2, Trash2, Edit2, Check, X } from 'lucide-react';
+import { Crosshair, ImagePlus, Loader2, LocateFixed, MapPinned, Save, Plus, Music, HelpCircle, CheckCircle2, Trash2, Edit2, Check, X, Lock } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
@@ -42,6 +42,8 @@ export function VendorStall() {
   const { t } = useTranslation();
   const { data: stallsData, isLoading, error, refetch } = useVendorMyStalls();
   const stalls = stallsData ?? [];
+  const hasPremium = stalls.some(s => s.isPremium);
+  const freeLimitReached = !hasPremium && stalls.length >= 1;
   const [selectedStallId, setSelectedStallId] = useState('');
   const stall = stalls.find((item) => String(item.id) === String(selectedStallId)) ?? stalls[0];
   const markerRef = useRef(null);
@@ -333,12 +335,20 @@ export function VendorStall() {
             type="button"
             disabled={stalls.length >= 3}
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-teal-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-teal-700 active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={handleAddSecondaryStall}
+            onClick={(e) => {
+              if (freeLimitReached) {
+                alert("Nâng cấp gói Premium để mở khóa không giới hạn sạp hàng!");
+                return;
+              }
+              handleAddSecondaryStall();
+            }}
           >
-            <Plus size={16} />
-            {stalls.length >= 3
-              ? t('stall.limit_reached', { defaultValue: 'Đã đạt giới hạn 3 POI' })
-              : t('stall.add_secondary', { defaultValue: 'Thêm POI (+)' })}
+            {freeLimitReached ? <Lock size={16} /> : <Plus size={16} />}
+            {freeLimitReached
+              ? 'Nâng cấp Premium để tạo thêm sạp'
+              : stalls.length >= 3
+                ? t('stall.limit_reached', { defaultValue: 'Đã đạt giới hạn 3 POI' })
+                : t('stall.add_secondary', { defaultValue: 'Thêm POI (+)' })}
           </button>
         </div>
       </header>
@@ -420,6 +430,19 @@ export function VendorStall() {
             <label className="block text-xs font-bold text-slate-600">
               Tên Sạp Thuyết Minh (Tiếng Việt)
               <input value={form.name} onChange={(e) => setForm((current) => ({ ...current, name: e.target.value }))} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-teal-500 transition focus:bg-white" />
+            </label>
+            <label className="block text-xs font-bold text-slate-600">
+              Bán kính vùng kích hoạt (m)
+              <input
+                type="number"
+                disabled
+                readOnly
+                value={stall?.isPremium ? 10 : 3}
+                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-slate-100 px-3 text-sm font-semibold text-slate-500 cursor-not-allowed outline-none"
+              />
+              <span className="mt-1 block text-[11px] font-semibold text-slate-400">
+                Bán kính mặc định: 3m (Thường) / 10m (Premium)
+              </span>
             </label>
             <label className="block text-xs font-bold text-slate-600">
               Bài Thuyết Minh TTS (Tiếng Việt)

@@ -28,6 +28,7 @@ import { VendorLoginPage } from './features/auth/pages/VendorLoginPage';
 import { VendorChangePasswordPage } from './features/auth/pages/VendorChangePasswordPage';
 import { VendorFinance } from './pages/vendor/VendorFinance';
 import { VendorStall } from './features/vendor-wallet/pages/VendorStall';
+import { VendorSupport } from './features/vendor-wallet/pages/VendorSupport';
 
 import { AppErrorBoundary } from './visitor/components/AppErrorBoundary';
 import { CheckoutModal } from './visitor/components/CheckoutModal';
@@ -41,12 +42,12 @@ import { ListPage } from './features/poi/pages/ListPage';
 import { MapPage } from './features/poi/pages/MapPage';
 import { SettingsPage } from './features/poi/pages/SettingsPage';
 import { ZonePage } from './features/poi/pages/ZonePage';
-import { AdminPaymentSettings } from './features/payment/AdminPaymentSettings';
-import { UserPremiumUpgrade } from './features/payment/UserPremiumUpgrade';
+import { CauHinhThanhToanQuanTri } from './features/payment/CauHinhThanhToanQuanTri';
+import { NangCapPremiumNguoiDung } from './features/payment/NangCapPremiumNguoiDung';
 
 import { appConfig } from './config/appConfig';
 import { startRealtimeClient } from './services/realtimeClient';
-import { premiumAccessApi } from './features/payment/premiumAccessApi';
+import { apiTruyCapPremium } from './features/payment/ApiTruyCapPremium';
 
 function AppRoutes() {
   const { t } = useTranslation('translation', { keyPrefix: 'landing' });
@@ -78,7 +79,7 @@ function AppRoutes() {
 
   useEffect(() => {
     checkExpiry();
-    premiumAccessApi.getStatus()
+    apiTruyCapPremium.getStatus()
       .then(applyServerStatus)
       .catch(() => applyServerStatus({ isPremium: false, expiry: null }));
   }, [applyServerStatus, checkExpiry]);
@@ -108,7 +109,7 @@ function AppRoutes() {
   }, [toast]);
 
   async function handlePaymentSuccess(premiumStatus) {
-    const status = premiumStatus ?? await premiumAccessApi.getStatus();
+    const status = premiumStatus ?? await apiTruyCapPremium.getStatus();
     applyServerStatus(status);
     setCheckoutOpen(false);
     showToast(t('paymentSuccess'));
@@ -126,7 +127,7 @@ function AppRoutes() {
             <Route path="/map" element={<MapPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
             <Route path="/list" element={<ListPage onUpgrade={() => setCheckoutOpen(true)} />} />
             <Route path="/settings" element={<SettingsPage onUpgrade={() => setCheckoutOpen(true)} onToast={showToast} />} />
-            <Route path="/premium-upgrade" element={<UserPremiumUpgrade />} />
+            <Route path="/premium-upgrade" element={<NangCapPremiumNguoiDung />} />
           </Route>
 
           <Route path="/vendor/login" element={<VendorLoginPage />} />
@@ -140,6 +141,7 @@ function AppRoutes() {
               <Route path="revenue" element={<VendorFinance />} />
               <Route path="billing" element={<VendorFinance />} />
               <Route path="finance" element={<VendorFinance />} />
+              <Route path="support" element={<VendorSupport />} />
             </Route>
           </Route>
 
@@ -162,7 +164,7 @@ function AppRoutes() {
               <Route path="audit-logs" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminAuditLogs /></AdminGuard>} />
               <Route path="settings/users" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminUsers /></AdminGuard>} />
               <Route path="tickets" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN']}><AdminTickets /></AdminGuard>} />
-              <Route path="payment-settings" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN', 'FINANCE']}><AdminPaymentSettings /></AdminGuard>} />
+              <Route path="payment-settings" element={<AdminGuard roles={['SUPER_ADMIN', 'ADMIN', 'FINANCE']}><CauHinhThanhToanQuanTri /></AdminGuard>} />
             </Route>
           </Route>
 

@@ -3,7 +3,7 @@ import { Building2, CheckCircle2, Copy, CreditCard, Crown, Loader2, Radio, Smart
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { resolveBackendMediaUrl } from '../../utils/mediaUrl';
-import { paymentApi } from './paymentApi';
+import { apiThanhToan } from './ApiThanhToan';
 import { subscribeRealtime } from '../../services/realtimeClient';
 
 const methods = [
@@ -12,7 +12,7 @@ const methods = [
   { id: 'VISA', icon: CreditCard, key: 'payment.visa' }
 ];
 
-export function CheckoutMatrix({ senderId, senderType, transactionType, amount, onSuccess, onSuccessClose }) {
+export function MaTranThanhToan({ senderId, senderType, transactionType, amount, onSuccess, onSuccessClose }) {
   const { t } = useTranslation();
   const [method, setMethod] = useState('MOMO');
   const [configs, setConfigs] = useState([]);
@@ -40,7 +40,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, amount, 
   useEffect(() => {
     let active = true;
     setConfigsLoading(true);
-    paymentApi.getPublicGateways()
+    apiThanhToan.getPublicGateways()
       .then((data) => {
         if (!active) return;
         const activeConfigs = Array.isArray(data) ? data : [];
@@ -77,7 +77,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, amount, 
       t('payment.initializing', { defaultValue: 'Đang khởi tạo giao dịch...' })
     );
     try {
-      const data = await paymentApi.initialize({
+      const data = await apiThanhToan.initialize({
         senderId: String(senderId),
         senderType,
         paymentMethod: method,
@@ -123,7 +123,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, amount, 
 
     const pollStatus = async () => {
       try {
-        const data = await paymentApi.getStatus(activeTransactionId);
+        const data = await apiThanhToan.getStatus(activeTransactionId);
         const status = String(data?.status ?? data?.data?.status ?? '').toUpperCase();
         if (status === 'APPROVED') triggerVendorSuccessCelebration();
         if (status === 'FAILED') handlePaymentUpdate(activeTransactionId, status);
@@ -155,7 +155,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, amount, 
     if (!proof) return toast.error(t('payment.proof_required'));
     setBusy(true);
     try {
-      await paymentApi.uploadProof(checkout.transaction.id, proof);
+      await apiThanhToan.uploadProof(checkout.transaction.id, proof);
       setActiveTransactionId(String(checkout.transaction.id));
       setViewMode('WAITING_APPROVAL');
       toast.success(t('payment.manual_submission_success'));
@@ -171,7 +171,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, amount, 
     if (busy || isProcessingPayment) return;
     setBusy(true);
     try {
-      await paymentApi.processVisa({ transactionId: checkout.transaction.id, ...card });
+      await apiThanhToan.processVisa({ transactionId: checkout.transaction.id, ...card });
       if (senderType === 'VENDOR') triggerVendorSuccessCelebration();
       else {
         toast.success(t('payment.success'));
@@ -351,7 +351,7 @@ export function CheckoutMatrix({ senderId, senderType, transactionType, amount, 
           <div><div className="mx-auto grid h-16 w-16 animate-pulse place-items-center rounded-full bg-teal-500/20 ring-4 ring-teal-400/30"><CreditCard size={28} className="text-teal-300" /></div><p className="mt-4 text-sm font-black">{t('payment.secure_processing', { defaultValue: 'Đang xử lý thẻ...' })}</p><p className="mt-1 text-[10px] text-slate-300">{t('payment.secure_processing_desc', { defaultValue: 'Vui lòng không đóng trình duyệt.' })}</p></div>
         </div>
       )}
-      </>}
+      </> }
     </section>
   );
 }

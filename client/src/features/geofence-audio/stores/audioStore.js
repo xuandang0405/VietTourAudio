@@ -5,7 +5,7 @@ import { useAudioQueueStore } from './audioQueueStore';
 import { visitorTrackingService } from '../services/visitorTrackingService';
 import { usePremiumStore } from '../../vendor-wallet/stores/premiumStore';
 import { resolveBackendMediaUrl } from '../../../utils/mediaUrl';
-import { premiumAccessApi } from '../../payment/premiumAccessApi';
+import { apiTruyCapPremium } from '../../payment/ApiTruyCapPremium';
 
 const DEFAULT_COOLDOWN_MS = 10 * 60 * 1000;
 let globalAudio = null;
@@ -101,7 +101,7 @@ export const useAudioStore = create(
         const backendPoiId = poi.backendId ?? poi.apiId ?? poi.id;
         let access;
         try {
-          access = await premiumAccessApi.authorizeAudioPlay(backendPoiId);
+          access = await apiTruyCapPremium.authorizeAudioPlay(backendPoiId);
           premiumState.applyServerStatus(access);
         } catch (error) {
           set({

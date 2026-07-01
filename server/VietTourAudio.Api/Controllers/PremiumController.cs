@@ -76,7 +76,7 @@ public sealed partial class PremiumController(AppDbContext db) : ControllerBase
         """);
     }
 
-    db.PaymentTransactions.Add(new PaymentTransaction
+    db.PaymentTransactions.Add(new GiaoDichThanhToan
     {
       Id = transactionId,
       SenderId = subject.SenderId,

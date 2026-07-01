@@ -105,6 +105,29 @@ public sealed class VendorController(
     return Ok(ApiResponseFactory.Ok(new { id = ticket.Id, status = ticket.Status.ToString() }));
   }
 
+  [HttpGet("tickets")]
+  public async Task<IActionResult> GetSupportTickets()
+  {
+    var accountId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+      ?? throw new UnauthorizedAccessException();
+
+    var tickets = await db.SystemTickets
+      .AsNoTracking()
+      .Where(x => x.UserId == accountId && x.SenderType == "VENDOR")
+      .OrderByDescending(x => x.CreatedAt)
+      .Select(x => new
+      {
+        x.Id,
+        Subject = x.Subject,
+        Message = x.Message,
+        Status = x.Status.ToString(),
+        CreatedAt = x.CreatedAt
+      })
+      .ToListAsync();
+
+    return Ok(ApiResponseFactory.Ok(tickets));
+  }
+
   [HttpGet("profile")]
   public async Task<IActionResult> Profile()
   {
@@ -318,6 +341,12 @@ public sealed class VendorController(
       candidate.Id == request.Id && candidate.VendorId == VendorId);
     if (poi is null)
       return NotFound(ApiResponseFactory.Fail("Không tìm thấy sạp hàng."));
+
+    var vendor = await db.Vendors.SingleOrDefaultAsync(x => x.Id == VendorId);
+    if (vendor is not null)
+    {
+      poi.TriggerRadius = vendor.IsPremium ? 10.0 : 3.0;
+    }
 
     // Vendor edits remain pending until an admin approves them. In particular,
     // never replace the pending or published cover with a blank request value.
@@ -710,6 +739,9 @@ public sealed class VendorController(
     var vendor = await db.Vendors.SingleOrDefaultAsync(x => x.Id == VendorId);
     if (vendor is null) return NotFound(ApiResponseFactory.Fail("vendor.not_found"));
     var currentCount = await db.Pois.CountAsync(x => x.VendorId == VendorId);
+    if (!vendor.IsPremium && currentCount >= 1)
+      return BadRequest(ApiResponseFactory.Fail("Bạn cần nâng cấp Premium để tạo thêm sạp hàng."));
+
     if (currentCount >= 3)
       return Conflict(ApiResponseFactory.Fail("Mỗi Vendor chỉ được quản lý tối đa 3 POI."));
 

@@ -3,12 +3,12 @@ import { Check, ExternalLink, Loader2, Save, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { resolveBackendMediaUrl } from '../../utils/mediaUrl';
-import { paymentApi } from './paymentApi';
+import { apiThanhToan } from './ApiThanhToan';
 import { adminApiClient } from '../../admin/api/adminApi';
 
 const gateways = ['MOMO', 'BANK', 'VISA'];
 
-export function AdminPaymentSettings() {
+export function CauHinhThanhToanQuanTri() {
   const { t } = useTranslation();
   const [active, setActive] = useState('MOMO');
   const [configs, setConfigs] = useState([]);
@@ -18,7 +18,7 @@ export function AdminPaymentSettings() {
   const [busy, setBusy] = useState(false);
 
   async function load() {
-    const [configData, pendingData] = await Promise.all([paymentApi.getConfigs(), paymentApi.getPending({ senderType: 'USER' })]);
+    const [configData, pendingData] = await Promise.all([apiThanhToan.getConfigs(), apiThanhToan.getPending({ senderType: 'USER' })]);
     setConfigs(configData ?? []);
     setPending(pendingData ?? []);
   }
@@ -42,7 +42,7 @@ export function AdminPaymentSettings() {
     if (qr) body.append('qrCode', qr);
     setBusy(true);
     try {
-      await paymentApi.updateConfig(body);
+      await apiThanhToan.updateConfig(body);
       await load();
       setQr(null);
       toast.success(t('admin_wallet.saved'));
@@ -57,7 +57,7 @@ export function AdminPaymentSettings() {
   }
   async function verify(id, status) {
     setBusy(true);
-    try { await paymentApi.verify(id, status); await load(); toast.success(t('admin_wallet.updated')); }
+    try { await apiThanhToan.verify(id, status); await load(); toast.success(t('admin_wallet.updated')); }
     catch { toast.error(t('common.error')); } finally { setBusy(false); }
   }
 

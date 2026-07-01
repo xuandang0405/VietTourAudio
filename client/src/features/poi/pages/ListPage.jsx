@@ -50,7 +50,7 @@ export function ListPage({ onUpgrade }) {
         return {
           id: apiPoi.slug ?? String(apiPoi.id),
           apiId: String(apiPoi.id),
-          stallId: apiPoi.stallId ? String(apiPoi.stallId) : null,
+          stallId: apiPoi.stallId ? String(apiPoi.stallId) : (apiPoi.StallId ? String(apiPoi.StallId) : null),
           qrCodeId: apiPoi.qrCodeId ?? String(apiPoi.id),
           title: apiPoi.name,
           zoneName: apiPoi.zoneName,

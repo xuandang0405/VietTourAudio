@@ -38,7 +38,9 @@ export function VendorLoginPage() {
       const response = err?.response;
       if (response) {
         const data = response.data;
-        if (response.status === 401 || data?.code === 'VENDOR_AUTH_INVALID') {
+        if (response.status === 403 || data?.errorCode === 'ACCOUNT_LOCKED' || data?.error?.includes('khóa')) {
+          setError(data?.message ?? data?.error ?? 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin.');
+        } else if (response.status === 401 || data?.code === 'VENDOR_AUTH_INVALID') {
           setError(t('auth.invalid_credentials', { defaultValue: 'Tài khoản hoặc mật khẩu không chính xác' }));
         } else if (data?.code === 'VENDOR_PENDING') {
           setError(t('auth.account_pending', { defaultValue: 'Tài khoản của bạn đang chờ Admin phê duyệt' }));

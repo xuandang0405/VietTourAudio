@@ -25,7 +25,7 @@ import { useVendorRevenue, useVendorDashboard } from '../../vendor/api/vendorQue
 import { paySubscriptionFromWallet, requestPremiumUpgrade } from '../../vendor/api/vendorApi';
 import { InsufficientBalanceModal } from '../../features/vendor-wallet/components/InsufficientBalanceModal';
 import { useVendorAuthStore } from '../../vendor/store/vendorAuthStore';
-import { CheckoutMatrix } from '../../features/payment/CheckoutMatrix';
+import { MaTranThanhToan } from '../../features/payment/MaTranThanhToan';
 
 export function VendorFinance() {
   const { t } = useTranslation();
@@ -500,7 +500,7 @@ export function VendorFinance() {
             </label>
 
             <div className="border-t border-slate-100 pt-4">
-              <CheckoutMatrix
+              <MaTranThanhToan
                 senderId={senderId}
                 senderType="VENDOR"
                 transactionType="VENDOR_TOPUP"

@@ -552,21 +552,21 @@ public sealed class DatabaseMediaStorageService : IMediaStorageService
   }
 }
 
-public sealed class DatabasePaymentService : IPaymentService
+public sealed class CsdlDichVuThanhToan : IDichVuThanhToan
 {
   private readonly AppDbContext _db;
 
-  public DatabasePaymentService(AppDbContext db) => _db = db;
+  public CsdlDichVuThanhToan(AppDbContext db) => _db = db;
 
-  public Task<PaymentResponseDto> CreateAsync(PaymentRequestDto request) => SaveAsync(request, "PENDING");
+  public Task<PhanHoiThanhToanDto> CreateAsync(YeuCauThanhToanDto request) => SaveAsync(request, "PENDING");
 
-  public Task<PaymentResponseDto> RecordManualCashAsync(PaymentRequestDto request) =>
+  public Task<PhanHoiThanhToanDto> RecordManualCashAsync(YeuCauThanhToanDto request) =>
     SaveAsync(request with { PaymentMethod = "CASH" }, "APPROVED");
 
   public Task<object> HandleWebhookAsync(object payload) =>
     Task.FromResult<object>(new { Received = true, Payload = payload, ProcessedAt = DateTime.UtcNow });
 
-  private async Task<PaymentResponseDto> SaveAsync(PaymentRequestDto request, string status)
+  private async Task<PhanHoiThanhToanDto> SaveAsync(YeuCauThanhToanDto request, string status)
   {
     var provider = NormalizeProvider(request.PaymentMethod);
     var paymentType = NormalizePaymentType(request.PaymentType);
@@ -593,7 +593,7 @@ public sealed class DatabasePaymentService : IPaymentService
       await command.ExecuteNonQueryAsync();
     }
 
-    return new PaymentResponseDto(id, request.UserId, request.StallId, request.Amount, request.Currency, provider, paymentType, status, transactionCode);
+    return new PhanHoiThanhToanDto(id, request.UserId, request.StallId, request.Amount, request.Currency, provider, paymentType, status, transactionCode);
   }
 
   private static string NormalizeProvider(string provider) => provider.Trim().ToUpperInvariant() switch

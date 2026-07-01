@@ -9,7 +9,7 @@ import { appConfig } from '../../config/appConfig';
 import { getVisitorSessionId } from '../../utils/visitorSession';
 import toast from 'react-hot-toast';
 import { usePremiumStore } from '../../features/vendor-wallet/stores/premiumStore';
-import { premiumAccessApi } from '../../features/payment/premiumAccessApi';
+import { apiTruyCapPremium } from '../../features/payment/ApiTruyCapPremium';
 
 export function CheckoutModal({ open, onClose, onSuccess }) {
   const { t } = useTranslation('translation', { keyPrefix: 'landing' });
@@ -81,7 +81,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
   const triggerPremiumSuccessSequence = useCallback(async () => {
     if (successTriggeredRef.current) return;
     successTriggeredRef.current = true;
-    const premiumStatus = await premiumAccessApi.getStatus();
+    const premiumStatus = await apiTruyCapPremium.getStatus();
     applyServerStatus(premiumStatus);
     setProofStatus('APPROVED');
     toast.success(tRoot('payment.approved_toast'));
@@ -95,7 +95,7 @@ export function CheckoutModal({ open, onClose, onSuccess }) {
     setIsProcessingPayment(true);
     setLoading(true);
     try {
-      const premiumStatus = await premiumAccessApi.unlock24Hours();
+      const premiumStatus = await apiTruyCapPremium.unlock24Hours();
       applyServerStatus(premiumStatus);
       toast.success('Tuyệt vời! Tài khoản của bạn đã được nâng cấp lên Premium trong 24h.');
       onSuccess?.(premiumStatus);

@@ -165,7 +165,7 @@ public sealed record AudioPlayRequestDto(
   string LanguageCode
 );
 
-public sealed record PaymentRequestDto(
+public sealed record YeuCauThanhToanDto(
   string? UserId,
   string? StallId,
   decimal Amount,
@@ -175,7 +175,7 @@ public sealed record PaymentRequestDto(
   string? Note
 );
 
-public sealed record PaymentResponseDto(
+public sealed record PhanHoiThanhToanDto(
   string Id,
   string? UserId,
   string? StallId,

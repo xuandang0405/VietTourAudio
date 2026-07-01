@@ -20,12 +20,12 @@ namespace VietTourAudio.Api.Controllers;
 [ApiController]
 [Route("api/admin")]
 [Authorize(Roles = "SUPER_ADMIN,ADMIN,FINANCE")]
-public sealed class AdminWalletController(
+public sealed class QuanTriViDienTuController(
   AppDbContext db,
   IWebHostEnvironment environment,
-  PaymentEntitlementService entitlements,
+  DichVuKichHoatThanhToan entitlements,
   IHubContext<VietTourAudio.Api.Hubs.NotificationHub> hubContext,
-  ILogger<AdminWalletController> logger) : ControllerBase
+  ILogger<QuanTriViDienTuController> logger) : ControllerBase
 {
   [HttpGet("payment-config")]
   public async Task<IActionResult> Configs() =>
@@ -41,7 +41,7 @@ public sealed class AdminWalletController(
       return BadRequest(ApiResponseFactory.Fail("Invalid gateway type."));
 
     var config = await db.AdminPaymentConfigs.SingleOrDefaultAsync(x => x.GatewayType == gateway)
-      ?? new AdminPaymentConfig { GatewayType = gateway };
+      ?? new CauHinhThanhToan { GatewayType = gateway };
     config.AccountName = request.AccountName?.Trim() ?? "";
     config.AccountNumber = request.AccountNumber?.Trim() ?? "";
     config.TransferMemoPattern = string.IsNullOrWhiteSpace(request.TransferMemoPattern)
@@ -94,7 +94,7 @@ public sealed class AdminWalletController(
     try
     {
       var normalizedId = transactionGuid.ToString("N");
-      var ledger = await db.PaymentTransactions.SingleOrDefaultAsync(payment =>
+      GiaoDichThanhToan? ledger = await db.PaymentTransactions.SingleOrDefaultAsync(payment =>
         payment.Id == id || payment.Id == normalizedId);
       if (ledger is null)
         return NotFound(ApiResponseFactory.Fail("Không tìm thấy hồ sơ giao dịch tương ứng trong Database."));

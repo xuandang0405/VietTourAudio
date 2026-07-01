@@ -18,7 +18,7 @@ paymentClient.interceptors.request.use((config) => {
 
 const unwrap = (response) => response.data?.data ?? response.data;
 
-export const paymentApi = {
+export const apiThanhToan = {
   getPublicGateways: () => axios.get(`${appConfig.apiBaseUrl}/guest/payment-gateways`).then(unwrap),
   initialize: (intent) => paymentClient.post('/initialize', intent).then(unwrap),
   processVisa: (payload) => paymentClient.post('/visa-process', payload).then(unwrap),

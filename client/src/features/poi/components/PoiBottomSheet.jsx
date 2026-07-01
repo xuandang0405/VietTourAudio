@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Heart, Lock, Navigation, QrCode, RefreshCw, Volume2, X } from 'lucide-react';
 import { useFavoritesStore } from '../../../stores/favoritesStore';
+import { getVisitorSessionId } from '../../../utils/visitorSession';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState, useEffect } from 'react';
 import { appConfig } from '../../../config/appConfig';
@@ -27,19 +28,8 @@ export function PoiBottomSheet({
   const { t } = useTranslation();
   const activeStallName = poi?.stall_name || selectedStall?.name || t('common.unknown_stall');
   const activeStallDescription = poi?.stall_description || selectedStall?.description || t('landing.no_description');
-  const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
-  const favorites = useFavoritesStore((state) => state.favorites);
-  const stallId = poi?.stallId || selectedStall?.id || poi?.id;
-  const isFav = stallId ? favorites.includes(stallId) : false;
-
-  const handleToggleFavorite = async (poiId) => {
-    if (!stallId) return;
-    try {
-      await toggleFavorite(stallId);
-    } catch (err) {
-      console.error('Failed to toggle favorite:', err);
-    }
-  };
+  const { favorites, toggleFavorite } = useFavoritesStore();
+  const isFavorited = poi?.id ? (favorites || []).some(favId => String(favId) === String(poi.id) || (poi.stallId && String(favId) === String(poi.stallId))) : false;
 
   const formatDistance = (meters) => {
     if (meters >= 1000) {
@@ -142,15 +132,20 @@ export function PoiBottomSheet({
                     <X size={20} />
                   </button>
                   {poi && (
-                    <motion.button
-                      type="button"
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => handleToggleFavorite(poi.id)}
+                    <button 
+                      type="button" 
+                      onClick={(e) => { e.stopPropagation(); toggleFavorite(poi.id); }}
                       className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-slate-50 transition duration-150 ease-out hover:bg-slate-100 active:scale-[0.98]"
-                      aria-label={isFav ? t('favorites_remove', { defaultValue: 'Xóa khỏi yêu thích' }) : t('favorites_add', { defaultValue: 'Thêm vào yêu thích' })}
+                      aria-label={isFavorited ? t('favorites_remove', { defaultValue: 'Xóa khỏi yêu thích' }) : t('favorites_add', { defaultValue: 'Thêm vào yêu thích' })}
                     >
-                      <Heart size={20} className={isFav ? "text-red-500 fill-red-500" : "text-slate-400"} />
-                    </motion.button>
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" 
+                        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" 
+                        className={`lucide lucide-heart ${isFavorited ? 'fill-red-500 text-red-500' : 'fill-none text-slate-400'}`}
+                      >
+                        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
+                      </svg>
+                    </button>
                   )}
                 </div>
               </div>

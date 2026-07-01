@@ -6,11 +6,11 @@ using VietTourAudio.Api.Helpers;
 
 namespace VietTourAudio.Api.Services;
 
-public sealed class PaymentEntitlementService(
+public sealed class DichVuKichHoatThanhToan(
   AppDbContext db,
-  ILogger<PaymentEntitlementService> logger)
+  ILogger<DichVuKichHoatThanhToan> logger)
 {
-  public async Task<bool> ApplyAsync(PaymentTransaction transaction)
+  public async Task<bool> ApplyAsync(GiaoDichThanhToan transaction)
   {
     var senderId = transaction.SenderId?.Trim() ?? "";
     var senderType = transaction.SenderType?.Trim().ToUpperInvariant() ?? "";

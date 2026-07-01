@@ -26,8 +26,15 @@ public sealed class DatabaseIdentityService(
     var admin = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Email == email);
     if (admin is not null)
     {
-      if (admin.Status != UserStatus.ACTIVE || !BCrypt.Net.BCrypt.Verify(request.Password, admin.PasswordHash))
+      if (!BCrypt.Net.BCrypt.Verify(request.Password, admin.PasswordHash))
         throw new UnauthorizedAccessException("auth.invalid_credentials");
+
+      if (admin.Status == UserStatus.LOCKED || admin.Status == UserStatus.DISABLED)
+        throw new UnauthorizedAccessException("auth.account_locked");
+
+      if (admin.Status != UserStatus.ACTIVE)
+        throw new UnauthorizedAccessException("auth.invalid_credentials");
+
       return CreateToken(new UserResponseDto(admin.Id, admin.FullName, admin.Email, null, admin.Role.ToString(), admin.Status.ToString()), null);
     }
 
@@ -41,9 +48,18 @@ public sealed class DatabaseIdentityService(
       """;
     command.AddParameter("@email", email);
     await using var reader = await command.ExecuteReaderAsync();
-    if (!await reader.ReadAsync() ||
-        reader.GetString(reader.GetOrdinal("status")) != "ACTIVE" ||
-        !BCrypt.Net.BCrypt.Verify(request.Password, reader.GetString(reader.GetOrdinal("pass_hash"))))
+    if (!await reader.ReadAsync())
+      throw new UnauthorizedAccessException("auth.invalid_credentials");
+
+    var passHash = reader.GetString(reader.GetOrdinal("pass_hash"));
+    if (!BCrypt.Net.BCrypt.Verify(request.Password, passHash))
+      throw new UnauthorizedAccessException("auth.invalid_credentials");
+
+    var status = reader.GetString(reader.GetOrdinal("status"));
+    if (status == "LOCKED" || status == "DISABLED")
+      throw new UnauthorizedAccessException("auth.account_locked");
+
+    if (status != "ACTIVE")
       throw new UnauthorizedAccessException("auth.invalid_credentials");
 
     var id = reader.GetString(reader.GetOrdinal("id"));

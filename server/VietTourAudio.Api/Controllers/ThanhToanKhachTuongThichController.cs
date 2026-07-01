@@ -11,7 +11,7 @@ namespace VietTourAudio.Api.Controllers;
 
 [ApiController]
 [Route("api/payment")]
-public sealed class GuestPaymentCompatibilityController(AppDbContext db) : ControllerBase
+public sealed class ThanhToanKhachTuongThichController(AppDbContext db) : ControllerBase
 {
   [HttpPost("create-request")]
   public async Task<IActionResult> Create([FromBody] PaymentUnlockRequest request)

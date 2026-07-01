@@ -7,6 +7,7 @@ import { LeafletMap } from '../../features/poi/components/LeafletMap';
 import { PoiBottomSheet } from '../../features/poi/components/PoiBottomSheet';
 import { useLanguageStore, languages } from '../../stores/languageStore';
 import { useFavoritesStore } from '../../stores/favoritesStore';
+import { getVisitorSessionId } from '../../utils/visitorSession';
 import { usePremiumStore } from '../../features/vendor-wallet/stores/premiumStore';
 import { useAudioStore } from '../../features/geofence-audio/stores/audioStore';
 import { useLocationStore } from '../../features/geofence-audio/stores/locationStore';
@@ -42,9 +43,10 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
   const activeStallName = currentPoi?.stall_name || selectedStall?.name || t('common.unknown_stall');
   const activeStallDescription = currentPoi?.stall_description || selectedStall?.description || t('landing.no_description');
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
-  const favorites = useFavoritesStore((state) => state.favorites);
+  const favorites = useFavoritesStore((state) => state.favorites || []);
   const stallId = currentPoi?.stallId || selectedStall?.id || currentPoi?.id;
-  const isFav = stallId ? favorites.includes(stallId) : false;
+  const isFav = currentPoi?.id ? (favorites || []).some(favId => String(favId) === String(currentPoi.id) || (stallId && String(favId) === String(stallId))) : false;
+  const guestId = getVisitorSessionId();
   const handleToggleAudio = () => {
     if (!currentPoi) return;
     if (isPlaying && currentPoi.id === currentPoiId) {
@@ -115,7 +117,7 @@ function Col2AudioPlayer({ onUpgrade, enrichedPois = [], selectedStall }) {
           {stallId && (
             <motion.button
               whileTap={{ scale: 0.9 }}
-              onClick={() => toggleFavorite(stallId)}
+              onClick={() => toggleFavorite(currentPoi.id)}
               className="h-12 w-12 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 border border-slate-200 shadow-sm hover:bg-slate-100 transition"
               aria-label={isFav ? t('favorites_remove', { defaultValue: 'Xóa khỏi yêu thích' }) : t('favorites_add', { defaultValue: 'Thêm vào yêu thích' })}
             >
@@ -181,8 +183,7 @@ export function PCLayout({
   const [activeTab, setActiveTab] = useState('all');
   const favorites = useFavoritesStore((state) => state.favorites);
   const favoritePois = enrichedPois.filter(poi => {
-    const idToCheck = poi.stallId || poi.id;
-    return idToCheck && favorites.includes(idToCheck);
+    return poi.id && (favorites || []).some(favId => String(favId) === String(poi.id) || (poi.stallId && String(favId) === String(poi.stallId)));
   });
   
   const isPremium = usePremiumStore((state) => state.isPremium);

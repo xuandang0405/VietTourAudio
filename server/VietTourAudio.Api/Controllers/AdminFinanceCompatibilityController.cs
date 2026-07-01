@@ -343,7 +343,7 @@ public sealed class AdminRevenueCompatibilityController(
       .AsNoTracking()
       .ToListAsync();
 
-    object CalculatePeriodMetrics(List<PaymentTransaction> transactions)
+    object CalculatePeriodMetrics(List<GiaoDichThanhToan> transactions)
     {
       decimal tourist = transactions.Where(t => t.SenderType == "USER").Sum(t => t.Amount);
       decimal vendor = transactions.Where(t => t.SenderType == "VENDOR").Sum(t => t.Amount);

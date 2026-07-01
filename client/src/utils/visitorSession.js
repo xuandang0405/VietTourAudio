@@ -1,14 +1,31 @@
 const SESSION_KEY = 'vta-visitor-session';
 const EVENT_PREFIX = 'vta-event';
 
+let inMemorySessionId = null;
+
 export function getVisitorSessionId() {
-  const existing = window.localStorage.getItem(SESSION_KEY);
-  if (existing) {
-    return existing;
+  try {
+    const existing = window.localStorage.getItem(SESSION_KEY);
+    if (existing) {
+      return existing;
+    }
+  } catch (e) {
+    console.warn('LocalStorage is blocked or disabled:', e);
+  }
+
+  if (inMemorySessionId) {
+    return inMemorySessionId;
   }
 
   const sessionId = window.crypto?.randomUUID?.() ?? `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  window.localStorage.setItem(SESSION_KEY, sessionId);
+  
+  try {
+    window.localStorage.setItem(SESSION_KEY, sessionId);
+  } catch (e) {
+    console.warn('Failed to save visitor session to LocalStorage:', e);
+  }
+
+  inMemorySessionId = sessionId;
   return sessionId;
 }
 

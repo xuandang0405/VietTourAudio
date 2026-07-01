@@ -2,7 +2,7 @@ import { apiClient } from '../../services/apiClient';
 
 const unwrap = (response) => response.data?.data ?? response.data;
 
-export const premiumAccessApi = {
+export const apiTruyCapPremium = {
   getStatus: (poiId) =>
     apiClient.get('/user/premium-status', {
       params: poiId ? { poiId: String(poiId) } : undefined

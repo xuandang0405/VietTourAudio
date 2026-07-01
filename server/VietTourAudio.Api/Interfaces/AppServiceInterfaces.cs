@@ -60,11 +60,11 @@ public interface IAnalyticsService
   Task<object> TrackAudioPlayAsync(AudioPlayRequestDto request);
 }
 
-public interface IPaymentService
+public interface IDichVuThanhToan
 {
-  Task<PaymentResponseDto> CreateAsync(PaymentRequestDto request);
+  Task<PhanHoiThanhToanDto> CreateAsync(YeuCauThanhToanDto request);
   Task<object> HandleWebhookAsync(object payload);
-  Task<PaymentResponseDto> RecordManualCashAsync(PaymentRequestDto request);
+  Task<PhanHoiThanhToanDto> RecordManualCashAsync(YeuCauThanhToanDto request);
   Task<string?> GetPremiumPaymentQrAsync();
 }
 

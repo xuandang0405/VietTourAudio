@@ -7,17 +7,17 @@ namespace VietTourAudio.Api.Controllers;
 
 [ApiController]
 [Route("api/payments")]
-public class PaymentController : ControllerBase
+public class ThanhToanController : ControllerBase
 {
-  private readonly IPaymentService _paymentService;
+  private readonly IDichVuThanhToan _paymentService;
 
-  public PaymentController(IPaymentService paymentService)
+  public ThanhToanController(IDichVuThanhToan paymentService)
   {
     _paymentService = paymentService;
   }
 
   [HttpPost]
-  public async Task<IActionResult> CreatePayment([FromBody] PaymentRequestDto request)
+  public async Task<IActionResult> CreatePayment([FromBody] YeuCauThanhToanDto request)
   {
     var result = await _paymentService.CreateAsync(request);
     return Ok(ApiResponseFactory.Ok(result, "Tạo giao dịch thanh toán thành công."));
@@ -31,7 +31,7 @@ public class PaymentController : ControllerBase
   }
 
   [HttpPost("manual-cash")]
-  public async Task<IActionResult> ManualCash([FromBody] PaymentRequestDto request)
+  public async Task<IActionResult> ManualCash([FromBody] YeuCauThanhToanDto request)
   {
     var result = await _paymentService.RecordManualCashAsync(request);
     return Ok(ApiResponseFactory.Ok(result, "Đã ghi nhận doanh thu tiền mặt."));

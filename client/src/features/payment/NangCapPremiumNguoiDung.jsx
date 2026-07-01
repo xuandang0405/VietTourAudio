@@ -3,16 +3,16 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getVisitorSessionId } from '../../utils/visitorSession';
 import { usePremiumStore } from '../vendor-wallet/stores/premiumStore';
-import { CheckoutMatrix } from './CheckoutMatrix';
+import { MaTranThanhToan } from './MaTranThanhToan';
 import { Confetti } from '../../visitor/components/Confetti';
-import { premiumAccessApi } from './premiumAccessApi';
+import { apiTruyCapPremium } from './ApiTruyCapPremium';
 
-export function UserPremiumUpgrade() {
+export function NangCapPremiumNguoiDung() {
   const { t } = useTranslation();
   const applyServerStatus = usePremiumStore((state) => state.applyServerStatus);
   const [celebrating, setCelebrating] = useState(false);
   const handleSuccess = async () => {
-    applyServerStatus(await premiumAccessApi.getStatus());
+    applyServerStatus(await apiTruyCapPremium.getStatus());
     setCelebrating(true);
     window.setTimeout(() => setCelebrating(false), 2200);
   };
@@ -23,7 +23,7 @@ export function UserPremiumUpgrade() {
         <div className="mx-auto my-8 grid max-w-3xl gap-3 sm:grid-cols-3">
           {[['payment.feature_audio', Headphones], ['payment.feature_map', MapPinned], ['payment.feature_unlimited', Sparkles]].map(([key, Icon]) => <div key={key} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center"><Icon className="mx-auto text-teal-300" /><p className="mt-2 text-sm font-bold">{t(key)}</p></div>)}
         </div>
-        <CheckoutMatrix senderId={getVisitorSessionId()} senderType="USER" transactionType="USER_PREMIUM" onSuccess={handleSuccess} />
+        <MaTranThanhToan senderId={getVisitorSessionId()} senderType="USER" transactionType="USER_PREMIUM" onSuccess={handleSuccess} />
       </div>
       <Confetti show={celebrating} />
     </main>

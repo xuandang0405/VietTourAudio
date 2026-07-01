@@ -35,10 +35,9 @@ export function MobileLayout({
   const { t } = useTranslation('translation', { keyPrefix: 'landing' });
   const { t: tRoot } = useTranslation();
   const [activeTab, setActiveTab] = useState('all');
-  const favorites = useFavoritesStore((state) => state.favorites);
+  const favorites = useFavoritesStore((state) => state.favorites || []);
   const favoritePois = visiblePois.filter(poi => {
-    const idToCheck = poi.stallId || poi.id;
-    return idToCheck && favorites.includes(idToCheck);
+    return poi.id && (favorites || []).some(favId => String(favId) === String(poi.id) || (poi.stallId && String(favId) === String(poi.stallId)));
   });
   const isCameraLocked = useLocationStore((state) => state.isCameraLocked);
   const setIsCameraLocked = useLocationStore((state) => state.setIsCameraLocked);
